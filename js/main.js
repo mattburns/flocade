@@ -1,9 +1,20 @@
 const gallery = document.getElementById('gallery');
 
-if (GAMES.length === 0) {
-  gallery.innerHTML = '<p class="empty-state">INSERT COIN<br>(games coming soon)</p>';
-} else {
-  for (const game of GAMES) {
+// no-store bypasses the browser cache so new games appear immediately,
+// despite GitHub Pages' 10-minute max-age on everything it serves
+fetch('games.json', { cache: 'no-store' })
+  .then(res => res.json())
+  .then(renderGallery)
+  .catch(() => {
+    gallery.innerHTML = '<p class="empty-state">COULDN\'T LOAD GAMES<br>(try refreshing)</p>';
+  });
+
+function renderGallery(games) {
+  if (games.length === 0) {
+    gallery.innerHTML = '<p class="empty-state">INSERT COIN<br>(games coming soon)</p>';
+    return;
+  }
+  for (const game of games) {
     const card = document.createElement('a');
     card.className = 'game-card';
     card.href = `games/${game.slug}/`;

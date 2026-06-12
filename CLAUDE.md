@@ -16,9 +16,9 @@ There are no tests or linters configured.
 
 ## Architecture
 
-- `index.html` + `js/main.js` render the homepage gallery from the `GAMES` array in `js/games.js` (the game registry).
+- `index.html` + `js/main.js` render the homepage gallery from `games.json` (the game registry), fetched with `cache: 'no-store'` so new games appear immediately despite GitHub Pages' fixed 10-minute `max-age` caching.
 - Each game lives at `games/<slug>/index.html` and must be **fully self-contained** — its own HTML/CSS/JS in one file or folder, no shared code with the gallery or other games. Games link back to the gallery with `../../`.
-- To add a game: create `games/<slug>/index.html`, then add a `{ slug, title, icon, description }` entry to `js/games.js`. The `slug` must match the folder name.
+- To add a game: create `games/<slug>/index.html`, then add a `{ slug, title, icon, description }` entry to `games.json`. The `slug` must match the folder name.
 
 ## Conventions
 

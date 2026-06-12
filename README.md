@@ -7,7 +7,7 @@ Live at: https://mattburns.github.io/flocade/
 ## Adding a game
 
 1. Create `games/<slug>/index.html` — each game is fully self-contained (its own HTML/CSS/JS, no shared dependencies).
-2. Add an entry to the `GAMES` array in `js/games.js` with the same `slug`.
+2. Add an entry to `games.json` with the same `slug`.
 
 That's it. The gallery on the homepage renders itself from the registry.
 
