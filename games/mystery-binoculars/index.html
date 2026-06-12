@@ -194,8 +194,12 @@
       const r = Math.min(w, h) * 0.42;
       const cy = h / 2;
       const cx1 = w / 2 - r * 0.55, cx2 = w / 2 + r * 0.55;
-      const circle = (cx) => `M ${cx - r},${cy} a ${r},${r} 0 1,0 ${r * 2},0 a ${r},${r} 0 1,0 ${-r * 2},0 Z`;
-      mask.innerHTML = `<path d="M0,0 H${w} V${h} H0 Z ${circle(cx1)} ${circle(cx2)}" fill="#06010f" fill-rule="evenodd"/>
+      mask.innerHTML = `<defs><mask id="lenses">
+          <rect width="${w}" height="${h}" fill="white"/>
+          <circle cx="${cx1}" cy="${cy}" r="${r}" fill="black"/>
+          <circle cx="${cx2}" cy="${cy}" r="${r}" fill="black"/>
+        </mask></defs>
+        <rect width="${w}" height="${h}" fill="#06010f" mask="url(#lenses)"/>
         <circle cx="${cx1}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>
         <circle cx="${cx2}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>`;
       mask.setAttribute('viewBox', `0 0 ${w} ${h}`);
