@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Head Chef — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    a.back { color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; align-self: flex-start; }
+    h1 { font-family: 'Press Start 2P', monospace; font-size: 1.4rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 1rem 0 0.25rem; }
+    .subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem; }
+
+    #game { width: 100%; max-width: 520px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    /* Panda scene */
+    .scene { display: flex; align-items: center; gap: 0.75rem; min-height: 90px; }
+    .panda { font-size: 4rem; line-height: 1; transition: transform 0.3s; }
+    .panda.happy { animation: bounce 0.6s ease infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+    .bubble {
+      background: var(--text);
+      color: #1a0b3d;
+      border-radius: 16px;
+      padding: 0.6rem 1rem;
+      font-size: 1rem;
+      font-weight: 600;
+      position: relative;
+      max-width: 300px;
+    }
+    .bubble::before {
+      content: '';
+      position: absolute;
+      left: -8px; top: 50%;
+      transform: translateY(-50%);
+      border: 8px solid transparent;
+      border-right-color: var(--text);
+      border-left: none;
+    }
+
+    /* Stage */
+    .stage {
+      background: var(--card);
+      border: 2px solid var(--pink);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.25);
+      width: 100%;
+      min-height: 320px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .prompt { font-family: 'Press Start 2P', monospace; font-size: 0.75rem; color: var(--cyan); text-align: center; line-height: 1.8; }
+
+    /* Recipe book (level select) */
+    .recipes { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; }
+    .recipe-btn {
+      background: var(--bg);
+      border: 2px solid var(--cyan);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      padding: 0.9rem 1.1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .recipe-btn:hover { transform: translateY(-2px); box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
+    .recipe-btn .dish { font-size: 1.8rem; }
+    .recipe-btn .stars { margin-left: auto; color: var(--yellow); letter-spacing: 2px; }
+
+    /* Ingredient grid */
+    .items { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+    .item {
+      background: var(--bg);
+      border: 2px solid var(--dim);
+      border-radius: 12px;
+      font-size: 2.4rem;
+      width: 84px; height: 84px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .item:hover { transform: scale(1.06); }
+    .item .count {
+      position: absolute;
+      bottom: 4px; right: 6px;
+      font-size: 0.7rem;
+      font-family: 'Press Start 2P', monospace;
+      color: var(--yellow);
+    }
+    .item.done { border-color: var(--cyan); opacity: 0.5; pointer-events: none; }
+    .item.wrong { animation: shake 0.3s; border-color: var(--pink); }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+    .item.chopped::after {
+      content: '✨';
+      position: absolute;
+      top: 2px; left: 4px;
+      font-size: 0.9rem;
+    }
+
+    /* Tap-action */
+    .big-action {
+      font-size: 5.5rem;
+      cursor: pointer;
+      transition: transform 0.08s;
+      line-height: 1.2;
+    }
+    .big-action:active { transform: scale(0.9) rotate(-6deg); }
+    .progress { width: 80%; height: 16px; background: var(--bg); border: 2px solid var(--dim); border-radius: 8px; overflow: hidden; }
+    .progress .fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--pink), var(--yellow)); transition: width 0.15s; }
+
+    /* Serve */
+    .dish-serve { font-size: 5.5rem; cursor: pointer; animation: bounce 0.8s ease infinite alternate; }
+
+    /* Results */
+    .result-stars { font-size: 2.6rem; letter-spacing: 6px; }
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      padding: 0.9rem 1.4rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn.alt { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); }
+
+    /* Floating hearts */
+    .heart {
+      position: fixed;
+      font-size: 1.6rem;
+      pointer-events: none;
+      animation: floatUp 0.9s ease-out forwards;
+      z-index: 10;
+    }
+    @keyframes floatUp {
+      from { opacity: 1; transform: translateY(0) scale(1); }
+      to { opacity: 0; transform: translateY(-70px) scale(1.5); }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <h1>HEAD CHEF</h1>
+  <p class="subtitle">Cook for the hungry panda 🐼 — no timers, no stress</p>
+  <div id="game"></div>
+
+  <script>
+    const RECIPES = [
+      {
+        id: 'bamboo-smoothie',
+        name: 'Bamboo Smoothie',
+        dish: '🥤',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🎋', '🍌', '🥛'], decoys: ['🧀', '🌶️', '🍄'] },
+          { type: 'chop', prompt: 'CHOP IT ALL UP', items: [{ emoji: '🎋', taps: 3 }, { emoji: '🍌', taps: 3 }] },
+          { type: 'action', prompt: 'TAP TO BLEND!', emoji: '🌀', taps: 8 },
+          { type: 'action', prompt: 'POUR IT OUT', emoji: '🫗', taps: 4 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'panda-salad',
+        name: 'Panda Salad',
+        dish: '🥗',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🥬', '🥕', '🍅', '🥒'], decoys: ['🍫', '🍭'] },
+          { type: 'chop', prompt: 'CHOP THE VEGGIES', items: [{ emoji: '🥕', taps: 4 }, { emoji: '🍅', taps: 3 }, { emoji: '🥒', taps: 3 }] },
+          { type: 'action', prompt: 'TOSS THE SALAD', emoji: '🥗', taps: 6 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'pancake-stack',
+        name: 'Pancake Stack',
+        dish: '🥞',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🥚', '🥛', '🌾', '🧈'], decoys: ['🐟', '🧄'] },
+          { type: 'action', prompt: 'WHISK THE BATTER', emoji: '🥣', taps: 8 },
+          { type: 'action', prompt: 'FLIP THE PANCAKES', emoji: '🥞', taps: 6 },
+          { type: 'action', prompt: 'DRIZZLE THE HONEY', emoji: '🍯', taps: 4 },
+          { type: 'serve' },
+        ],
+      },
+    ];
+
+    const game = document.getElementById('game');
+    const stars = JSON.parse(localStorage.getItem('headchef-stars') || '{}');
+
+    function saveStars(id, n) {
+      stars[id] = Math.max(stars[id] || 0, n);
+      localStorage.setItem('headchef-stars', JSON.stringify(stars));
+    }
+
+    function heartBurst(x, y) {
+      const h = document.createElement('div');
+      h.className = 'heart';
+      h.textContent = '❤️';
+      h.style.left = (x - 12) + 'px';
+      h.style.top = (y - 12) + 'px';
+      document.body.appendChild(h);
+      setTimeout(() => h.remove(), 900);
+    }
+
+    function el(html) {
+      const t = document.createElement('template');
+      t.innerHTML = html.trim();
+      return t.content.firstChild;
+    }
+
+    function showMenu() {
+      game.innerHTML = '';
+      const scene = el(`<div class="scene">
+        <div class="panda">🐼</div>
+        <div class="bubble">I'm hungry! What's cooking, chef?</div>
+      </div>`);
+      const stage = el(`<div class="stage"><p class="prompt">RECIPE BOOK</p><div class="recipes"></div></div>`);
+      const list = stage.querySelector('.recipes');
+      for (const r of RECIPES) {
+        const earned = stars[r.id] || 0;
+        const btn = el(`<button class="recipe-btn">
+          <span class="dish">${r.dish}</span> ${r.name}
+          <span class="stars">${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}</span>
+        </button>`);
+        btn.addEventListener('click', () => startRecipe(r));
+        list.appendChild(btn);
+      }
+      game.append(scene, stage);
+    }
+
+    function startRecipe(recipe) {
+      const run = { recipe, stepIndex: 0, mistakes: 0 };
+      showStep(run);
+    }
+
+    function sceneFor(run, bubbleText) {
+      return el(`<div class="scene">
+        <div class="panda">🐼</div>
+        <div class="bubble">${bubbleText}</div>
+      </div>`);
+    }
+
+    function showStep(run) {
+      const step = run.recipe.steps[run.stepIndex];
+      game.innerHTML = '';
+      game.appendChild(sceneFor(run, `One ${run.recipe.name} ${run.recipe.dish}, please!`));
+      const stage = el(`<div class="stage"></div>`);
+      game.appendChild(stage);
+
+      if (step.type === 'pick') renderPick(run, step, stage);
+      else if (step.type === 'chop') renderChop(run, step, stage);
+      else if (step.type === 'action') renderAction(run, step, stage);
+      else if (step.type === 'serve') renderServe(run, stage);
+    }
+
+    function nextStep(run) {
+      run.stepIndex++;
+      showStep(run);
+    }
+
+    function renderPick(run, step, stage) {
+      stage.appendChild(el(`<p class="prompt">${step.prompt}</p>`));
+      const grid = el(`<div class="items"></div>`);
+      const all = [...step.need.map(e => ({ emoji: e, good: true })), ...step.decoys.map(e => ({ emoji: e, good: false }))];
+      all.sort(() => Math.random() - 0.5);
+      let remaining = step.need.length;
+      for (const ing of all) {
+        const div = el(`<div class="item">${ing.emoji}</div>`);
+        div.addEventListener('click', e => {
+          if (ing.good) {
+            div.classList.add('done');
+            heartBurst(e.clientX, e.clientY);
+            if (--remaining === 0) setTimeout(() => nextStep(run), 400);
+          } else {
+            run.mistakes++;
+            div.classList.remove('wrong');
+            void div.offsetWidth; // restart the shake animation
+            div.classList.add('wrong');
+          }
+        });
+        grid.appendChild(div);
+      }
+      stage.appendChild(grid);
+    }
+
+    function renderChop(run, step, stage) {
+      stage.appendChild(el(`<p class="prompt">${step.prompt}</p>`));
+      const grid = el(`<div class="items"></div>`);
+      let remaining = step.items.length;
+      for (const it of step.items) {
+        let left = it.taps;
+        const div = el(`<div class="item">${it.emoji}<span class="count">${left}</span></div>`);
+        const counter = div.querySelector('.count');
+        div.addEventListener('click', e => {
+          left--;
+          counter.textContent = left;
+          div.style.transform = 'scale(0.92)';
+          setTimeout(() => { div.style.transform = ''; }, 80);
+          if (left === 0) {
+            div.classList.add('done', 'chopped');
+            counter.textContent = '';
+            heartBurst(e.clientX, e.clientY);
+            if (--remaining === 0) setTimeout(() => nextStep(run), 400);
+          }
+        });
+        grid.appendChild(div);
+      }
+      stage.appendChild(grid);
+    }
+
+    function renderAction(run, step, stage) {
+      stage.appendChild(el(`<p class="prompt">${step.prompt}</p>`));
+      const big = el(`<div class="big-action">${step.emoji}</div>`);
+      const bar = el(`<div class="progress"><div class="fill"></div></div>`);
+      const fill = bar.querySelector('.fill');
+      let taps = 0;
+      big.addEventListener('click', e => {
+        taps++;
+        fill.style.width = Math.min(100, (taps / step.taps) * 100) + '%';
+        if (taps === step.taps) {
+          heartBurst(e.clientX, e.clientY);
+          setTimeout(() => nextStep(run), 400);
+        }
+      });
+      stage.append(big, bar);
+    }
+
+    function renderServe(run, stage) {
+      stage.appendChild(el(`<p class="prompt">SERVE IT UP!</p>`));
+      const dish = el(`<div class="dish-serve">${run.recipe.dish}</div>`);
+      dish.addEventListener('click', e => {
+        heartBurst(e.clientX, e.clientY);
+        finishRecipe(run);
+      });
+      stage.appendChild(dish);
+    }
+
+    function finishRecipe(run) {
+      const earned = Math.max(1, 3 - run.mistakes);
+      saveStars(run.recipe.id, earned);
+      game.innerHTML = '';
+      const scene = el(`<div class="scene">
+        <div class="panda happy">🐼</div>
+        <div class="bubble">Mmm! ${run.recipe.dish} Delicious! Thank you, chef!</div>
+      </div>`);
+      const stage = el(`<div class="stage">
+        <p class="prompt">DISH COMPLETE!</p>
+        <div class="result-stars">${'⭐'.repeat(earned)}${'<span style="opacity:0.25">⭐</span>'.repeat(3 - earned)}</div>
+        <button class="btn">RECIPE BOOK</button>
+      </div>`);
+      stage.querySelector('.btn').addEventListener('click', showMenu);
+      game.append(scene, stage);
+      // celebration hearts
+      for (let i = 0; i < 6; i++) {
+        setTimeout(() => heartBurst(
+          window.innerWidth / 2 + (Math.random() - 0.5) * 200,
+          window.innerHeight / 2 + (Math.random() - 0.5) * 100
+        ), i * 150);
+      }
+    }
+
+    showMenu();
+  </script>
+</body>
+</html>

@@ -8,4 +8,10 @@ const GAMES = [
     icon: '🏓',
     description: 'The classic. First to 5 wins. You vs. the machine.',
   },
+  {
+    slug: 'head-chef',
+    title: 'Head Chef',
+    icon: '🐼',
+    description: 'Cook tasty dishes for a hungry panda. No timers, no stress.',
+  },
 ];
