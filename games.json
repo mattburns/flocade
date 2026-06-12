@@ -34,5 +34,11 @@
     "title": "Worms",
     "icon": "🪱",
     "description": "Slither, eat, grow. Become the biggest worm in the mud."
+  },
+  {
+    "slug": "dj-panel",
+    "title": "DJ Panel",
+    "icon": "🎧",
+    "description": "Drop beats and jam over rock, jazz and pop grooves. Airhorn included."
   }
 ]
