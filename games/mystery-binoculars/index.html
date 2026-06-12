@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mystery Binoculars — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    /* Camera + world layers */
+    #stage { position: fixed; inset: 0; }
+    #camera {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      background: linear-gradient(160deg, #1d3557 0%, #2b0a5e 50%, #0d0221 100%);
+    }
+    #world { position: absolute; inset: 0; overflow: hidden; }
+
+    .animal {
+      position: absolute;
+      font-size: 4rem;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      animation: bob 1.2s ease-in-out infinite alternate;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+    }
+    @keyframes bob { from { margin-top: 0; } to { margin-top: -10px; } }
+    .animal .alert {
+      position: absolute;
+      top: -1.4rem; left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.6rem;
+      font-family: 'Press Start 2P', monospace;
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 #000;
+      display: none;
+    }
+    .animal.spotted .alert { display: block; }
+    .animal .ring {
+      position: absolute;
+      inset: -14px;
+      border: 4px solid var(--yellow);
+      border-radius: 50%;
+      display: none;
+    }
+    .animal.spotted .ring { display: block; animation: shrink linear forwards; }
+    @keyframes shrink { from { transform: scale(1.6); opacity: 1; } to { transform: scale(0.7); opacity: 0.3; } }
+    .animal.fleeing { transition: left 0.5s ease-in, opacity 0.5s; opacity: 0; animation: none; }
+    .animal.caught { transition: transform 0.4s, opacity 0.4s; transform: translate(-50%, -50%) scale(2.2); opacity: 0; animation: none; }
+
+    .hint-arrow {
+      position: absolute;
+      font-size: 2.4rem;
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 #000;
+      pointer-events: none;
+      animation: bob 0.5s ease-in-out infinite alternate;
+      z-index: 5;
+    }
+
+    /* Binocular mask */
+    #mask { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+
+    /* HUD */
+    #hud {
+      position: absolute;
+      top: max(10px, env(safe-area-inset-top));
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      z-index: 6;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.85rem;
+      text-shadow: 2px 2px 0 #000;
+      pointer-events: none;
+    }
+    #hud .score { color: var(--yellow); }
+    #hud .clock { color: var(--cyan); }
+    #hud .clock.low { color: var(--pink); }
+
+    .pop {
+      position: fixed;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1rem;
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 #000;
+      pointer-events: none;
+      animation: popUp 0.8s ease-out forwards;
+      z-index: 7;
+    }
+    @keyframes popUp { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-60px); } }
+
+    /* Overlay screens */
+    .screen {
+      position: fixed; inset: 0;
+      background: rgba(13, 2, 33, 0.92);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      overflow-y: auto;
+      text-align: center;
+    }
+    .screen h1 { font-family: 'Press Start 2P', monospace; font-size: 1.2rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); line-height: 1.8; }
+    .screen p { color: var(--dim); max-width: 420px; line-height: 1.6; }
+    .screen .bigscore { font-family: 'Press Start 2P', monospace; font-size: 2rem; color: var(--cyan); }
+    a.back { position: fixed; top: 12px; left: 12px; z-index: 11; color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; }
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem;
+      padding: 1rem 1.6rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+
+    table.scores {
+      border-collapse: collapse;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      color: var(--text);
+    }
+    table.scores td { padding: 0.35rem 0.8rem; }
+    table.scores .rank { color: var(--dim); }
+    table.scores .pts { color: var(--yellow); text-align: right; }
+    table.scores tr.latest td { color: var(--cyan); }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <video id="camera" autoplay playsinline muted></video>
+    <div id="world"></div>
+    <svg id="mask" width="100%" height="100%" preserveAspectRatio="none"></svg>
+    <div id="hud" style="display:none">
+      <span class="score">🐾 0</span>
+      <span class="clock">5:00</span>
+    </div>
+  </div>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <div id="screen"></div>
+
+  <script>
+    const ANIMALS = ['🐵', '🦊', '🦜', '🐸', '🦄', '🐼', '🦖', '🐙', '🦉', '🐨'];
+    const GAME_SECONDS = 300;
+    const FOV_DEG = 55;            // horizontal field of view of the binoculars
+    const SPOT_SECONDS = 2.5;      // tap window before the animal flees
+    const HINT_AFTER = 7;          // seconds unseen before a direction hint shows
+
+    const video = document.getElementById('camera');
+    const world = document.getElementById('world');
+    const mask = document.getElementById('mask');
+    const hud = document.getElementById('hud');
+    const hudScore = hud.querySelector('.score');
+    const hudClock = hud.querySelector('.clock');
+    const screen = document.getElementById('screen');
+
+    const board = JSON.parse(localStorage.getItem('mystery-binoculars-scores') || '[]');
+    let lastName = localStorage.getItem('mystery-binoculars-name') || 'FLO';
+
+    let view = { az: 0, el: 0 };   // where the binoculars point
+    let gyro = false;
+    let game = null;               // active game state
+
+    // ---------- Binocular mask ----------
+    function drawMask() {
+      const w = innerWidth, h = innerHeight;
+      const r = Math.min(w, h) * 0.42;
+      const cy = h / 2;
+      const cx1 = w / 2 - r * 0.55, cx2 = w / 2 + r * 0.55;
+      const circle = (cx) => `M ${cx - r},${cy} a ${r},${r} 0 1,0 ${r * 2},0 a ${r},${r} 0 1,0 ${-r * 2},0 Z`;
+      mask.innerHTML = `<path d="M0,0 H${w} V${h} H0 Z ${circle(cx1)} ${circle(cx2)}" fill="#06010f" fill-rule="evenodd"/>
+        <circle cx="${cx1}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>
+        <circle cx="${cx2}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>`;
+      mask.setAttribute('viewBox', `0 0 ${w} ${h}`);
+      return { r, cy, cx1, cx2 };
+    }
+    let lens = drawMask();
+    addEventListener('resize', () => { lens = drawMask(); });
+
+    function inLens(x, y, margin = 0) {
+      const d1 = Math.hypot(x - lens.cx1, y - lens.cy), d2 = Math.hypot(x - lens.cx2, y - lens.cy);
+      return d1 < lens.r - margin || d2 < lens.r - margin;
+    }
+
+    // ---------- Looking around: gyro or drag ----------
+    function angleDelta(a, b) { return ((a - b + 540) % 360) - 180; }
+
+    addEventListener('deviceorientation', e => {
+      if (e.alpha === null) return;
+      gyro = true;
+      view.az = (360 - e.alpha) % 360;
+      view.el = Math.max(-45, Math.min(45, (e.beta ?? 90) - 90));
+    });
+
+    let dragging = null;
+    addEventListener('pointerdown', e => { dragging = { x: e.clientX, y: e.clientY }; });
+    addEventListener('pointermove', e => {
+      if (!dragging || gyro) return;
+      const degPerPx = FOV_DEG / innerWidth;
+      view.az = (view.az - (e.clientX - dragging.x) * degPerPx + 360) % 360;
+      view.el = Math.max(-45, Math.min(45, view.el + (e.clientY - dragging.y) * degPerPx));
+      dragging = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', () => { dragging = null; });
+
+    // ---------- Sounds (WebAudio, no assets) ----------
+    let audio = null;
+    function beep(notes) {
+      try {
+        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        notes.forEach(([freq, t]) => {
+          const o = audio.createOscillator(), g = audio.createGain();
+          o.frequency.value = freq;
+          o.type = 'square';
+          g.gain.setValueAtTime(0.06, audio.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + t + 0.15);
+          o.connect(g).connect(audio.destination);
+          o.start(audio.currentTime + t);
+          o.stop(audio.currentTime + t + 0.16);
+        });
+      } catch (e) { /* sound is a bonus */ }
+    }
+    const sndCatch = () => beep([[523, 0], [784, 0.12]]);
+    const sndFlee = () => beep([[400, 0], [250, 0.12]]);
+
+    // ---------- Game ----------
+    function spawnAnimal() {
+      const g = game;
+      const emoji = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+      // anchor it somewhere that needs searching: 60-300 degrees away from the current view
+      const az = (view.az + 60 + Math.random() * 240) % 360;
+      const el = (Math.random() - 0.5) * 24;
+      const div = document.createElement('div');
+      div.className = 'animal';
+      div.innerHTML = `${emoji}<span class="alert">!</span><span class="ring"></span>`;
+      world.appendChild(div);
+      g.animal = { emoji, az, el, div, spotted: 0, unseenSince: performance.now(), gone: false };
+
+      div.addEventListener('pointerdown', e => {
+        e.stopPropagation();
+        if (g.animal && !g.animal.gone && g.animal.spotted) catchAnimal();
+      });
+    }
+
+    function catchAnimal() {
+      const g = game;
+      g.animal.gone = true;
+      g.score++;
+      hudScore.textContent = `🐾 ${g.score}`;
+      g.animal.div.classList.add('caught');
+      sndCatch();
+      const pop = document.createElement('div');
+      pop.className = 'pop';
+      pop.textContent = `CAUGHT THE ${g.animal.emoji}!`;
+      pop.style.left = '50%';
+      pop.style.top = '30%';
+      pop.style.transform = 'translateX(-50%)';
+      document.body.appendChild(pop);
+      setTimeout(() => pop.remove(), 800);
+      removeAndRespawn(400);
+    }
+
+    function fleeAnimal() {
+      const g = game;
+      g.animal.gone = true;
+      g.animal.div.classList.add('fleeing');
+      g.animal.div.style.left = (parseFloat(g.animal.div.style.left) + (Math.random() < 0.5 ? -300 : 300)) + 'px';
+      sndFlee();
+      removeAndRespawn(500);
+    }
+
+    function removeAndRespawn(delay) {
+      const div = game.animal.div;
+      const token = game.token;
+      setTimeout(() => {
+        div.remove();
+        if (game && game.token === token && game.running) spawnAnimal();
+      }, delay);
+    }
+
+    function tick(now) {
+      const g = game;
+      if (!g || !g.running) return;
+      requestAnimationFrame(tick);
+
+      // clock
+      const left = Math.max(0, GAME_SECONDS - (now - g.startedAt) / 1000);
+      const m = Math.floor(left / 60), s = Math.floor(left % 60);
+      hudClock.textContent = `${m}:${String(s).padStart(2, '0')}`;
+      hudClock.classList.toggle('low', left < 30);
+      if (left <= 0) { endGame(); return; }
+
+      const a = g.animal;
+      if (!a || a.gone) return;
+
+      // project the animal into screen space
+      const pxPerDeg = innerWidth / FOV_DEG;
+      const x = innerWidth / 2 + angleDelta(a.az, view.az) * pxPerDeg;
+      const y = innerHeight / 2 - (a.el - view.el) * pxPerDeg;
+      a.div.style.left = x + 'px';
+      a.div.style.top = y + 'px';
+
+      const visible = inLens(x, y, 30);
+      if (visible && !a.spotted) {
+        a.spotted = now;
+        a.div.classList.add('spotted');
+        a.div.querySelector('.ring').style.animationDuration = SPOT_SECONDS + 's';
+        g.hintEl.style.display = 'none';
+      }
+      if (a.spotted && now - a.spotted > SPOT_SECONDS * 1000) {
+        fleeAnimal();
+        return;
+      }
+
+      // edge hint arrow if it's been hiding too long
+      if (!a.spotted && now - a.unseenSince > HINT_AFTER * 1000) {
+        const d = angleDelta(a.az, view.az);
+        g.hintEl.style.display = 'block';
+        g.hintEl.textContent = Math.abs(d) > FOV_DEG / 2 ? (d > 0 ? '👉' : '👈') : (a.el - view.el > 0 ? '👆' : '👇');
+        g.hintEl.style.left = (d > 0 ? innerWidth - 70 : 30) + 'px';
+        g.hintEl.style.top = (innerHeight / 2 - 20) + 'px';
+        if (Math.abs(d) <= FOV_DEG / 2) {
+          g.hintEl.style.left = (innerWidth / 2 - 20) + 'px';
+          g.hintEl.style.top = (a.el - view.el > 0 ? 80 : innerHeight - 110) + 'px';
+        }
+      }
+    }
+
+    async function startGame() {
+      // iOS needs an in-gesture permission request for the gyroscope
+      if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+        try { await DeviceOrientationEvent.requestPermission(); } catch (e) { /* drag fallback */ }
+      }
+      if (!video.srcObject) {
+        try {
+          video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        } catch (e) { /* no camera: the gradient backdrop stands in */ }
+      }
+
+      screen.innerHTML = '';
+      hud.style.display = 'flex';
+      hudScore.textContent = '🐾 0';
+      world.innerHTML = '';
+      const hintEl = document.createElement('div');
+      hintEl.className = 'hint-arrow';
+      hintEl.style.display = 'none';
+      world.appendChild(hintEl);
+
+      game = { score: 0, startedAt: performance.now(), running: true, animal: null, hintEl, token: Math.random() };
+      spawnAnimal();
+      requestAnimationFrame(tick);
+    }
+
+    function endGame() {
+      game.running = false;
+      hud.style.display = 'none';
+      world.innerHTML = '';
+      const score = game.score;
+
+      if (score > 0) {
+        const name = (prompt(`You caught ${score}! Your name for the leaderboard:`, lastName) || lastName).trim().slice(0, 12) || 'FLO';
+        lastName = name;
+        localStorage.setItem('mystery-binoculars-name', name);
+        board.push({ name, score, when: Date.now() });
+        board.sort((a, b) => b.score - a.score);
+        board.length = Math.min(board.length, 10);
+        localStorage.setItem('mystery-binoculars-scores', JSON.stringify(board));
+      }
+      showScreen(`TIME'S UP!`, score);
+    }
+
+    function leaderboardHTML(latestScore) {
+      if (!board.length) return '<p>No catches yet — be the first!</p>';
+      let marked = false;
+      return `<table class="scores">${board.map((e, i) => {
+        const isLatest = !marked && latestScore !== null && e.score === latestScore && e.name === lastName;
+        if (isLatest) marked = true;
+        return `<tr${isLatest ? ' class="latest"' : ''}>
+          <td class="rank">${i + 1}.</td><td>${e.name.replace(/</g, '&lt;')}</td><td class="pts">${e.score}</td>
+        </tr>`;
+      }).join('')}</table>`;
+    }
+
+    function showScreen(title, finalScore = null) {
+      screen.innerHTML = `<div class="screen">
+        <h1>${title}</h1>
+        ${finalScore !== null ? `<div class="bigscore">🐾 ${finalScore}</div>` : `
+          <div style="font-size:3rem">🔭</div>
+          <p>A mystery animal is hiding in your room!
+          Look around through the binoculars to find it — then <b>tap it fast</b> before it runs away.
+          Catch as many as you can in 5 minutes.</p>`}
+        ${leaderboardHTML(finalScore)}
+        <button class="btn">${finalScore !== null ? 'PLAY AGAIN' : 'START SAFARI'}</button>
+        <p style="font-size:0.8rem">📱 On a phone, move the phone around to search.<br>🖱️ No gyroscope? Drag to look around.</p>
+      </div>`;
+      screen.querySelector('.btn').addEventListener('click', startGame);
+    }
+
+    showScreen('MYSTERY<br>BINOCULARS');
+  </script>
+</body>
+</html>

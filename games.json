@@ -22,5 +22,11 @@
     "title": "Bristol Fashion",
     "icon": "👗",
     "description": "Design fabulous looks — hair, makeup, outfits — and fill your wardrobe."
+  },
+  {
+    "slug": "mystery-binoculars",
+    "title": "Mystery Binoculars",
+    "icon": "🔭",
+    "description": "AR safari! Search your room for hiding animals and tap them before they bolt."
   }
 ]
