@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1rem;
+    }
+    a.back {
+      color: #00f0ff;
+      font-size: 0.7rem;
+      text-decoration: none;
+    }
+    canvas {
+      border: 2px solid #ff2e88;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+      max-width: 100%;
+      touch-action: none;
+    }
+    .hint { font-size: 0.6rem; color: #9b93b8; text-align: center; line-height: 2; }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <canvas id="game" width="640" height="400"></canvas>
+  <p class="hint">Move: mouse / touch / &uarr;&darr; keys &middot; First to 5 wins &middot; Click to start</p>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const PADDLE_H = 70, PADDLE_W = 10, BALL_R = 6, WIN_SCORE = 5;
+
+    let state = 'waiting'; // waiting | playing | over
+    let player = { y: H / 2, score: 0 };
+    let cpu = { y: H / 2, score: 0 };
+    let ball = {};
+
+    function resetBall(towardPlayer) {
+      ball = {
+        x: W / 2,
+        y: H / 2,
+        vx: (towardPlayer ? -1 : 1) * 4,
+        vy: (Math.random() - 0.5) * 5,
+      };
+    }
+    resetBall(true);
+
+    function movePlayerTo(clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = H / rect.height;
+      player.y = Math.max(PADDLE_H / 2, Math.min(H - PADDLE_H / 2, (clientY - rect.top) * scale));
+    }
+
+    canvas.addEventListener('mousemove', e => movePlayerTo(e.clientY));
+    canvas.addEventListener('touchmove', e => {
+      e.preventDefault();
+      movePlayerTo(e.touches[0].clientY);
+    }, { passive: false });
+
+    const keys = {};
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        keys[e.key] = true;
+        e.preventDefault();
+      }
+    });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+    canvas.addEventListener('pointerdown', () => {
+      if (state === 'waiting') state = 'playing';
+      else if (state === 'over') {
+        player.score = 0;
+        cpu.score = 0;
+        resetBall(true);
+        state = 'playing';
+      }
+    });
+
+    function update() {
+      if (keys['ArrowUp']) player.y = Math.max(PADDLE_H / 2, player.y - 6);
+      if (keys['ArrowDown']) player.y = Math.min(H - PADDLE_H / 2, player.y + 6);
+
+      if (state !== 'playing') return;
+
+      ball.x += ball.vx;
+      ball.y += ball.vy;
+
+      // walls
+      if (ball.y < BALL_R || ball.y > H - BALL_R) {
+        ball.vy *= -1;
+        ball.y = Math.max(BALL_R, Math.min(H - BALL_R, ball.y));
+      }
+
+      // player paddle (left)
+      if (ball.x - BALL_R < 20 + PADDLE_W && ball.x > 20 && Math.abs(ball.y - player.y) < PADDLE_H / 2 + BALL_R && ball.vx < 0) {
+        ball.vx = -ball.vx * 1.05;
+        ball.vy += (ball.y - player.y) * 0.15;
+      }
+
+      // cpu paddle (right)
+      if (ball.x + BALL_R > W - 20 - PADDLE_W && ball.x < W - 20 && Math.abs(ball.y - cpu.y) < PADDLE_H / 2 + BALL_R && ball.vx > 0) {
+        ball.vx = -ball.vx * 1.05;
+        ball.vy += (ball.y - cpu.y) * 0.15;
+      }
+
+      // cpu follows the ball, imperfectly
+      cpu.y += Math.max(-4.2, Math.min(4.2, ball.y - cpu.y));
+      cpu.y = Math.max(PADDLE_H / 2, Math.min(H - PADDLE_H / 2, cpu.y));
+
+      // scoring
+      if (ball.x < 0) {
+        cpu.score++;
+        afterPoint(true);
+      } else if (ball.x > W) {
+        player.score++;
+        afterPoint(false);
+      }
+    }
+
+    function afterPoint(towardPlayer) {
+      if (player.score >= WIN_SCORE || cpu.score >= WIN_SCORE) {
+        state = 'over';
+      } else {
+        resetBall(towardPlayer);
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#0d0221';
+      ctx.fillRect(0, 0, W, H);
+
+      // center line
+      ctx.strokeStyle = 'rgba(232, 230, 240, 0.25)';
+      ctx.setLineDash([8, 12]);
+      ctx.beginPath();
+      ctx.moveTo(W / 2, 0);
+      ctx.lineTo(W / 2, H);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // scores
+      ctx.fillStyle = '#ffe600';
+      ctx.font = '24px "Press Start 2P"';
+      ctx.textAlign = 'center';
+      ctx.fillText(player.score, W / 4, 40);
+      ctx.fillText(cpu.score, (3 * W) / 4, 40);
+
+      // paddles
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillRect(20, player.y - PADDLE_H / 2, PADDLE_W, PADDLE_H);
+      ctx.fillStyle = '#ff2e88';
+      ctx.fillRect(W - 20 - PADDLE_W, cpu.y - PADDLE_H / 2, PADDLE_W, PADDLE_H);
+
+      // ball
+      if (state === 'playing') {
+        ctx.fillStyle = '#e8e6f0';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // overlays
+      ctx.fillStyle = '#e8e6f0';
+      ctx.font = '14px "Press Start 2P"';
+      if (state === 'waiting') {
+        ctx.fillText('CLICK TO START', W / 2, H / 2 + 60);
+      } else if (state === 'over') {
+        const won = player.score >= WIN_SCORE;
+        ctx.fillStyle = won ? '#ffe600' : '#ff2e88';
+        ctx.font = '20px "Press Start 2P"';
+        ctx.fillText(won ? 'YOU WIN!' : 'GAME OVER', W / 2, H / 2 - 20);
+        ctx.fillStyle = '#e8e6f0';
+        ctx.font = '12px "Press Start 2P"';
+        ctx.fillText('CLICK TO PLAY AGAIN', W / 2, H / 2 + 30);
+      }
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+:root {
+  --bg: #0d0221;
+  --bg-card: #1a0b3d;
+  --neon-pink: #ff2e88;
+  --neon-cyan: #00f0ff;
+  --neon-yellow: #ffe600;
+  --text: #e8e6f0;
+  --text-dim: #9b93b8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%),
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255, 255, 255, 0.015) 3px, rgba(255, 255, 255, 0.015) 4px);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+
+.site-header {
+  text-align: center;
+  padding: 4rem 1rem 3rem;
+}
+
+.logo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(2rem, 8vw, 4rem);
+  color: var(--neon-cyan);
+  text-shadow:
+    0 0 10px var(--neon-cyan),
+    0 0 40px rgba(0, 240, 255, 0.4),
+    4px 4px 0 var(--neon-pink);
+  letter-spacing: 0.1em;
+}
+
+.tagline {
+  margin-top: 1.25rem;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+}
+
+/* Gallery */
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 2rem 3rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+}
+
+.game-card {
+  background: var(--bg-card);
+  border: 2px solid transparent;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.game-card:hover,
+.game-card:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--neon-pink);
+  box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+  outline: none;
+}
+
+.game-card .icon {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.game-card h2 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.85rem;
+  color: var(--neon-yellow);
+  line-height: 1.5;
+}
+
+.game-card p {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-dim);
+  padding: 4rem 1rem;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.8rem;
+  line-height: 2;
+}
+
+/* Footer */
+
+.site-footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.site-footer a {
+  color: var(--neon-cyan);
+}
