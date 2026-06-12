@@ -28,5 +28,11 @@
     "title": "Mystery Binoculars",
     "icon": "🔭",
     "description": "AR safari! Search your room for hiding animals and tap them before they bolt."
+  },
+  {
+    "slug": "worms",
+    "title": "Worms",
+    "icon": "🪱",
+    "description": "Slither, eat, grow. Become the biggest worm in the mud."
   }
 ]

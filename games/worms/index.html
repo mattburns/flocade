@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Worms — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    canvas { position: fixed; inset: 0; display: block; }
+
+    a.back { position: fixed; top: 12px; left: 12px; z-index: 11; color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; text-shadow: 2px 2px 0 #000; }
+
+    #hud {
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      right: 12px;
+      z-index: 6;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      text-align: right;
+      text-shadow: 2px 2px 0 #000;
+      line-height: 2;
+      pointer-events: none;
+      display: none;
+    }
+    #hud .me { color: var(--yellow); }
+    #hud .rank-you { color: var(--cyan); }
+
+    .screen {
+      position: fixed; inset: 0;
+      background: rgba(13, 2, 33, 0.92);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .screen h1 { font-family: 'Press Start 2P', monospace; font-size: 1.4rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); }
+    .screen p { color: var(--dim); max-width: 420px; line-height: 1.7; }
+    .screen .bigscore { font-family: 'Press Start 2P', monospace; font-size: 1.6rem; color: var(--cyan); line-height: 1.8; }
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem;
+      padding: 1rem 1.6rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <div id="hud"></div>
+  <div id="screen"></div>
+
+  <script>
+    const WORLD_R = 1150;                  // arena radius
+    const CX = 1200, CY = 1200;            // arena centre in world coords
+    const FOOD_TARGET = 170;
+    const START_LEN = 15;
+    const TURN_RATE = 4.2;                 // rad/s
+    const SPEED = 150, BOOST_SPEED = 255;  // px/s
+    const NAMES = ['Wiggles', 'Squirmy', 'Captain Mud', 'Noodle', 'Doodle', 'Slick', 'Big Bertha', 'Sir Squirm'];
+    const WORM_COLOURS = [
+      ['#ff2e88', '#c21d66'], ['#00f0ff', '#00a8b8'], ['#ffe600', '#c2b000'],
+      ['#7ed957', '#56a338'], ['#ff7f2a', '#c45c14'], ['#a55eea', '#7a3cc2'],
+      ['#4a7dff', '#2f56c2'], ['#ff4757', '#c22937'],
+    ];
+    const FOOD_COLOURS = ['#ff9ec7', '#9fe6c3', '#ffe600', '#00f0ff', '#ff7f2a'];
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const hud = document.getElementById('hud');
+    const screenDiv = document.getElementById('screen');
+    let best = +localStorage.getItem('worms-best') || 0;
+
+    function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+    resize();
+    addEventListener('resize', resize);
+
+    // mud speckles (static decoration)
+    const speckles = [];
+    for (let i = 0; i < 450; i++) {
+      const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random()) * WORLD_R;
+      speckles.push({ x: CX + Math.cos(a) * d, y: CY + Math.sin(a) * d, r: 1 + Math.random() * 3 });
+    }
+
+    // ---------- input ----------
+    const pointer = { x: innerWidth / 2, y: innerHeight / 2 };
+    let mouseDown = false, touchCount = 0, spaceDown = false;
+    addEventListener('pointermove', e => { pointer.x = e.clientX; pointer.y = e.clientY; });
+    addEventListener('pointerdown', e => {
+      pointer.x = e.clientX; pointer.y = e.clientY;
+      if (e.pointerType === 'mouse') mouseDown = true; else touchCount++;
+    });
+    addEventListener('pointerup', e => { if (e.pointerType === 'mouse') mouseDown = false; else touchCount = Math.max(0, touchCount - 1); });
+    addEventListener('pointercancel', e => { if (e.pointerType !== 'mouse') touchCount = Math.max(0, touchCount - 1); });
+    addEventListener('keydown', e => { if (e.code === 'Space') { spaceDown = true; e.preventDefault(); } });
+    addEventListener('keyup', e => { if (e.code === 'Space') spaceDown = false; });
+    const wantBoost = () => mouseDown || spaceDown || touchCount >= 2;
+
+    // ---------- world state ----------
+    let worms = [], food = [], player = null, running = false, lastT = 0;
+
+    function rand(n) { return Math.random() * n; }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function randomSpot(margin = 150) {
+      const a = rand(Math.PI * 2), d = Math.sqrt(Math.random()) * (WORLD_R - margin);
+      return { x: CX + Math.cos(a) * d, y: CY + Math.sin(a) * d };
+    }
+
+    function spawnFood(x, y, big = false) {
+      food.push({ x, y, r: big ? 7 : 4 + rand(2), c: pick(FOOD_COLOURS), pulse: rand(Math.PI * 2) });
+    }
+    function scatterFood(n) {
+      for (let i = 0; i < n; i++) { const p = randomSpot(60); spawnFood(p.x, p.y); }
+    }
+
+    function makeWorm(isPlayer, name, colourIdx) {
+      const p = randomSpot();
+      const segs = [];
+      for (let i = 0; i < START_LEN; i++) segs.push({ x: p.x, y: p.y + i * 8 });
+      return {
+        isPlayer, name,
+        colours: WORM_COLOURS[colourIdx % WORM_COLOURS.length],
+        segs, angle: rand(Math.PI * 2),
+        boost: false, boostDebt: 0,
+        wander: rand(Math.PI * 2), wanderT: 0,
+        dead: false, respawnAt: 0,
+      };
+    }
+
+    function radius(w) { return Math.min(14, 6 + w.segs.length * 0.018); }
+    function spacing(w) { return radius(w) * 0.85; }
+
+    // ---------- AI ----------
+    function steerAI(w, dt, now) {
+      const head = w.segs[0];
+      const distC = Math.hypot(head.x - CX, head.y - CY);
+      let target = null;
+
+      // urgent: don't hit the wall
+      if (distC > WORLD_R - 130) {
+        target = Math.atan2(CY - head.y, CX - head.x);
+      } else {
+        // food nearby?
+        let bd = 320, bf = null;
+        for (const f of food) {
+          const d = Math.hypot(f.x - head.x, f.y - head.y);
+          if (d < bd) { bd = d; bf = f; }
+        }
+        if (bf) target = Math.atan2(bf.y - head.y, bf.x - head.x);
+        else {
+          w.wanderT -= dt;
+          if (w.wanderT <= 0) { w.wander = rand(Math.PI * 2); w.wanderT = 1.5 + rand(2); }
+          target = w.wander;
+        }
+      }
+
+      // danger probe: a point ahead of the head
+      const px = head.x + Math.cos(w.angle) * 70, py = head.y + Math.sin(w.angle) * 70;
+      for (const o of worms) {
+        if (o === w || o.dead) continue;
+        for (let i = 0; i < o.segs.length; i += 3) {
+          if (Math.hypot(o.segs[i].x - px, o.segs[i].y - py) < radius(o) + 28) {
+            target = w.angle + 2.4; // hard turn away
+            i = o.segs.length;
+          }
+        }
+      }
+      return target;
+    }
+
+    // ---------- simulation ----------
+    function turnToward(w, target, dt) {
+      let d = ((target - w.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const max = TURN_RATE * dt;
+      w.angle += Math.max(-max, Math.min(max, d));
+    }
+
+    function updateWorm(w, dt, now) {
+      const head = w.segs[0];
+      let target;
+      if (w.isPlayer) {
+        target = Math.atan2(pointer.y - innerHeight / 2, pointer.x - innerWidth / 2);
+        w.boost = wantBoost() && w.segs.length > START_LEN;
+      } else {
+        target = steerAI(w, dt, now);
+        w.boost = false;
+      }
+      turnToward(w, target, dt);
+
+      const sp = w.boost ? BOOST_SPEED : SPEED;
+      head.x += Math.cos(w.angle) * sp * dt;
+      head.y += Math.sin(w.angle) * sp * dt;
+
+      // boost burns length, dropped as food from the tail
+      if (w.boost) {
+        w.boostDebt += dt;
+        if (w.boostDebt > 0.35 && w.segs.length > START_LEN) {
+          w.boostDebt = 0;
+          const tail = w.segs.pop();
+          spawnFood(tail.x, tail.y);
+        }
+      }
+
+      // body chain-follows
+      const sp2 = spacing(w);
+      for (let i = 1; i < w.segs.length; i++) {
+        const a = w.segs[i], b = w.segs[i - 1];
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        if (d > sp2) {
+          const t = (d - sp2) / d;
+          a.x += (b.x - a.x) * t;
+          a.y += (b.y - a.y) * t;
+        }
+      }
+
+      // eat
+      const r = radius(w);
+      for (let i = food.length - 1; i >= 0; i--) {
+        const f = food[i];
+        if (Math.hypot(f.x - head.x, f.y - head.y) < r + f.r + 6) {
+          food.splice(i, 1);
+          const tail = w.segs[w.segs.length - 1];
+          w.segs.push({ x: tail.x, y: tail.y });
+        }
+      }
+
+      // wall
+      if (Math.hypot(head.x - CX, head.y - CY) > WORLD_R - r) killWorm(w, now);
+    }
+
+    function checkCollisions(now) {
+      for (const w of worms) {
+        if (w.dead) continue;
+        const head = w.segs[0], r = radius(w);
+        for (const o of worms) {
+          if (o === w || o.dead) continue;
+          const or = radius(o);
+          for (let i = 2; i < o.segs.length; i++) {
+            if (Math.hypot(o.segs[i].x - head.x, o.segs[i].y - head.y) < (r + or) * 0.82) {
+              killWorm(w, now);
+              break;
+            }
+          }
+          if (w.dead) break;
+        }
+      }
+    }
+
+    function killWorm(w, now) {
+      w.dead = true;
+      w.respawnAt = now + 2500;
+      const finalSize = w.segs.length;
+      for (let i = 0; i < w.segs.length; i += 2) spawnFood(w.segs[i].x, w.segs[i].y, true);
+      w.segs = [];
+      if (w.isPlayer) gameOver(finalSize);
+    }
+
+    // ---------- rendering ----------
+    function draw(now) {
+      const cam = player && !player.dead
+        ? { x: player.segs[0].x - innerWidth / 2, y: player.segs[0].y - innerHeight / 2 }
+        : { x: CX - innerWidth / 2, y: CY - innerHeight / 2 };
+
+      ctx.fillStyle = '#0d0221';
+      ctx.fillRect(0, 0, innerWidth, innerHeight);
+
+      ctx.save();
+      ctx.translate(-cam.x, -cam.y);
+
+      // mud arena
+      ctx.beginPath();
+      ctx.arc(CX, CY, WORLD_R, 0, Math.PI * 2);
+      ctx.fillStyle = '#2a1a0f';
+      ctx.fill();
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = '#ff2e88';
+      ctx.stroke();
+
+      ctx.fillStyle = '#1d1209';
+      for (const s of speckles) {
+        if (s.x < cam.x - 10 || s.x > cam.x + innerWidth + 10 || s.y < cam.y - 10 || s.y > cam.y + innerHeight + 10) continue;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // food
+      for (const f of food) {
+        if (f.x < cam.x - 20 || f.x > cam.x + innerWidth + 20 || f.y < cam.y - 20 || f.y > cam.y + innerHeight + 20) continue;
+        const pr = f.r + Math.sin(now / 300 + f.pulse) * 1.2;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, pr, 0, Math.PI * 2);
+        ctx.fillStyle = f.c;
+        ctx.fill();
+      }
+
+      // worms (tail to head so heads sit on top)
+      for (const w of worms) {
+        if (w.dead) continue;
+        const r = radius(w);
+        for (let i = w.segs.length - 1; i >= 0; i--) {
+          const s = w.segs[i];
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = w.colours[Math.floor(i / 3) % 2];
+          ctx.fill();
+        }
+        // face
+        const h = w.segs[0];
+        const ex = Math.cos(w.angle + Math.PI / 2) * r * 0.45, ey = Math.sin(w.angle + Math.PI / 2) * r * 0.45;
+        const fx = Math.cos(w.angle) * r * 0.35, fy = Math.sin(w.angle) * r * 0.35;
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.arc(h.x + fx + ex * side, h.y + fy + ey * side, r * 0.32, 0, Math.PI * 2);
+          ctx.fillStyle = '#fff';
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(h.x + fx * 1.4 + ex * side, h.y + fy * 1.4 + ey * side, r * 0.16, 0, Math.PI * 2);
+          ctx.fillStyle = '#1d1d2b';
+          ctx.fill();
+        }
+        // name tag
+        if (!w.isPlayer) {
+          ctx.font = '11px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = 'rgba(232,230,240,0.8)';
+          ctx.fillText(w.name, h.x, h.y - r - 8);
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawHUD() {
+      const ranked = worms.filter(w => !w.dead).sort((a, b) => b.segs.length - a.segs.length).slice(0, 5);
+      hud.innerHTML = `<div class="me">YOU: ${player.dead ? '-' : player.segs.length} &nbsp; BEST: ${best}</div>` +
+        ranked.map((w, i) => `<div class="${w.isPlayer ? 'rank-you' : ''}">${i + 1}. ${w.isPlayer ? 'YOU' : w.name} ${w.segs.length}</div>`).join('');
+    }
+
+    // ---------- game flow ----------
+    function loop(now) {
+      if (!running) return;
+      requestAnimationFrame(loop);
+      const dt = Math.min(0.05, (now - lastT) / 1000 || 0.016);
+      lastT = now;
+
+      for (const w of worms) {
+        if (w.dead) {
+          if (!w.isPlayer && now > w.respawnAt) {
+            const idx = worms.indexOf(w);
+            worms[idx] = makeWorm(false, w.name, idx);
+          }
+          continue;
+        }
+        updateWorm(w, dt, now);
+      }
+      checkCollisions(now);
+      if (food.length < FOOD_TARGET) scatterFood(2);
+
+      draw(now);
+      drawHUD();
+    }
+
+    function startGame() {
+      screenDiv.innerHTML = '';
+      hud.style.display = 'block';
+      food = [];
+      scatterFood(FOOD_TARGET);
+      player = makeWorm(true, 'YOU', 0);
+      worms = [player];
+      for (let i = 0; i < 7; i++) worms.push(makeWorm(false, NAMES[i % NAMES.length], i + 1));
+      running = true;
+      lastT = performance.now();
+      requestAnimationFrame(loop);
+    }
+
+    function gameOver(finalSize) {
+      running = false;
+      hud.style.display = 'none';
+      if (finalSize > best) {
+        best = finalSize;
+        localStorage.setItem('worms-best', best);
+      }
+      showScreen('SQUISHED!', finalSize);
+    }
+
+    function showScreen(title, finalSize = null) {
+      screenDiv.innerHTML = `<div class="screen">
+        <h1>${title}</h1>
+        <div style="font-size:3rem">🪱</div>
+        ${finalSize !== null
+          ? `<div class="bigscore">SIZE: ${finalSize}<br><span style="color:var(--yellow)">BEST: ${best}</span></div>`
+          : `<p>Eat the dots to grow into the biggest worm in the mud.
+             Don't crash into other worms — but trick <i>them</i> into crashing into <i>you</i>!</p>
+             <p>🖱️ Steer with the mouse, hold to boost.<br>📱 Drag to steer, second finger to boost.<br>Boosting burns length!</p>`}
+        <button class="btn">${finalSize !== null ? 'WRIGGLE AGAIN' : 'START WRIGGLING'}</button>
+      </div>`;
+      screenDiv.querySelector('.btn').addEventListener('click', startGame);
+    }
+
+    showScreen('WORMS');
+  </script>
+</body>
+</html>

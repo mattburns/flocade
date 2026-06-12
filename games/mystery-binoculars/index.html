@@ -199,9 +199,7 @@
           <circle cx="${cx1}" cy="${cy}" r="${r}" fill="black"/>
           <circle cx="${cx2}" cy="${cy}" r="${r}" fill="black"/>
         </mask></defs>
-        <rect width="${w}" height="${h}" fill="#06010f" mask="url(#lenses)"/>
-        <circle cx="${cx1}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>
-        <circle cx="${cx2}" cy="${cy}" r="${r}" fill="none" stroke="#1a0b3d" stroke-width="6"/>`;
+        <rect width="${w}" height="${h}" fill="#06010f" mask="url(#lenses)"/>`;
       mask.setAttribute('viewBox', `0 0 ${w} ${h}`);
       return { r, cy, cx1, cx2 };
     }
