@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pixel Paint — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --cell: #241248;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    a.back { color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; align-self: flex-start; }
+    h1 { font-family: 'Press Start 2P', monospace; font-size: 1.4rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 1rem 0 0.25rem; }
+    .subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem; text-align: center; }
+
+    #game { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    .panel {
+      background: var(--card);
+      border: 2px solid var(--pink);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.25);
+      width: 100%;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .prompt { font-family: 'Press Start 2P', monospace; font-size: 0.75rem; color: var(--cyan); text-align: center; line-height: 1.8; }
+
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      padding: 0.9rem 1.4rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn.alt { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+
+    .mode-btn {
+      background: var(--bg);
+      border: 2px solid var(--cyan);
+      border-radius: 14px;
+      color: var(--text);
+      width: 100%;
+      padding: 1.2rem;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .mode-btn:hover { transform: translateY(-2px); box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
+    .mode-btn .big { font-size: 2.2rem; }
+    .mode-btn h2 { font-family: 'Press Start 2P', monospace; font-size: 0.8rem; color: var(--yellow); margin-bottom: 0.35rem; }
+    .mode-btn p { color: var(--dim); font-size: 0.9rem; }
+
+    /* Gallery */
+    .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; width: 100%; }
+    .thumb { background: var(--bg); border: 2px solid var(--dim); border-radius: 12px; padding: 0.75rem; cursor: pointer; text-align: center; transition: transform 0.1s, border-color 0.1s; }
+    .thumb:hover { transform: scale(1.04); border-color: var(--cyan); }
+    .thumb canvas { width: 96px; height: 96px; image-rendering: pixelated; border-radius: 6px; }
+    .thumb .label { font-size: 0.85rem; font-weight: 600; margin-top: 0.4rem; }
+    .thumb .done-tag { color: var(--yellow); font-size: 0.75rem; }
+
+    /* Board */
+    .board {
+      display: grid;
+      width: 100%;
+      aspect-ratio: 1;
+      touch-action: none;
+      border: 2px solid var(--dim);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--cell);
+    }
+    .board .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--dim);
+      background: var(--cell);
+      box-shadow: inset 0 0 0 0.5px rgba(155, 147, 184, 0.25);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .board .cell.hint { color: var(--text); box-shadow: inset 0 0 0 1.5px var(--cyan); }
+    .board .cell.filled { color: transparent; cursor: default; }
+    .board .cell.oops { background: #7a1230 !important; }
+    .board.complete { border-color: var(--yellow); box-shadow: 0 0 24px rgba(255, 230, 0, 0.35); }
+    .board.complete .cell { box-shadow: none; }
+
+    /* Palette */
+    .palette { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+    .swatch {
+      width: 52px; height: 52px;
+      border-radius: 10px;
+      border: 3px solid transparent;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      position: relative;
+    }
+    .swatch .num { font-size: 1rem; }
+    .swatch .left { font-size: 0.65rem; opacity: 0.8; }
+    .swatch.selected { border-color: var(--yellow); transform: scale(1.1); }
+    .swatch.complete { opacity: 0.45; }
+    .swatch.complete::after { content: '✓'; position: absolute; font-size: 1.4rem; }
+
+    /* Camera */
+    video { width: 100%; max-width: 320px; border-radius: 12px; border: 2px solid var(--cyan); transform: scaleX(-1); }
+    .cam-preview { width: 240px; height: 240px; image-rendering: pixelated; border-radius: 8px; border: 2px solid var(--dim); }
+
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; }
+
+    .confetti {
+      position: fixed;
+      font-size: 1.8rem;
+      pointer-events: none;
+      animation: floatUp 1s ease-out forwards;
+      z-index: 10;
+    }
+    @keyframes floatUp {
+      from { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+      to { opacity: 0; transform: translateY(-90px) scale(1.6) rotate(20deg); }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <h1>PIXEL PAINT</h1>
+  <p class="subtitle">Colour by number — bring pixel pictures to life 🎨</p>
+  <div id="game"></div>
+
+  <script>
+    // ---------- Built-in pictures (Search mode) ----------
+    // Each picture: a char-keyed palette and 16 rows of 16 chars.
+    const PICTURES = [
+      {
+        name: 'Panda',
+        palette: { '.': '#aee7ff', 'k': '#1d1d2b', 'w': '#ffffff', 'p': '#ff9ec7' },
+        rows: [
+          '................',
+          '..kkk......kkk..',
+          '.kkkkk....kkkkk.',
+          '.kkwwwwwwwwwwkk.',
+          '..wwwwwwwwwwww..',
+          '.wwwwwwwwwwwwww.',
+          '.wwkkkwwwwkkkww.',
+          '.wwkwkwwwwkwkww.',
+          '.wwkkkwwwwkkkww.',
+          '.wwwwwwwwwwwwww.',
+          '.wwwwwwkkwwwwww.',
+          '.wwwwwkwwkwwwww.',
+          '..wwwwwwwwwwww..',
+          '..wwwpwwwwpwww..',
+          '...wwwwwwwwww...',
+          '................',
+        ],
+      },
+      {
+        name: 'Capybara',
+        palette: { '.': '#bfe8ff', 'b': '#b07d4f', 'd': '#7a5230', 'k': '#1d1d2b', 'g': '#7ed957' },
+        rows: [
+          '................',
+          '................',
+          '................',
+          '....bbbbbb......',
+          '...bbbbbbbb.....',
+          '..bbdbbbbbbbbb..',
+          '..bbbbbbbbbbbb..',
+          '..bkbbbbbbbbbb..',
+          '..bbbbbbbbbbbb..',
+          '..dbbbbbbbbbbb..',
+          '...bbbbbbbbbb...',
+          '...bb..bb..bb...',
+          'gggggggggggggggg',
+          'gggggggggggggggg',
+          'gggggggggggggggg',
+          'gggggggggggggggg',
+        ],
+      },
+      {
+        name: 'Heart',
+        palette: { '.': '#e6d8ff', 'r': '#ff4757', 'w': '#ffd5dc' },
+        rows: [
+          '................',
+          '................',
+          '..rrrr....rrrr..',
+          '.rrrrrr..rrrrrr.',
+          '.rrrrrrrrrrrrrr.',
+          '.rwwrrrrrrrrrrr.',
+          '.rwrrrrrrrrrrrr.',
+          '.rrrrrrrrrrrrrr.',
+          '..rrrrrrrrrrrr..',
+          '...rrrrrrrrrr...',
+          '....rrrrrrrr....',
+          '.....rrrrrr.....',
+          '......rrrr......',
+          '.......rr.......',
+          '................',
+          '................',
+        ],
+      },
+      {
+        name: 'Ice Cream',
+        palette: { '.': '#aee7ff', 'r': '#ff4757', 'p': '#ff9ec7', 'm': '#9fe6c3', 'c': '#d9a066', 'd': '#b07d3f' },
+        rows: [
+          '................',
+          '.......rr.......',
+          '......pppp......',
+          '....pppppppp....',
+          '...pppppppppp...',
+          '...pmpppppppp...',
+          '...mmmmmmmmmm...',
+          '..mmmmmmmmmmmm..',
+          '..mmmmmmmmmmmm..',
+          '...cccccccccc...',
+          '...cdcdcdcdcc...',
+          '....cccccccc....',
+          '....cdcdcdcc....',
+          '.....cccccc.....',
+          '......cccc......',
+          '.......cc.......',
+        ],
+      },
+      {
+        name: 'Cat',
+        palette: { '.': '#d8f3dc', 'o': '#f5a25d', 'd': '#d97b29', 'k': '#1d1d2b', 'p': '#ff9ec7' },
+        rows: [
+          '................',
+          '.o............o.',
+          '.oo..........oo.',
+          '.opo........opo.',
+          '.oooooooooooooo.',
+          '.oodooddoodoooo.',
+          '.oookkoooookkoo.',
+          '.oookkoooookkoo.',
+          '.ooooooppoooooo.',
+          '.oooookoookoooo.',
+          '.oooooooooooooo.',
+          '..oooooooooooo..',
+          '...oooooooooo...',
+          '................',
+          '................',
+          '................',
+        ],
+      },
+      {
+        name: 'Flower',
+        palette: { '.': '#aee7ff', 'p': '#ff9ec7', 'y': '#ffe600', 'g': '#4caf50', 'l': '#7ed957' },
+        rows: [
+          '................',
+          '......pppp......',
+          '....pppppppp....',
+          '...pppppppppp...',
+          '...pppyyyyppp...',
+          '...pppyyyyppp...',
+          '...pppppppppp...',
+          '....pppppppp....',
+          '......pppp......',
+          '.......gg.......',
+          '.......gg.......',
+          '...lll.gg.......',
+          '....lllgg.......',
+          '.......gg.......',
+          'llllllllllllllll',
+          'llllllllllllllll',
+        ],
+      },
+    ];
+
+    // Fixed palette for Draw mode
+    const DRAW_COLORS = ['#ffffff', '#1d1d2b', '#ff4757', '#ff9ec7', '#f5a25d', '#ffe600', '#7ed957', '#4caf50', '#00f0ff', '#4a7dff', '#b07d4f', '#a55eea'];
+
+    const game = document.getElementById('game');
+    const finished = JSON.parse(localStorage.getItem('pixelpaint-done') || '{}');
+    let camStream = null;
+
+    function el(html) {
+      const t = document.createElement('template');
+      t.innerHTML = html.trim();
+      return t.content.firstChild;
+    }
+
+    function stopCamera() {
+      if (camStream) {
+        camStream.getTracks().forEach(t => t.stop());
+        camStream = null;
+      }
+    }
+
+    function confettiBurst() {
+      const emojis = ['🎉', '⭐', '🎨', '✨'];
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+          const c = document.createElement('div');
+          c.className = 'confetti';
+          c.textContent = emojis[i % emojis.length];
+          c.style.left = (window.innerWidth / 2 + (Math.random() - 0.5) * 300) + 'px';
+          c.style.top = (window.innerHeight / 2 + (Math.random() - 0.5) * 150) + 'px';
+          document.body.appendChild(c);
+          setTimeout(() => c.remove(), 1000);
+        }, i * 120);
+      }
+    }
+
+    // Convert char-rows + palette into a puzzle {w, h, colors:[hex], cells:[colorIndex]}
+    function puzzleFromPicture(pic) {
+      const chars = Object.keys(pic.palette);
+      const colors = chars.map(c => pic.palette[c]);
+      const cells = [];
+      for (const row of pic.rows) {
+        for (const ch of row) cells.push(chars.indexOf(ch));
+      }
+      return { w: pic.rows[0].length, h: pic.rows.length, colors, cells };
+    }
+
+    // ---------- Screens ----------
+
+    function showHome() {
+      stopCamera();
+      game.innerHTML = '';
+      const panel = el(`<div class="panel"><p class="prompt">CHOOSE A MODE</p></div>`);
+      const search = el(`<button class="mode-btn"><span class="big">🔍</span>
+        <span><h2>SEARCH</h2><p>Browse the gallery and colour in a picture</p></span></button>`);
+      const create = el(`<button class="mode-btn"><span class="big">🖌️</span>
+        <span><h2>CREATE</h2><p>Draw your own, or snap a selfie to pixelify</p></span></button>`);
+      search.addEventListener('click', showGallery);
+      create.addEventListener('click', showCreate);
+      panel.append(search, create);
+      game.appendChild(panel);
+    }
+
+    function showGallery() {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel"><p class="prompt">PICK A PICTURE</p><div class="thumbs"></div></div>`);
+      const thumbs = panel.querySelector('.thumbs');
+      for (const pic of PICTURES) {
+        const puzzle = puzzleFromPicture(pic);
+        const thumb = el(`<div class="thumb"><canvas width="16" height="16"></canvas>
+          <div class="label">${pic.name}</div>
+          ${finished[pic.name] ? '<div class="done-tag">★ painted</div>' : ''}</div>`);
+        const ctx = thumb.querySelector('canvas').getContext('2d');
+        puzzle.cells.forEach((ci, i) => {
+          ctx.fillStyle = puzzle.colors[ci];
+          ctx.fillRect(i % 16, Math.floor(i / 16), 1, 1);
+        });
+        thumb.addEventListener('click', () => showPaint(puzzle, pic.name));
+        thumbs.appendChild(thumb);
+      }
+      const back = el(`<button class="btn alt">&larr; BACK</button>`);
+      back.addEventListener('click', showHome);
+      panel.appendChild(back);
+      game.appendChild(panel);
+    }
+
+    function showCreate() {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel"><p class="prompt">HOW WILL YOU CREATE?</p></div>`);
+      const draw = el(`<button class="mode-btn"><span class="big">✏️</span>
+        <span><h2>DRAW</h2><p>Paint your own pixel picture, then colour it by number</p></span></button>`);
+      const cam = el(`<button class="mode-btn"><span class="big">📸</span>
+        <span><h2>CAMERA</h2><p>Take a selfie and turn it into a colouring puzzle</p></span></button>`);
+      draw.addEventListener('click', showDraw);
+      cam.addEventListener('click', showCamera);
+      const back = el(`<button class="btn alt">&larr; BACK</button>`);
+      back.addEventListener('click', showHome);
+      panel.append(draw, cam, back);
+      game.appendChild(panel);
+    }
+
+    // ---------- Draw mode ----------
+
+    function showDraw() {
+      game.innerHTML = '';
+      const SIZE = 16;
+      const pixels = new Array(SIZE * SIZE).fill(0); // indices into DRAW_COLORS
+      let selected = 2; // start on red, not white
+
+      const panel = el(`<div class="panel">
+        <p class="prompt">DRAW YOUR PICTURE</p>
+        <div class="board" style="grid-template-columns: repeat(${SIZE}, 1fr)"></div>
+        <div class="palette"></div>
+        <div class="row">
+          <button class="btn alt" data-act="back">&larr; BACK</button>
+          <button class="btn alt" data-act="clear">CLEAR</button>
+          <button class="btn" data-act="go">PAINT IT &rarr;</button>
+        </div>
+      </div>`);
+      const board = panel.querySelector('.board');
+      const paletteDiv = panel.querySelector('.palette');
+
+      const cellEls = pixels.map((_, i) => {
+        const c = el(`<div class="cell filled" data-i="${i}" style="background:${DRAW_COLORS[0]}"></div>`);
+        board.appendChild(c);
+        return c;
+      });
+
+      DRAW_COLORS.forEach((color, idx) => {
+        const sw = el(`<button class="swatch${idx === selected ? ' selected' : ''}" style="background:${color}"></button>`);
+        sw.addEventListener('click', () => {
+          selected = idx;
+          paletteDiv.querySelectorAll('.swatch').forEach((s, j) => s.classList.toggle('selected', j === idx));
+        });
+        paletteDiv.appendChild(sw);
+      });
+
+      function paintAt(target) {
+        if (!target || !target.dataset || target.dataset.i === undefined) return;
+        const i = +target.dataset.i;
+        pixels[i] = selected;
+        cellEls[i].style.background = DRAW_COLORS[selected];
+      }
+      attachPointerPaint(board, paintAt);
+
+      panel.querySelector('[data-act=back]').addEventListener('click', showCreate);
+      panel.querySelector('[data-act=clear]').addEventListener('click', () => {
+        pixels.fill(0);
+        cellEls.forEach(c => c.style.background = DRAW_COLORS[0]);
+      });
+      panel.querySelector('[data-act=go]').addEventListener('click', () => {
+        const used = [...new Set(pixels)];
+        if (used.length < 2) {
+          alert('Use at least 2 colours so there is something to paint!');
+          return;
+        }
+        const colors = used.map(u => DRAW_COLORS[u]);
+        const cells = pixels.map(p => used.indexOf(p));
+        showPaint({ w: SIZE, h: SIZE, colors, cells }, null);
+      });
+
+      game.appendChild(panel);
+    }
+
+    // ---------- Camera mode ----------
+
+    async function showCamera() {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel">
+        <p class="prompt">SAY CHEESE!</p>
+        <video autoplay playsinline muted></video>
+        <div class="row">
+          <button class="btn alt" data-act="back">&larr; BACK</button>
+          <button class="btn" data-act="snap">📸 SNAP</button>
+        </div>
+      </div>`);
+      const video = panel.querySelector('video');
+      panel.querySelector('[data-act=back]').addEventListener('click', () => { stopCamera(); showCreate(); });
+      game.appendChild(panel);
+
+      try {
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        video.srcObject = camStream;
+      } catch (err) {
+        panel.querySelector('.prompt').textContent = 'CAMERA NOT AVAILABLE';
+        panel.querySelector('video').remove();
+        panel.querySelector('[data-act=snap]').remove();
+        panel.insertBefore(el(`<p style="color:var(--dim); text-align:center">Couldn't open the camera (${err.name}).<br>Try Draw mode instead!</p>`), panel.querySelector('.row'));
+        return;
+      }
+
+      panel.querySelector('[data-act=snap]').addEventListener('click', () => {
+        const SIZE = 24, K = 8;
+        const snap = document.createElement('canvas');
+        snap.width = SIZE; snap.height = SIZE;
+        const ctx = snap.getContext('2d');
+        // centre-crop the video to a square, mirror to match the preview
+        const side = Math.min(video.videoWidth, video.videoHeight);
+        const sx = (video.videoWidth - side) / 2, sy = (video.videoHeight - side) / 2;
+        ctx.translate(SIZE, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, sx, sy, side, side, 0, 0, SIZE, SIZE);
+        stopCamera();
+
+        const data = ctx.getImageData(0, 0, SIZE, SIZE).data;
+        const px = [];
+        for (let i = 0; i < data.length; i += 4) px.push([data[i], data[i + 1], data[i + 2]]);
+        const { colors, cells } = quantize(px, K);
+        showSnapPreview({ w: SIZE, h: SIZE, colors, cells });
+      });
+    }
+
+    function showSnapPreview(puzzle) {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel">
+        <p class="prompt">LOOKING GOOD?</p>
+        <canvas class="cam-preview" width="${puzzle.w}" height="${puzzle.h}"></canvas>
+        <div class="row">
+          <button class="btn alt" data-act="retake">RETAKE</button>
+          <button class="btn" data-act="go">PAINT IT &rarr;</button>
+        </div>
+      </div>`);
+      const ctx = panel.querySelector('canvas').getContext('2d');
+      puzzle.cells.forEach((ci, i) => {
+        ctx.fillStyle = puzzle.colors[ci];
+        ctx.fillRect(i % puzzle.w, Math.floor(i / puzzle.w), 1, 1);
+      });
+      panel.querySelector('[data-act=retake]').addEventListener('click', showCamera);
+      panel.querySelector('[data-act=go]').addEventListener('click', () => showPaint(puzzle, null));
+      game.appendChild(panel);
+    }
+
+    // k-means colour quantisation: returns {colors:[hex], cells:[index]}
+    function quantize(px, k) {
+      // init centroids spread across the luminance range for stability
+      const byLum = [...px].sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+      let centroids = [];
+      for (let i = 0; i < k; i++) {
+        centroids.push([...byLum[Math.floor((i + 0.5) * byLum.length / k)]]);
+      }
+      const dist2 = (a, b) => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+      let assign = new Array(px.length).fill(0);
+      for (let iter = 0; iter < 8; iter++) {
+        assign = px.map(p => {
+          let best = 0, bd = Infinity;
+          centroids.forEach((c, ci) => {
+            const d = dist2(p, c);
+            if (d < bd) { bd = d; best = ci; }
+          });
+          return best;
+        });
+        centroids = centroids.map((c, ci) => {
+          const mine = px.filter((_, i) => assign[i] === ci);
+          if (!mine.length) return c;
+          return [0, 1, 2].map(ch => Math.round(mine.reduce((s, p) => s + p[ch], 0) / mine.length));
+        });
+      }
+      // merge near-identical centroids so the palette isn't padded with dupes
+      const kept = [];
+      const remap = centroids.map(c => {
+        const near = kept.findIndex(kc => dist2(c, kc) < 200);
+        if (near >= 0) return near;
+        kept.push(c);
+        return kept.length - 1;
+      });
+      const toHex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+      return { colors: kept.map(toHex), cells: assign.map(a => remap[a]) };
+    }
+
+    // ---------- Paint screen (the colour-by-number engine) ----------
+
+    function attachPointerPaint(board, handler) {
+      let painting = false;
+      board.addEventListener('pointerdown', e => {
+        painting = true;
+        board.setPointerCapture(e.pointerId);
+        handler(document.elementFromPoint(e.clientX, e.clientY));
+      });
+      board.addEventListener('pointermove', e => {
+        if (painting) handler(document.elementFromPoint(e.clientX, e.clientY));
+      });
+      const stop = () => { painting = false; };
+      board.addEventListener('pointerup', stop);
+      board.addEventListener('pointercancel', stop);
+    }
+
+    function showPaint(puzzle, pictureName) {
+      game.innerHTML = '';
+      const { w, h, colors, cells } = puzzle;
+      const remaining = colors.map((_, ci) => cells.filter(c => c === ci).length);
+      const filled = new Array(cells.length).fill(false);
+      let selected = 0;
+      let totalLeft = cells.length;
+
+      const panel = el(`<div class="panel">
+        <p class="prompt">TAP THE NUMBERS TO PAINT</p>
+        <div class="board" style="grid-template-columns: repeat(${w}, 1fr)"></div>
+        <div class="palette"></div>
+        <div class="row"><button class="btn alt" data-act="back">&larr; QUIT</button></div>
+      </div>`);
+      const board = panel.querySelector('.board');
+      const paletteDiv = panel.querySelector('.palette');
+
+      const cellEls = cells.map((ci, i) => {
+        const c = el(`<div class="cell" data-i="${i}">${ci + 1}</div>`);
+        board.appendChild(c);
+        return c;
+      });
+
+      // number size tracks cell size
+      function fitText() {
+        const cellPx = board.clientWidth / w;
+        board.style.fontSize = Math.max(7, cellPx * 0.42) + 'px';
+      }
+      requestAnimationFrame(fitText);
+      window.addEventListener('resize', fitText);
+
+      // contrast: dark numbers on light swatches, light on dark
+      const isLight = hex => {
+        const n = parseInt(hex.slice(1), 16);
+        return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) > 140;
+      };
+
+      const swatches = colors.map((color, ci) => {
+        const sw = el(`<button class="swatch" style="background:${color}; color:${isLight(color) ? '#1d1d2b' : '#fff'}">
+          <span class="num">${ci + 1}</span><span class="left">${remaining[ci]}</span>
+        </button>`);
+        sw.addEventListener('click', () => select(ci));
+        paletteDiv.appendChild(sw);
+        return sw;
+      });
+
+      function select(ci) {
+        selected = ci;
+        swatches.forEach((s, j) => s.classList.toggle('selected', j === ci));
+        cellEls.forEach((c, i) => c.classList.toggle('hint', !filled[i] && cells[i] === ci));
+      }
+      select(0);
+
+      function paintAt(target) {
+        if (!target || !target.dataset || target.dataset.i === undefined) return;
+        const i = +target.dataset.i;
+        if (filled[i]) return;
+        if (cells[i] === selected) {
+          filled[i] = true;
+          const c = cellEls[i];
+          c.classList.add('filled');
+          c.classList.remove('hint');
+          c.style.background = colors[selected];
+          c.style.boxShadow = 'none';
+          remaining[selected]--;
+          totalLeft--;
+          swatches[selected].querySelector('.left').textContent = remaining[selected];
+          if (remaining[selected] === 0) {
+            swatches[selected].classList.add('complete');
+            const next = remaining.findIndex(r => r > 0);
+            if (next >= 0) select(next);
+          }
+          if (totalLeft === 0) win();
+        } else {
+          const c = cellEls[i];
+          c.classList.add('oops');
+          setTimeout(() => c.classList.remove('oops'), 250);
+        }
+      }
+      attachPointerPaint(board, paintAt);
+
+      function win() {
+        board.classList.add('complete');
+        if (pictureName) {
+          finished[pictureName] = true;
+          localStorage.setItem('pixelpaint-done', JSON.stringify(finished));
+        }
+        panel.querySelector('.prompt').textContent = 'MASTERPIECE!';
+        paletteDiv.remove();
+        const backBtn = panel.querySelector('[data-act=back]');
+        backBtn.textContent = '🎨 PAINT ANOTHER';
+        backBtn.classList.remove('alt');
+        confettiBurst();
+      }
+
+      panel.querySelector('[data-act=back]').addEventListener('click', showHome);
+      game.appendChild(panel);
+    }
+
+    showHome();
+  </script>
+</body>
+</html>

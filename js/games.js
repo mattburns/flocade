@@ -14,4 +14,10 @@ const GAMES = [
     icon: '🐼',
     description: 'Cook tasty dishes for a hungry panda. No timers, no stress.',
   },
+  {
+    slug: 'pixel-paint',
+    title: 'Pixel Paint',
+    icon: '🎨',
+    description: 'Colour by number! Paint the gallery, draw your own, or pixelify a selfie.',
+  },
 ];
