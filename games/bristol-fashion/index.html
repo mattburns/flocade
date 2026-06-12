@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bristol Fashion — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    a.back { color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; align-self: flex-start; }
+    h1 { font-family: 'Press Start 2P', monospace; font-size: 1.3rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 1rem 0 0.25rem; text-align: center; }
+    .subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem; text-align: center; }
+
+    #game { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    .panel {
+      background: var(--card);
+      border: 2px solid var(--pink);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.25);
+      width: 100%;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .prompt { font-family: 'Press Start 2P', monospace; font-size: 0.75rem; color: var(--cyan); text-align: center; line-height: 1.8; }
+
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      padding: 0.85rem 1.1rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn.alt { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+
+    .studio { display: flex; gap: 1rem; width: 100%; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+    .preview {
+      background: linear-gradient(180deg, #2b0a5e, #1a0b3d);
+      border: 2px solid var(--cyan);
+      border-radius: 14px;
+      padding: 0.5rem;
+      flex: 0 0 auto;
+    }
+    .preview svg { width: 190px; height: auto; display: block; }
+
+    .controls { flex: 1 1 260px; display: flex; flex-direction: column; gap: 0.75rem; min-width: 250px; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .tab {
+      background: var(--bg);
+      border: 2px solid var(--dim);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.4rem 0.65rem;
+      cursor: pointer;
+    }
+    .tab.active { border-color: var(--yellow); color: var(--yellow); }
+
+    .options { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .opt {
+      background: var(--bg);
+      border: 2px solid var(--dim);
+      border-radius: 10px;
+      cursor: pointer;
+      padding: 3px;
+      line-height: 0;
+    }
+    .opt svg { width: 56px; height: 56px; }
+    .opt.selected { border-color: var(--yellow); box-shadow: 0 0 10px rgba(255, 230, 0, 0.4); }
+
+    .swatches { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .swatch {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      cursor: pointer;
+    }
+    .swatch.selected { border-color: var(--yellow); transform: scale(1.12); }
+
+    /* Wardrobe */
+    .wardrobe { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; width: 100%; }
+    .look-card {
+      background: var(--bg);
+      border: 2px solid var(--dim);
+      border-radius: 12px;
+      padding: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .look-card svg { width: 100px; height: auto; }
+    .look-card .name { font-size: 0.85rem; font-weight: 600; text-align: center; }
+    .look-card .mini-row { display: flex; gap: 0.4rem; }
+    .look-card button {
+      background: transparent;
+      border: 1px solid var(--dim);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.75rem;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+    }
+    .look-card button:hover { border-color: var(--cyan); color: var(--cyan); }
+    .empty { color: var(--dim); text-align: center; line-height: 1.8; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--yellow);
+      color: #1a0b3d;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      padding: 0.8rem 1.2rem;
+      border-radius: 10px;
+      z-index: 20;
+      animation: toastIn 0.2s ease-out;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <h1>BRISTOL FASHION</h1>
+  <p class="subtitle">All shipshape — design a look, save it to your wardrobe 👗</p>
+  <div id="game"></div>
+
+  <script>
+    // ---------- Palettes ----------
+    const SKINS = ['#ffdbac', '#f1c27d', '#e0ac69', '#8d5524', '#5c3317', '#9fe6c3', '#cdb4f6'];
+    const HAIR_COLORS = ['#1d1d2b', '#5c3317', '#b07d4f', '#ffe600', '#ff7f2a', '#e8e6f0', '#ff2e88', '#00f0ff', '#7ed957', '#a55eea'];
+    const CLOTH_COLORS = ['#ff2e88', '#ff4757', '#ff7f2a', '#ffe600', '#7ed957', '#00f0ff', '#4a7dff', '#a55eea', '#e8e6f0', '#1d1d2b'];
+
+    const DEFAULT_LOOK = {
+      skin: SKINS[0],
+      hair: 'short', hairColor: HAIR_COLORS[1],
+      eyes: 'round', mouth: 'smile', makeup: 'none',
+      top: 'tshirt', topColor: CLOTH_COLORS[5],
+      bottoms: 'trousers', bottomColor: CLOTH_COLORS[6],
+      extras: [],
+    };
+
+    // darken a hex colour for garment details
+    function shade(hex, f) {
+      const n = parseInt(hex.slice(1), 16);
+      const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v * f));
+      return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+    }
+
+    // ---------- The figure ----------
+    function renderLook(look, viewBox = '0 0 200 340') {
+      const { skin, hair, hairColor: hc, eyes, mouth, makeup, top, topColor: tc, bottoms, bottomColor: bc, extras } = look;
+      const dark = '#1d1d2b';
+      const lip = (makeup === 'lipstick' || makeup === 'both') ? '#e0115f' : '#b3404a';
+      let s = '';
+
+      // hair behind the head
+      if (hair === 'long') s += `<path d="M62,60 Q100,18 138,60 L144,142 Q100,160 56,142 Z" fill="${hc}"/>`;
+      if (hair === 'bob') s += `<path d="M60,58 Q100,18 140,58 L142,114 Q100,128 58,114 Z" fill="${hc}"/>`;
+      if (hair === 'ponytail') s += `<ellipse cx="147" cy="102" rx="12" ry="32" fill="${hc}" transform="rotate(-14 147 102)"/>`;
+
+      // head & neck
+      s += `<rect x="91" y="100" width="18" height="18" fill="${skin}"/>`;
+      s += `<ellipse cx="100" cy="72" rx="40" ry="42" fill="${skin}"/>`;
+
+      // bottoms (dress covers them entirely)
+      if (top !== 'dress') {
+        if (bottoms === 'trousers') {
+          s += `<rect x="70" y="192" width="26" height="88" rx="9" fill="${bc}"/>
+                <rect x="104" y="192" width="26" height="88" rx="9" fill="${bc}"/>`;
+        } else if (bottoms === 'shorts') {
+          s += `<rect x="74" y="235" width="18" height="46" rx="8" fill="${skin}"/>
+                <rect x="108" y="235" width="18" height="46" rx="8" fill="${skin}"/>
+                <rect x="70" y="192" width="26" height="46" rx="9" fill="${bc}"/>
+                <rect x="104" y="192" width="26" height="46" rx="9" fill="${bc}"/>`;
+        } else if (bottoms === 'skirt') {
+          s += `<rect x="76" y="245" width="15" height="38" rx="7" fill="${skin}"/>
+                <rect x="109" y="245" width="15" height="38" rx="7" fill="${skin}"/>
+                <path d="M66,192 L134,192 L152,252 L48,252 Z" fill="${bc}"/>`;
+        }
+      } else {
+        s += `<rect x="76" y="252" width="15" height="32" rx="7" fill="${skin}"/>
+              <rect x="109" y="252" width="15" height="32" rx="7" fill="${skin}"/>`;
+      }
+      // shoes
+      s += `<ellipse cx="83" cy="286" rx="17" ry="9" fill="${dark}"/>
+            <ellipse cx="117" cy="286" rx="17" ry="9" fill="${dark}"/>`;
+
+      // top
+      const shortSleeves = `
+        <rect x="40" y="122" width="22" height="38" rx="11" fill="${tc}"/>
+        <rect x="138" y="122" width="22" height="38" rx="11" fill="${tc}"/>
+        <rect x="44" y="152" width="14" height="46" rx="7" fill="${skin}"/>
+        <rect x="142" y="152" width="14" height="46" rx="7" fill="${skin}"/>
+        <circle cx="51" cy="200" r="8" fill="${skin}"/>
+        <circle cx="149" cy="200" r="8" fill="${skin}"/>`;
+      const longSleeves = `
+        <rect x="40" y="122" width="22" height="78" rx="11" fill="${tc}"/>
+        <rect x="138" y="122" width="22" height="78" rx="11" fill="${tc}"/>
+        <circle cx="51" cy="204" r="8" fill="${skin}"/>
+        <circle cx="149" cy="204" r="8" fill="${skin}"/>`;
+      const torso = `<path d="M64,118 Q100,108 136,118 L138,200 L62,200 Z" fill="${tc}"/>`;
+
+      if (top === 'tshirt') {
+        s += shortSleeves + torso;
+      } else if (top === 'hoodie') {
+        s += longSleeves + torso;
+        s += `<path d="M70,118 Q100,140 130,118 L130,127 Q100,152 70,127 Z" fill="${shade(tc, 0.7)}"/>
+              <rect x="80" y="168" width="40" height="26" rx="8" fill="${shade(tc, 0.8)}"/>
+              <line x1="92" y1="132" x2="92" y2="152" stroke="${shade(tc, 0.6)}" stroke-width="3" stroke-linecap="round"/>
+              <line x1="108" y1="132" x2="108" y2="152" stroke="${shade(tc, 0.6)}" stroke-width="3" stroke-linecap="round"/>`;
+      } else if (top === 'jumper') {
+        s += longSleeves + torso;
+        s += `<rect x="62" y="158" width="76" height="9" fill="${shade(tc, 0.75)}"/>
+              <path d="M76,116 Q100,126 124,116 L124,123 Q100,134 76,123 Z" fill="${shade(tc, 0.75)}"/>`;
+      } else if (top === 'dress') {
+        s += shortSleeves;
+        s += `<path d="M64,118 Q100,108 136,118 L156,258 L44,258 Z" fill="${tc}"/>
+              <path d="M52,212 L148,212 L150,224 L50,224 Z" fill="${shade(tc, 0.8)}"/>`;
+      }
+
+      // face
+      if (makeup === 'blush' || makeup === 'both') {
+        s += `<circle cx="73" cy="84" r="8" fill="#ff9ec7" opacity="0.55"/>
+              <circle cx="127" cy="84" r="8" fill="#ff9ec7" opacity="0.55"/>`;
+      }
+      if (eyes === 'round') {
+        s += `<circle cx="85" cy="66" r="4.5" fill="${dark}"/><circle cx="115" cy="66" r="4.5" fill="${dark}"/>`;
+      } else if (eyes === 'happy') {
+        s += `<path d="M78,68 Q85,59 92,68" stroke="${dark}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+              <path d="M108,68 Q115,59 122,68" stroke="${dark}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+      } else if (eyes === 'wink') {
+        s += `<circle cx="85" cy="66" r="4.5" fill="${dark}"/>
+              <path d="M108,66 Q115,60 122,66" stroke="${dark}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+      } else if (eyes === 'sleepy') {
+        s += `<path d="M78,64 Q85,71 92,64" stroke="${dark}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+              <path d="M108,64 Q115,71 122,64" stroke="${dark}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`;
+      }
+      const lipW = (makeup === 'lipstick' || makeup === 'both') ? 5 : 3.5;
+      if (mouth === 'smile') {
+        s += `<path d="M86,88 Q100,100 114,88" stroke="${lip}" stroke-width="${lipW}" fill="none" stroke-linecap="round"/>`;
+      } else if (mouth === 'grin') {
+        s += `<path d="M84,86 Q100,106 116,86 Z" fill="#ffffff" stroke="${lip}" stroke-width="${lipW}"/>`;
+      } else if (mouth === 'neutral') {
+        s += `<line x1="89" y1="90" x2="111" y2="90" stroke="${lip}" stroke-width="${lipW}" stroke-linecap="round"/>`;
+      } else if (mouth === 'ooh') {
+        s += `<ellipse cx="100" cy="91" rx="6" ry="7" fill="${lip}"/>`;
+      }
+
+      // hair on top
+      if (hair === 'short' || hair === 'long' || hair === 'bob') {
+        s += `<ellipse cx="100" cy="45" rx="41" ry="24" fill="${hc}"/>`;
+      } else if (hair === 'curly') {
+        s += ['66,48', '83,35', '100,30', '117,35', '134,48'].map(p => {
+          const [x, y] = p.split(',');
+          return `<circle cx="${x}" cy="${y}" r="15" fill="${hc}"/>`;
+        }).join('');
+      } else if (hair === 'mohawk') {
+        s += `<rect x="93" y="8" width="14" height="42" rx="7" fill="${hc}"/>`;
+      } else if (hair === 'ponytail') {
+        s += `<ellipse cx="100" cy="45" rx="41" ry="24" fill="${hc}"/>
+              <circle cx="140" cy="74" r="6" fill="#ffe600"/>`;
+      } else if (hair === 'buns') {
+        s += `<ellipse cx="100" cy="45" rx="41" ry="24" fill="${hc}"/>
+              <circle cx="62" cy="34" r="14" fill="${hc}"/>
+              <circle cx="138" cy="34" r="14" fill="${hc}"/>`;
+      }
+
+      // extras
+      if (extras.includes('glasses')) {
+        s += `<circle cx="85" cy="67" r="11" fill="none" stroke="${dark}" stroke-width="3"/>
+              <circle cx="115" cy="67" r="11" fill="none" stroke="${dark}" stroke-width="3"/>
+              <line x1="96" y1="65" x2="104" y2="65" stroke="${dark}" stroke-width="3"/>`;
+      }
+      if (extras.includes('sunglasses')) {
+        s += `<circle cx="85" cy="67" r="11" fill="${dark}"/>
+              <circle cx="115" cy="67" r="11" fill="${dark}"/>
+              <line x1="96" y1="65" x2="104" y2="65" stroke="${dark}" stroke-width="3"/>`;
+      }
+      if (extras.includes('hat')) {
+        s += `<path d="M66,38 Q100,4 134,38 Z" fill="#ff2e88"/>
+              <ellipse cx="100" cy="38" rx="38" ry="7" fill="#d61f6f"/>`;
+      }
+      if (extras.includes('crown')) {
+        s += `<polygon points="72,38 78,16 92,32 100,12 108,32 122,16 128,38" fill="#ffd700"/>
+              <rect x="72" y="34" width="56" height="9" rx="3" fill="#ffd700"/>`;
+      }
+      if (extras.includes('bow')) {
+        s += `<polygon points="52,30 72,20 72,40" fill="#ff2e88"/>
+              <polygon points="92,30 72,20 72,40" fill="#ff2e88"/>
+              <circle cx="72" cy="30" r="5" fill="#d61f6f"/>`;
+      }
+      if (extras.includes('earrings')) {
+        s += `<circle cx="60" cy="88" r="4.5" fill="#ffd700"/>
+              <circle cx="140" cy="88" r="4.5" fill="#ffd700"/>`;
+      }
+      if (extras.includes('necklace')) {
+        s += `<path d="M84,112 Q100,130 116,112" stroke="#ffd700" stroke-width="3" fill="none"/>
+              <circle cx="100" cy="125" r="4.5" fill="#ffd700"/>`;
+      }
+
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${s}</svg>`;
+    }
+
+    // ---------- Categories ----------
+    const HEAD_VIEW = '40 0 120 130';
+    const BODY_VIEW = '20 95 160 210';
+    const FULL_VIEW = '0 0 200 340';
+
+    const CATEGORIES = [
+      { key: 'skin', label: 'Skin', prop: 'skin', colorsOnly: SKINS, view: HEAD_VIEW },
+      { key: 'hair', label: 'Hair', prop: 'hair', options: ['none', 'short', 'long', 'bob', 'ponytail', 'curly', 'mohawk', 'buns'], colorProp: 'hairColor', colors: HAIR_COLORS, view: HEAD_VIEW },
+      { key: 'eyes', label: 'Eyes', prop: 'eyes', options: ['round', 'happy', 'wink', 'sleepy'], view: HEAD_VIEW },
+      { key: 'mouth', label: 'Mouth', prop: 'mouth', options: ['smile', 'grin', 'neutral', 'ooh'], view: HEAD_VIEW },
+      { key: 'makeup', label: 'Makeup', prop: 'makeup', options: ['none', 'blush', 'lipstick', 'both'], view: HEAD_VIEW },
+      { key: 'top', label: 'Top', prop: 'top', options: ['tshirt', 'hoodie', 'jumper', 'dress'], colorProp: 'topColor', colors: CLOTH_COLORS, view: BODY_VIEW },
+      { key: 'bottoms', label: 'Bottoms', prop: 'bottoms', options: ['trousers', 'shorts', 'skirt'], colorProp: 'bottomColor', colors: CLOTH_COLORS, view: BODY_VIEW },
+      { key: 'extras', label: 'Extras', prop: 'extras', options: ['glasses', 'sunglasses', 'hat', 'crown', 'bow', 'earrings', 'necklace'], multi: true, view: FULL_VIEW },
+    ];
+
+    const ADJECTIVES = ['Dazzling', 'Funky', 'Shipshape', 'Sparkly', 'Mega', 'Cosmic', 'Snazzy', 'Royal', 'Disco', 'Turbo'];
+    const NOUNS = ['Captain', 'Superstar', 'Legend', 'Explorer', 'Dreamer', 'Pirate', 'Popstar', 'Wizard', 'Champion', 'Hero'];
+
+    // ---------- State ----------
+    const game = document.getElementById('game');
+    let look = JSON.parse(JSON.stringify(DEFAULT_LOOK));
+    let activeTab = 'hair';
+    const wardrobe = JSON.parse(localStorage.getItem('bristol-fashion-wardrobe') || '[]');
+
+    function saveWardrobe() {
+      localStorage.setItem('bristol-fashion-wardrobe', JSON.stringify(wardrobe));
+    }
+
+    function el(html) {
+      const t = document.createElement('template');
+      t.innerHTML = html.trim();
+      return t.content.firstChild;
+    }
+
+    function toast(msg) {
+      const t = el(`<div class="toast">${msg}</div>`);
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 1600);
+    }
+
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // ---------- Studio ----------
+    function showStudio() {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel">
+        <div class="studio">
+          <div class="preview"></div>
+          <div class="controls">
+            <div class="tabs"></div>
+            <div class="options"></div>
+            <div class="swatches"></div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn alt" data-act="random">🎲 SURPRISE</button>
+          <button class="btn" data-act="save">💾 SAVE LOOK</button>
+          <button class="btn alt" data-act="wardrobe">👗 WARDROBE (${wardrobe.length})</button>
+        </div>
+      </div>`);
+      game.appendChild(panel);
+
+      const preview = panel.querySelector('.preview');
+      const tabsDiv = panel.querySelector('.tabs');
+      const optionsDiv = panel.querySelector('.options');
+      const swatchesDiv = panel.querySelector('.swatches');
+
+      function refreshPreview() {
+        preview.innerHTML = renderLook(look);
+      }
+
+      function renderTabs() {
+        tabsDiv.innerHTML = '';
+        for (const cat of CATEGORIES) {
+          const t = el(`<button class="tab${cat.key === activeTab ? ' active' : ''}">${cat.label}</button>`);
+          t.addEventListener('click', () => { activeTab = cat.key; renderTabs(); renderOptions(); });
+          tabsDiv.appendChild(t);
+        }
+      }
+
+      function renderOptions() {
+        const cat = CATEGORIES.find(c => c.key === activeTab);
+        optionsDiv.innerHTML = '';
+        swatchesDiv.innerHTML = '';
+
+        if (cat.options) {
+          for (const opt of cat.options) {
+            // preview this option applied to the current look
+            const trial = JSON.parse(JSON.stringify(look));
+            let isSelected;
+            if (cat.multi) {
+              isSelected = look.extras.includes(opt);
+              trial.extras = isSelected ? look.extras : [...look.extras, opt];
+            } else {
+              isSelected = look[cat.prop] === opt;
+              trial[cat.prop] = opt;
+            }
+            const btn = el(`<button class="opt${isSelected ? ' selected' : ''}" title="${opt}">${renderLook(trial, cat.view)}</button>`);
+            btn.addEventListener('click', () => {
+              if (cat.multi) {
+                look.extras = look.extras.includes(opt) ? look.extras.filter(e => e !== opt) : [...look.extras, opt];
+              } else {
+                look[cat.prop] = opt;
+              }
+              refreshPreview();
+              renderOptions();
+            });
+            optionsDiv.appendChild(btn);
+          }
+        }
+
+        const colors = cat.colorsOnly || cat.colors;
+        const colorProp = cat.colorsOnly ? cat.prop : cat.colorProp;
+        if (colors) {
+          for (const c of colors) {
+            const sw = el(`<button class="swatch${look[colorProp] === c ? ' selected' : ''}" style="background:${c}"></button>`);
+            sw.addEventListener('click', () => { look[colorProp] = c; refreshPreview(); renderOptions(); });
+            swatchesDiv.appendChild(sw);
+          }
+        }
+      }
+
+      panel.querySelector('[data-act=random]').addEventListener('click', () => {
+        for (const cat of CATEGORIES) {
+          if (cat.multi) {
+            look.extras = cat.options.filter(() => Math.random() < 0.25);
+          } else if (cat.options) {
+            look[cat.prop] = pick(cat.options);
+          }
+          if (cat.colorsOnly) look[cat.prop] = pick(cat.colorsOnly);
+          if (cat.colorProp) look[cat.colorProp] = pick(cat.colors);
+        }
+        refreshPreview();
+        renderOptions();
+      });
+
+      panel.querySelector('[data-act=save]').addEventListener('click', () => {
+        const suggestion = `${pick(ADJECTIVES)} ${pick(NOUNS)}`;
+        const name = prompt('Name your look:', suggestion);
+        if (name === null) return;
+        wardrobe.unshift({ name: name.trim() || suggestion, look: JSON.parse(JSON.stringify(look)), savedAt: Date.now() });
+        saveWardrobe();
+        toast('✨ SAVED TO WARDROBE!');
+        panel.querySelector('[data-act=wardrobe]').textContent = `👗 WARDROBE (${wardrobe.length})`;
+      });
+
+      panel.querySelector('[data-act=wardrobe]').addEventListener('click', showWardrobe);
+
+      refreshPreview();
+      renderTabs();
+      renderOptions();
+    }
+
+    // ---------- Wardrobe ----------
+    function showWardrobe() {
+      game.innerHTML = '';
+      const panel = el(`<div class="panel">
+        <p class="prompt">YOUR WARDROBE</p>
+        <div class="wardrobe"></div>
+        <button class="btn">&larr; BACK TO THE STUDIO</button>
+      </div>`);
+      const grid = panel.querySelector('.wardrobe');
+
+      if (wardrobe.length === 0) {
+        grid.replaceWith(el(`<p class="empty">No looks yet!<br>Design something fabulous and save it. ✨</p>`));
+      } else {
+        wardrobe.forEach((entry, i) => {
+          const card = el(`<div class="look-card">
+            ${renderLook(entry.look)}
+            <div class="name">${entry.name.replace(/</g, '&lt;')}</div>
+            <div class="mini-row">
+              <button data-act="wear">✏️ Wear</button>
+              <button data-act="bin">🗑️</button>
+            </div>
+          </div>`);
+          card.querySelector('[data-act=wear]').addEventListener('click', () => {
+            look = JSON.parse(JSON.stringify(entry.look));
+            showStudio();
+          });
+          card.querySelector('[data-act=bin]').addEventListener('click', () => {
+            if (confirm(`Throw away "${entry.name}"?`)) {
+              wardrobe.splice(i, 1);
+              saveWardrobe();
+              showWardrobe();
+            }
+          });
+          grid.appendChild(card);
+        });
+      }
+
+      panel.querySelector('.btn:last-child').addEventListener('click', showStudio);
+      game.appendChild(panel);
+    }
+
+    showStudio();
+  </script>
+</body>
+</html>

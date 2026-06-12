@@ -20,4 +20,10 @@ const GAMES = [
     icon: '🎨',
     description: 'Colour by number! Paint the gallery, draw your own, or pixelify a selfie.',
   },
+  {
+    slug: 'bristol-fashion',
+    title: 'Bristol Fashion',
+    icon: '👗',
+    description: 'Design fabulous looks — hair, makeup, outfits — and fill your wardrobe.',
+  },
 ];
