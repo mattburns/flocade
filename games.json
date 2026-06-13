@@ -46,5 +46,11 @@
     "title": "My World",
     "icon": "🌸",
     "description": "Explore a cute 3D world — wander the park and mall, pop into shops, make friends."
+  },
+  {
+    "slug": "super-pac-man",
+    "title": "Super Pac Man",
+    "icon": "🟡",
+    "description": "Pac-Man with a twist: powerups, fire hazards, and role reversal — become the ghost!"
   }
 ]
