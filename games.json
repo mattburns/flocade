@@ -58,5 +58,11 @@
     "title": "Mini Life",
     "icon": "🐜",
     "description": "You're 1cm tall! Jump and fly around a giant, super-detailed kitchen."
+  },
+  {
+    "slug": "football-pens",
+    "title": "Football Pens",
+    "icon": "⚽",
+    "description": "Win the World Cup one penalty shootout at a time. Pick your nation and aim!"
   }
 ]

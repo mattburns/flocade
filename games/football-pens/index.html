@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Football Pens — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg: #0d0221; --green: #2f9e44; --green2: #37b24d; --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600; --text: #e8e6f0; --dim: #9b93b8; }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%);
+      color: var(--text); font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+      padding: 0.75rem; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    a.back { color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.65rem; text-decoration: none; align-self: flex-start; }
+    h1 { font-family: 'Press Start 2P', monospace; font-size: 1.3rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 0.5rem 0 0.25rem; text-align: center; }
+    .sub { color: var(--dim); font-size: 0.85rem; margin-bottom: 0.75rem; text-align: center; }
+    #app { width: 100%; max-width: 640px; display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+
+    .btn { background: var(--pink); border: none; border-radius: 10px; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 0.75rem; padding: 0.9rem 1.4rem; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.25); }
+    .btn:active { transform: translateY(3px); box-shadow: none; }
+    .btn.alt { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); box-shadow: none; }
+
+    /* country picker */
+    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.5rem; width: 100%; max-height: 64vh; overflow-y: auto; padding: 0.25rem; }
+    .country { background: #1a0b3d; border: 2px solid #33235e; border-radius: 12px; padding: 0.5rem 0.3rem; text-align: center; cursor: pointer; transition: transform 0.1s, border-color 0.1s; }
+    .country:hover { transform: translateY(-3px); border-color: var(--cyan); }
+    .country .flag { font-size: 1.9rem; line-height: 1.1; }
+    .country .nm { font-size: 0.72rem; font-weight: 700; margin-top: 0.2rem; line-height: 1.1; }
+    .country .st { font-size: 0.6rem; color: var(--yellow); }
+
+    /* match header */
+    .vs-card { display: flex; align-items: center; justify-content: center; gap: 1rem; background: #1a0b3d; border: 2px solid var(--pink); border-radius: 14px; padding: 0.9rem 1.2rem; width: 100%; }
+    .vs-card .team { text-align: center; flex: 1; }
+    .vs-card .team .flag { font-size: 2.6rem; }
+    .vs-card .team .nm { font-weight: 800; font-size: 0.95rem; }
+    .vs-card .vs { font-family: 'Press Start 2P', monospace; color: var(--yellow); font-size: 0.9rem; }
+    .round-name { font-family: 'Press Start 2P', monospace; color: var(--cyan); font-size: 0.8rem; text-align: center; }
+
+    /* bracket */
+    .bracket { display: flex; gap: 0.5rem; overflow-x: auto; width: 100%; padding: 0.3rem; }
+    .bcol { display: flex; flex-direction: column; justify-content: space-around; gap: 0.4rem; min-width: 92px; }
+    .bcol .rh { font-size: 0.6rem; color: var(--dim); text-align: center; font-weight: 700; text-transform: uppercase; }
+    .bmatch { background: #160933; border: 1px solid #33235e; border-radius: 7px; padding: 2px; }
+    .bteam { font-size: 0.62rem; padding: 2px 4px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 3px; align-items: center; }
+    .bteam.win { background: #2f9e4433; color: #fff; font-weight: 700; }
+    .bteam.lose { opacity: 0.4; text-decoration: line-through; }
+    .bteam.you { outline: 1px solid var(--yellow); }
+    .bteam.now { background: var(--pink); color: #fff; }
+
+    /* scoreboard */
+    .scoreboard { width: 100%; display: flex; flex-direction: column; gap: 0.35rem; }
+    .srow { display: flex; align-items: center; gap: 0.5rem; }
+    .srow .sflag { font-size: 1.5rem; width: 1.8rem; text-align: center; }
+    .srow .snm { font-weight: 700; font-size: 0.85rem; width: 5.5rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .srow .slots { display: flex; gap: 3px; flex-wrap: wrap; flex: 1; }
+    .slot { width: 15px; height: 15px; border-radius: 50%; background: #2b1a55; font-size: 10px; display: flex; align-items: center; justify-content: center; }
+    .slot.goal { background: var(--green2); }
+    .slot.miss { background: #7a1230; }
+    .srow .total { font-family: 'Press Start 2P', monospace; font-size: 0.9rem; color: var(--yellow); width: 1.4rem; text-align: right; }
+
+    /* goal */
+    .pitch { width: 100%; max-width: 460px; }
+    .goal-wrap {
+      position: relative; width: 100%; aspect-ratio: 16 / 10;
+      background: linear-gradient(#79c0ff 0%, #9ad0ff 55%, #3aa544 55%, #2f9e44 100%);
+      border-radius: 10px; overflow: hidden;
+    }
+    .goal {
+      position: absolute; left: 8%; top: 14%; width: 84%; height: 56%;
+      border: 7px solid #f5f5f5; border-bottom: 4px solid #f5f5f5; border-radius: 3px;
+      background-image: linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px);
+      background-size: 11px 11px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+    }
+    .zone { position: absolute; width: 33.33%; height: 50%; cursor: pointer; }
+    .zone .hl { position: absolute; inset: 4px; border: 2px dashed rgba(255,255,255,0); border-radius: 6px; transition: border-color 0.1s, background 0.1s; }
+    .zone.armed:hover .hl, .zone.armed:active .hl { border-color: var(--yellow); background: rgba(255,230,0,0.18); }
+    .keeper, .ball { position: absolute; transition: left 0.45s cubic-bezier(.5,1.4,.5,1), top 0.45s cubic-bezier(.5,1.4,.5,1), transform 0.45s; transform: translate(-50%, -50%); pointer-events: none; }
+    .keeper { font-size: 2.2rem; z-index: 3; }
+    .ball { font-size: 1.5rem; z-index: 4; }
+
+    .prompt { font-family: 'Press Start 2P', monospace; font-size: 0.78rem; text-align: center; min-height: 1rem; }
+    .prompt.shoot { color: var(--yellow); }
+    .prompt.save { color: var(--cyan); }
+    .result-flash { font-family: 'Press Start 2P', monospace; font-size: 1.6rem; text-align: center; min-height: 2rem; }
+
+    .modal { position: fixed; inset: 0; z-index: 20; background: rgba(13,2,33,0.92); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .card { background: #1a0b3d; border: 4px solid var(--pink); border-radius: 22px; padding: 1.6rem; max-width: 420px; text-align: center; }
+    .card h2 { font-family: 'Press Start 2P', monospace; color: var(--yellow); font-size: 1.1rem; line-height: 1.6; margin-bottom: 0.6rem; }
+    .card p { color: var(--text); line-height: 1.6; margin-bottom: 1rem; }
+    .confetti { position: fixed; font-size: 1.8rem; pointer-events: none; z-index: 30; animation: cf 1.2s ease-out forwards; }
+    @keyframes cf { from { opacity: 1; transform: translateY(0) rotate(0); } to { opacity: 0; transform: translateY(-120px) rotate(40deg); } }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <div id="app"></div>
+
+  <script>
+    const COUNTRIES = [
+      ['Brazil','🇧🇷',5],['Argentina','🇦🇷',5],['France','🇫🇷',5],['England','🏴󠁧󠁢󠁥󠁮󠁧󠁿',5],['Spain','🇪🇸',5],['Portugal','🇵🇹',5],
+      ['Germany','🇩🇪',4],['Netherlands','🇳🇱',4],['Italy','🇮🇹',4],['Belgium','🇧🇪',4],['Croatia','🇭🇷',4],['Uruguay','🇺🇾',4],['Morocco','🇲🇦',4],
+      ['Colombia','🇨🇴',3],['Mexico','🇲🇽',3],['USA','🇺🇸',3],['Switzerland','🇨🇭',3],['Denmark','🇩🇰',3],['Japan','🇯🇵',3],['Senegal','🇸🇳',3],
+      ['Serbia','🇷🇸',3],['Poland','🇵🇱',3],['South Korea','🇰🇷',3],['Nigeria','🇳🇬',3],['Ivory Coast','🇨🇮',3],['Sweden','🇸🇪',3],['Austria','🇦🇹',3],
+      ['Ukraine','🇺🇦',3],['Czechia','🇨🇿',3],['Turkey','🇹🇷',3],['Chile','🇨🇱',3],['Egypt','🇪🇬',3],['Algeria','🇩🇿',3],['Norway','🇳🇴',3],
+      ['Wales','🏴󠁧󠁢󠁷󠁬󠁳󠁿',2],['Ecuador','🇪🇨',2],['Ghana','🇬🇭',2],['Cameroon','🇨🇲',2],['Peru','🇵🇪',2],['Australia','🇦🇺',2],['Canada','🇨🇦',2],
+      ['Saudi Arabia','🇸🇦',2],['Scotland','🏴󠁧󠁢󠁳󠁣󠁴󠁿',2],['Tunisia','🇹🇳',2],['Iran','🇮🇷',2],['Greece','🇬🇷',2],
+    ].map(([name, flag, str]) => ({ name, flag, str }));
+
+    // 6 aim zones (positions in % of the goal mouth)
+    const ZONES = [
+      { id: 'TL', col: 0, row: 0, x: 18, y: 30, missAdd: 0.12, power: 0.5 },
+      { id: 'TM', col: 1, row: 0, x: 50, y: 26, missAdd: 0.16, power: 0.45 },
+      { id: 'TR', col: 2, row: 0, x: 82, y: 30, missAdd: 0.12, power: 0.5 },
+      { id: 'BL', col: 0, row: 1, x: 18, y: 64, missAdd: 0.04, power: 0.25 },
+      { id: 'BM', col: 1, row: 1, x: 50, y: 66, missAdd: 0.02, power: 0.0 },
+      { id: 'BR', col: 2, row: 1, x: 82, y: 64, missAdd: 0.04, power: 0.25 },
+    ];
+    const CORNERS = ['TL', 'TR', 'BL', 'BR'];
+    const zoneById = id => ZONES.find(z => z.id === id);
+    const baseMiss = str => 0.16 - (str - 1) * 0.02;
+    const rand = () => Math.random();
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+    const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+    const app = document.getElementById('app');
+    let trophies = +localStorage.getItem('footballpens-trophies') || 0;
+
+    // ===== audio =====
+    let actx = null, muted = false;
+    function ac() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; }
+    function tone(f, d, type = 'square', v = 0.07) {
+      if (!actx || muted) return;
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(v, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + d);
+      o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + d + 0.02);
+    }
+    const sndKick = () => tone(160, 0.08, 'square', 0.09);
+    const sndGoal = () => { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.18, 'triangle', 0.09), i * 70)); cheer(); };
+    const sndSave = () => { tone(300, 0.1, 'sawtooth', 0.08); setTimeout(() => tone(200, 0.15, 'sawtooth', 0.08), 80); };
+    const sndMiss = () => { tone(220, 0.2, 'sine', 0.07); };
+    function cheer() {
+      if (!actx || muted) return;
+      const b = actx.createBuffer(1, actx.sampleRate * 0.5, actx.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const s = actx.createBufferSource(); s.buffer = b;
+      const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900;
+      const g = actx.createGain(); g.gain.value = 0.12;
+      s.connect(f).connect(g).connect(actx.destination); s.start();
+    }
+
+    // ===== AI =====
+    function aiShootZone(str) {
+      // stronger teams favour the corners
+      if (str >= 4) return rand() < 0.78 ? pick(CORNERS) : pick(ZONES.map(z => z.id));
+      if (str >= 3) return rand() < 0.55 ? pick(CORNERS) : pick(ZONES.map(z => z.id));
+      return pick(ZONES.map(z => z.id));
+    }
+    function aiKeeperGuess(str, shotZoneId) {
+      const readProb = 0.12 + str * 0.05;
+      return rand() < readProb ? shotZoneId : pick(ZONES.map(z => z.id));
+    }
+
+    // ===== Tournament =====
+    let player, bracketRounds, current, T;
+    const roundName = teams => ({ 16: 'Round of 16', 8: 'Quarter-Final', 4: 'Semi-Final', 2: 'Final' }[teams] || 'Round');
+    const shortRound = teams => ({ 16: 'R16', 8: 'QF', 4: 'SF', 2: 'FINAL' }[teams] || '');
+
+    function simWinner(a, b) {
+      let pa = a.str / (a.str + b.str);
+      pa = pa * 0.7 + 0.15; // compress so upsets happen
+      return rand() < pa ? a : b;
+    }
+
+    function startTournament(team) {
+      player = team;
+      const others = shuffle(COUNTRIES.filter(c => c.name !== team.name)).slice(0, 15);
+      current = shuffle([team, ...others]);
+      bracketRounds = [];
+      showNextRound();
+    }
+
+    function showNextRound() {
+      // build this round's matches
+      const matches = [];
+      for (let i = 0; i < current.length; i += 2) matches.push({ a: current[i], b: current[i + 1], winner: null });
+      const pIdx = matches.findIndex(m => m.a === player || m.b === player);
+      const pMatch = matches[pIdx];
+      const opp = pMatch.a === player ? pMatch.b : pMatch.a;
+      // simulate the other matches now (shown in bracket)
+      matches.forEach((m, i) => { if (i !== pIdx) m.winner = simWinner(m.a, m.b); });
+      T = { matches, pIdx, opp, teams: current.length };
+      renderRoundIntro();
+    }
+
+    function renderRoundIntro() {
+      app.innerHTML = `
+        <h1>WORLD CUP PENS</h1>
+        <div class="round-name">${roundName(T.teams)}</div>
+        <div class="vs-card">
+          <div class="team"><div class="flag">${player.flag}</div><div class="nm">${player.name}</div><div class="st" style="color:var(--yellow)">${'★'.repeat(player.str)}</div></div>
+          <div class="vs">VS</div>
+          <div class="team"><div class="flag">${T.opp.flag}</div><div class="nm">${T.opp.name}</div><div class="st" style="color:var(--yellow)">${'★'.repeat(T.opp.str)}</div></div>
+        </div>
+        <button class="btn" id="playBtn">▶ PLAY SHOOTOUT</button>
+        <div class="round-name" style="color:var(--dim);font-size:0.62rem">🏆 World Cups won: ${trophies}</div>
+        ${renderBracket(true)}`;
+      document.getElementById('playBtn').addEventListener('click', () => { ac(); if (actx.state === 'suspended') actx.resume(); startShootout(); });
+    }
+
+    function renderBracket(showNow) {
+      // columns: completed rounds + current
+      const cols = [...bracketRounds.map(r => r.matches), null];
+      let html = '<div class="bracket">';
+      const allRounds = [...bracketRounds, { matches: T.matches, teams: T.teams }];
+      for (const r of allRounds) {
+        html += `<div class="bcol"><div class="rh">${shortRound(r.teams || r.matches.length * 2)}</div>`;
+        for (const m of r.matches) {
+          const cls = t => [
+            t === player ? 'you' : '',
+            m.winner === t ? 'win' : (m.winner ? 'lose' : ''),
+            (showNow && r === allRounds[allRounds.length - 1] && m === T.matches[T.pIdx] && !m.winner) ? 'now' : '',
+          ].join(' ');
+          html += `<div class="bmatch">
+            <div class="bteam ${cls(m.a)}">${m.a.flag}<span>${m.a.name}</span></div>
+            <div class="bteam ${cls(m.b)}">${m.b.flag}<span>${m.b.name}</span></div>
+          </div>`;
+        }
+        html += '</div>';
+      }
+      // champion column
+      if (current && current.length === 1) html += `<div class="bcol"><div class="rh">🏆</div><div class="bmatch"><div class="bteam win you">${current[0].flag}<span>${current[0].name}</span></div></div></div>`;
+      return html + '</div>';
+    }
+
+    // ===== Shootout =====
+    let M;
+    function startShootout() {
+      M = { opp: T.opp, pRes: [], oRes: [], pGoals: 0, oGoals: 0, turn: 'P', busy: false };
+      renderShootout();
+      setTimeout(nextKick, 400);
+    }
+
+    function renderShootout() {
+      app.innerHTML = `
+        <div class="round-name">${roundName(T.teams)} &middot; PENALTIES</div>
+        <div class="scoreboard" id="sb"></div>
+        <div class="prompt" id="prompt"></div>
+        <div class="pitch"><div class="goal-wrap" id="gw">
+          <div class="goal" id="goal"></div>
+          <div class="keeper" id="keeper" style="left:50%;top:60%">🧤</div>
+          <div class="ball" id="ball" style="left:50%;top:90%">⚽</div>
+        </div></div>
+        <div class="result-flash" id="flash"></div>`;
+      // build zone buttons inside goal
+      const goal = document.getElementById('goal');
+      ZONES.forEach(z => {
+        const d = document.createElement('div');
+        d.className = 'zone'; d.dataset.id = z.id;
+        d.style.left = (z.col * 33.33) + '%';
+        d.style.top = (z.row * 50) + '%';
+        d.innerHTML = '<div class="hl"></div>';
+        d.addEventListener('click', () => onZone(z.id));
+        goal.appendChild(d);
+      });
+      updateScoreboard();
+    }
+
+    function updateScoreboard() {
+      const slots = (res, n = 5) => {
+        let s = '';
+        for (let i = 0; i < Math.max(n, res.length); i++) {
+          const r = res[i];
+          s += `<div class="slot ${r === true ? 'goal' : r === false ? 'miss' : ''}">${r === true ? '⚽' : r === false ? '✗' : ''}</div>`;
+        }
+        return s;
+      };
+      document.getElementById('sb').innerHTML = `
+        <div class="srow"><span class="sflag">${player.flag}</span><span class="snm">${player.name}</span><span class="slots">${slots(M.pRes)}</span><span class="total">${M.pGoals}</span></div>
+        <div class="srow"><span class="sflag">${M.opp.flag}</span><span class="snm">${M.opp.name}</span><span class="slots">${slots(M.oRes)}</span><span class="total">${M.oGoals}</span></div>`;
+    }
+
+    function matchDecided() {
+      const pT = M.pRes.length, oT = M.oRes.length;
+      if (pT < 5 || oT < 5) {
+        const remP = 5 - pT, remO = 5 - oT;
+        if (M.pGoals > M.oGoals + remO) return 'P';
+        if (M.oGoals > M.pGoals + remP) return 'O';
+        return null;
+      }
+      if (pT === oT && M.pGoals !== M.oGoals) return M.pGoals > M.oGoals ? 'P' : 'O';
+      return null;
+    }
+
+    function setPrompt(text, cls) { const p = document.getElementById('prompt'); p.textContent = text; p.className = 'prompt ' + cls; }
+    function armZones(on) { document.querySelectorAll('.zone').forEach(z => z.classList.toggle('armed', on)); }
+    function setKeeper(z, rest) {
+      const k = document.getElementById('keeper');
+      if (rest) { k.style.left = '50%'; k.style.top = '60%'; k.style.transform = 'translate(-50%,-50%)'; return; }
+      k.style.left = z.x + '%'; k.style.top = (z.y + 8) + '%';
+      k.style.transform = `translate(-50%,-50%) rotate(${z.col === 0 ? -35 : z.col === 2 ? 35 : 0}deg)`;
+    }
+    function flyBall(z, onTarget) {
+      const b = document.getElementById('ball');
+      if (onTarget) { b.style.left = z.x + '%'; b.style.top = z.y + '%'; }
+      else { // off target: wide or over
+        b.style.left = (z.col === 0 ? -6 : z.col === 2 ? 106 : 50) + '%';
+        b.style.top = (z.row === 0 ? 2 : z.y) + '%';
+      }
+    }
+    function resetBall() { const b = document.getElementById('ball'); b.style.left = '50%'; b.style.top = '90%'; }
+
+    function nextKick() {
+      const dec = matchDecided();
+      if (dec) return endMatch(dec);
+      M.busy = false;
+      setKeeper(null, true); resetBall();
+      document.getElementById('flash').textContent = '';
+      if (M.turn === 'P') { setPrompt('⚽ YOUR KICK — pick a spot!', 'shoot'); armZones(true); }
+      else { setPrompt('🧤 OPPONENT SHOOTS — pick your dive!', 'save'); armZones(true); }
+    }
+
+    function onZone(zoneId) {
+      if (M.busy) return;
+      M.busy = true; armZones(false);
+      const zone = zoneById(zoneId);
+      if (M.turn === 'P') resolveShot(zone); else resolveSave(zone);
+    }
+
+    function resolveShot(zone) {
+      sndKick();
+      const offTarget = rand() < baseMiss(player.str) + zone.missAdd;
+      const keeperZoneId = aiKeeperGuess(M.opp.str, zone.id);
+      const keeperZone = zoneById(keeperZoneId);
+      setKeeper(keeperZone, false);
+      flyBall(zone, !offTarget);
+      let scored, msg, snd;
+      if (offTarget) { scored = false; msg = 'MISS! 😫'; snd = sndMiss; }
+      else if (keeperZoneId === zone.id && rand() >= zone.power) { scored = false; msg = 'SAVED! 🧤'; snd = sndSave; }
+      else { scored = true; msg = 'GOAL! ⚽'; snd = sndGoal; }
+      setTimeout(() => {
+        snd();
+        flash(msg, scored ? 'var(--green2)' : 'var(--pink)');
+        M.pRes.push(scored); if (scored) M.pGoals++;
+        updateScoreboard();
+        M.turn = 'O';
+        setTimeout(nextKick, 1300);
+      }, 480);
+    }
+
+    function resolveSave(diveZone) {
+      const shotId = aiShootZone(M.opp.str);
+      const shotZone = zoneById(shotId);
+      sndKick();
+      const offTarget = rand() < baseMiss(M.opp.str) + shotZone.missAdd;
+      setKeeper(diveZone, false);
+      flyBall(shotZone, !offTarget);
+      let scored, msg, snd; // scored = opponent scored?
+      if (offTarget) { scored = false; msg = 'OFF TARGET! 😅'; snd = sndMiss; }
+      else if (diveZone.id === shotId && rand() >= shotZone.power * 0.6) { scored = false; msg = 'SAVED!! 🧤🔥'; snd = sndSave; }
+      else { scored = true; msg = 'They score 😖'; snd = sndGoal; }
+      setTimeout(() => {
+        snd();
+        flash(msg, scored ? 'var(--pink)' : 'var(--cyan)');
+        M.oRes.push(scored); if (scored) M.oGoals++;
+        updateScoreboard();
+        M.turn = 'P';
+        setTimeout(nextKick, 1300);
+      }, 480);
+    }
+
+    function flash(text, color) { const f = document.getElementById('flash'); f.textContent = text; f.style.color = color; }
+
+    function endMatch(decided) {
+      const playerWon = decided === 'P';
+      // finalise bracket
+      T.matches[T.pIdx].winner = playerWon ? player : M.opp;
+      bracketRounds.push({ matches: T.matches, teams: T.teams });
+      const nextTeams = T.matches.map(m => m.winner);
+      const fc = `${M.pGoals}-${M.oGoals}`;
+      if (!playerWon) return showEliminated(fc, nextTeams);
+      current = nextTeams;
+      if (current.length === 1) return showChampion();
+      showMatchWin(fc);
+    }
+
+    function showMatchWin(score) {
+      burst('⚽');
+      app.innerHTML = `<div class="modal"><div class="card">
+        <h2>WIN! ${score}</h2>
+        <p>${player.flag} ${player.name} are through to the <b>${roundName(current.length)}</b>!</p>
+        <button class="btn" id="cont">NEXT ROUND ▶</button>
+      </div></div>`;
+      document.getElementById('cont').addEventListener('click', showNextRound);
+    }
+
+    function showChampion() {
+      trophies++; localStorage.setItem('footballpens-trophies', trophies);
+      burst('🏆'); setTimeout(() => burst('🎉'), 300); setTimeout(() => burst('⚽'), 600);
+      app.innerHTML = `<div class="modal"><div class="card">
+        <h2>🏆 CHAMPIONS! 🏆</h2>
+        <div style="font-size:4rem">${player.flag}</div>
+        <p><b>${player.name}</b> have won the World Cup! You held your nerve from the spot. Legendary.</p>
+        <p style="color:var(--yellow)">🏆 World Cups won: ${trophies}</p>
+        <button class="btn" id="again">PLAY AGAIN</button>
+      </div></div>`;
+      document.getElementById('again').addEventListener('click', showPicker);
+    }
+
+    function showEliminated(score, nextTeams) {
+      // simulate the rest of the tournament to crown a winner
+      let teams = nextTeams;
+      while (teams.length > 1) {
+        const nm = [];
+        for (let i = 0; i < teams.length; i += 2) nm.push(simWinner(teams[i], teams[i + 1]));
+        teams = nm;
+      }
+      app.innerHTML = `<div class="modal"><div class="card">
+        <h2>KNOCKED OUT</h2>
+        <p>${player.flag} ${player.name} lost the shootout ${score} in the <b>${roundName(T.teams)}</b>. Heartbreak!</p>
+        <p>🏆 ${teams[0].flag} <b>${teams[0].name}</b> went on to win it all.</p>
+        <button class="btn" id="again">TRY AGAIN</button>
+      </div></div>`;
+      document.getElementById('again').addEventListener('click', showPicker);
+    }
+
+    function burst(emoji) {
+      for (let i = 0; i < 12; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti'; c.textContent = emoji;
+        c.style.left = (Math.random() * 100) + 'vw'; c.style.top = (40 + Math.random() * 30) + 'vh';
+        document.body.appendChild(c); setTimeout(() => c.remove(), 1200);
+      }
+    }
+
+    // ===== Picker / start =====
+    function showPicker() {
+      app.innerHTML = `<h1>FOOTBALL PENS</h1>
+        <div class="sub">Pick your nation and win the World Cup — one shootout at a time! 🏆<br><span style="color:var(--yellow)">🏆 won: ${trophies}</span></div>
+        <div class="picker" id="picker"></div>`;
+      const picker = document.getElementById('picker');
+      COUNTRIES.forEach(c => {
+        const d = document.createElement('div');
+        d.className = 'country';
+        d.innerHTML = `<div class="flag">${c.flag}</div><div class="nm">${c.name}</div><div class="st">${'★'.repeat(c.str)}</div>`;
+        d.addEventListener('click', () => { ac(); startTournament(c); });
+        picker.appendChild(d);
+      });
+    }
+
+    showPicker();
+  </script>
+</body>
+</html>
