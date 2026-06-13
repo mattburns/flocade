@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Growing Gardens — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600; --leaf: #4caf50; --text: #e8e6f0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #aee7ff; user-select: none; -webkit-user-select: none; touch-action: none; -webkit-tap-highlight-color: transparent; }
+    canvas { position: fixed; inset: 0; display: block; }
+
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    #ui > * { pointer-events: auto; }
+    a.back { position: fixed; top: 10px; left: 12px; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 0.6rem; text-decoration: none; text-shadow: 2px 2px 0 var(--leaf); }
+
+    #dayhud { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.85);
+      border: 2px solid var(--leaf); border-radius: 999px; padding: 0.3rem 0.9rem; font-weight: 800; color: #2d5a2d; font-size: 0.9rem; display: flex; gap: 0.6rem; align-items: center; }
+    #dayhud .thirst { color: #1f7fd0; font-size: 0.8rem; }
+
+    /* joystick */
+    #joy { position: fixed; left: 16px; bottom: 16px; width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.25); border: 3px solid rgba(255,255,255,0.7); touch-action: none; }
+    #joy .thumb { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%;
+      background: rgba(76,175,80,0.85); border: 3px solid #fff; }
+
+    /* reticle */
+    #reticle { position: fixed; left: 50%; top: 50%; width: 26px; height: 26px; transform: translate(-50%,-50%); pointer-events: none; z-index: 4;
+      border: 2px solid rgba(255,255,255,0.8); border-radius: 6px; box-shadow: 0 0 0 1px rgba(0,0,0,0.25); display: none; }
+
+    /* toolbar */
+    #toolbar { position: fixed; right: 14px; bottom: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+    .tbtn { width: 58px; height: 58px; border-radius: 14px; background: rgba(255,255,255,0.85); border: 3px solid #cfcfe0;
+      font-size: 1.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .tbtn.sel { border-color: var(--yellow); background: #fffbe0; box-shadow: 0 0 10px rgba(255,230,0,0.6); }
+    #equipBtn { border-color: var(--pink); }
+    #gyroBtn { width: 46px; height: 46px; font-size: 1.1rem; opacity: 0.55; }
+    #gyroBtn.on { opacity: 1; border-color: var(--cyan); }
+    #nextDayBtn { width: auto; padding: 0 12px; font-size: 0.95rem; font-weight: 800; gap: 4px; }
+
+    /* inventory overlay */
+    #inv { position: fixed; inset: 0; z-index: 12; background: rgba(20,40,20,0.82); display: none; flex-direction: column; padding: 0.8rem; }
+    #inv.open { display: flex; }
+    #inv .tabs { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-bottom: 0.6rem; }
+    #inv .tab { background: rgba(255,255,255,0.18); border: 2px solid transparent; color: #fff; border-radius: 10px; padding: 0.5rem 0.7rem; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    #inv .tab.on { background: #fff; color: #2d5a2d; }
+    #inv .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 0.5rem; overflow-y: auto; align-content: start; flex: 1; }
+    #inv .it { background: rgba(255,255,255,0.92); border: 2px solid #fff; border-radius: 12px; padding: 0.5rem 0.2rem; text-align: center; cursor: pointer; color: #2d5a2d; }
+    #inv .it:hover { transform: translateY(-2px); }
+    #inv .it .em { font-size: 2rem; line-height: 1.1; }
+    #inv .it .nm { font-size: 0.7rem; font-weight: 700; margin-top: 0.2rem; }
+    #inv .it .sw { width: 100%; height: 30px; border-radius: 8px; }
+    #inv .close { align-self: center; margin-top: 0.6rem; background: var(--pink); color: #fff; border: none; border-radius: 10px; padding: 0.7rem 1.4rem; font-family: 'Press Start 2P', monospace; font-size: 0.7rem; cursor: pointer; }
+
+    .modal { position: fixed; inset: 0; z-index: 20; background: rgba(20,40,20,0.85); display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .card { background: #f3fff0; border: 4px solid var(--leaf); border-radius: 24px; padding: 1.6rem; max-width: 420px; text-align: center; color: #2d5a2d; }
+    .card h1 { font-family: 'Press Start 2P', monospace; color: var(--leaf); font-size: 1.3rem; line-height: 1.6; margin-bottom: 0.4rem; }
+    .card p { line-height: 1.6; margin-bottom: 0.9rem; color: #3a6b3a; }
+    .card .btn { background: var(--leaf); color: #fff; border: none; border-radius: 999px; font-weight: 800; font-size: 1rem; padding: 0.8rem 1.5rem; cursor: pointer; margin: 0.25rem; box-shadow: 0 4px 0 rgba(0,0,0,0.15); }
+    .card .btn:active { transform: translateY(3px); box-shadow: none; }
+    .card .btn.alt { background: #fff; color: var(--leaf); border: 2px solid var(--leaf); box-shadow: none; }
+    .controls-help { font-size: 0.85rem; line-height: 1.9; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <div id="dayhud" style="display:none"><span id="dayLabel">Day 1 ☀️</span><span class="thirst" id="thirst"></span></div>
+    <div id="reticle"></div>
+    <div id="joy"><div class="thumb"></div></div>
+    <div id="toolbar">
+      <button class="tbtn" id="gyroBtn" title="Tilt to look">🔄</button>
+      <button class="tbtn" id="nextDayBtn" title="End the day">🌙</button>
+      <button class="tbtn" id="removeBtn" title="Remove">🗑️</button>
+      <button class="tbtn" id="waterBtn" title="Watering can">💧</button>
+      <button class="tbtn sel" id="equipBtn" title="Open inventory">🖐️</button>
+    </div>
+  </div>
+
+  <div id="inv">
+    <div class="tabs" id="invTabs"></div>
+    <div class="grid" id="invGrid"></div>
+    <button class="close" id="invClose">CLOSE</button>
+  </div>
+
+  <div id="screen"></div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ============================================================
+    // Inventory definitions
+    // ============================================================
+    const FLOORS = [
+      { key: 'grass', name: 'Grass', color: 0x5bbf52, tex: 'grass' },
+      { key: 'mud', name: 'Mud', color: 0x6b4a2a },
+      { key: 'soil', name: 'Soil', color: 0x83572f, tex: 'soil' },
+      { key: 'tiles', name: 'Tiles', color: 0xc9ccd2, tex: 'tiles' },
+      { key: 'decking', name: 'Decking', color: 0xb5814a, tex: 'deck' },
+      { key: 'pond', name: 'Pond', color: 0x4aa3e0, tex: 'water' },
+      { key: 'sand', name: 'Sand', color: 0xe6d29a },
+      { key: 'path', name: 'Path', color: 0xd8d2c0, tex: 'cobble' },
+    ];
+    const ITEMS = {
+      flowers: [
+        { key: 'tulip', name: 'Tulip', emoji: '🌷' }, { key: 'sunflower', name: 'Sunflower', emoji: '🌻' },
+        { key: 'rose', name: 'Rose', emoji: '🌹' }, { key: 'daisy', name: 'Daisy', emoji: '🌼' },
+        { key: 'blossom', name: 'Blossom', emoji: '🌸' }, { key: 'hibiscus', name: 'Hibiscus', emoji: '🌺' },
+      ],
+      trees: [
+        { key: 'oak', name: 'Oak', emoji: '🌳' }, { key: 'pine', name: 'Pine', emoji: '🌲' },
+        { key: 'palm', name: 'Palm', emoji: '🌴' }, { key: 'pot', name: 'Potted', emoji: '🪴' },
+      ],
+      seating: [
+        { key: 'chair', name: 'Chair', emoji: '🪑' }, { key: 'sofa', name: 'Sofa', emoji: '🛋️' },
+        { key: 'picnic', name: 'Picnic', emoji: '🧺' }, { key: 'firepit', name: 'Fire pit', emoji: '🔥' },
+      ],
+      animals: [
+        { key: 'cat', name: 'Cat', emoji: '🐱' }, { key: 'dog', name: 'Dog', emoji: '🐶' },
+        { key: 'bunny', name: 'Bunny', emoji: '🐰' }, { key: 'squirrel', name: 'Squirrel', emoji: '🐿️' },
+        { key: 'hedgehog', name: 'Hedgehog', emoji: '🦔' }, { key: 'duck', name: 'Duck', emoji: '🦆' },
+        { key: 'butterfly', name: 'Butterfly', emoji: '🦋' }, { key: 'bird', name: 'Bird', emoji: '🐦' },
+      ],
+      extra: [
+        { key: 'trampoline', name: 'Trampoline', emoji: '🤸', build: buildTrampoline },
+        { key: 'umbrella', name: 'Umbrella', emoji: '⛱️' }, { key: 'slide', name: 'Climbing frame', emoji: '🛝' },
+        { key: 'fountain', name: 'Fountain', emoji: '⛲' }, { key: 'hoop', name: 'Hoop', emoji: '🏀' },
+        { key: 'lantern', name: 'Lantern', emoji: '🏮' }, { key: 'teddy', name: 'Teddy', emoji: '🧸' },
+        { key: 'kite', name: 'Kite', emoji: '🪁' },
+      ],
+    };
+    const TABS = [
+      { id: 'floor', name: 'Floor' }, { id: 'flowers', name: 'Flowers' }, { id: 'trees', name: 'Trees' },
+      { id: 'seating', name: 'Seating' }, { id: 'animals', name: 'Animals' }, { id: 'extra', name: 'Extra' },
+    ];
+    // lookups
+    const floorByKey = k => FLOORS.find(f => f.key === k);
+    function itemByTabKey(tab, key) { return (ITEMS[tab] || []).find(i => i.key === key); }
+    const isGrow = tab => tab === 'flowers' || tab === 'trees';
+    const waterReq = tab => tab === 'trees' ? 2 : 1;
+    const maxStage = 3;
+
+    // ============================================================
+    // Three.js
+    // ============================================================
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.05, 500);
+    scene.add(camera);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x88aa66, 1.0); scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xfff3d0, 1.1); sun.position.set(40, 80, 30); scene.add(sun);
+
+    addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+    const CELL = 2.4;
+    let GW = 10, GH = 10, originX = 0, originZ = 0;
+    let cells = [];        // cells[r][c] = { floorKey, obj, mesh }
+    const cellGroup = new THREE.Group(); scene.add(cellGroup);
+    const objGroup = new THREE.Group(); scene.add(objGroup);
+
+    // ---- textures ----
+    const texCache = {};
+    function floorTexture(kind) {
+      if (texCache[kind]) return texCache[kind];
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d');
+      if (kind === 'grass') { c.fillStyle = '#5bbf52'; c.fillRect(0, 0, 64, 64); c.fillStyle = '#4ca844'; for (let i = 0; i < 60; i++) c.fillRect(Math.random() * 64, Math.random() * 64, 2, 5); }
+      else if (kind === 'soil') { c.fillStyle = '#83572f'; c.fillRect(0, 0, 64, 64); c.fillStyle = '#6e4626'; for (let i = 0; i < 40; i++) c.fillRect(Math.random() * 64, Math.random() * 64, 3, 3); }
+      else if (kind === 'tiles') { c.fillStyle = '#c9ccd2'; c.fillRect(0, 0, 64, 64); c.strokeStyle = '#a7abb5'; c.lineWidth = 4; c.strokeRect(0, 0, 64, 64); c.strokeRect(32, 0, 32, 64); }
+      else if (kind === 'deck') { c.fillStyle = '#b5814a'; c.fillRect(0, 0, 64, 64); c.strokeStyle = '#8f6336'; c.lineWidth = 3; for (let y = 0; y < 64; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(64, y); c.stroke(); } }
+      else if (kind === 'water') { c.fillStyle = '#4aa3e0'; c.fillRect(0, 0, 64, 64); c.strokeStyle = '#6fbef0'; c.lineWidth = 3; for (let y = 8; y < 64; y += 18) { c.beginPath(); c.moveTo(0, y); c.bezierCurveTo(16, y - 6, 48, y + 6, 64, y); c.stroke(); } }
+      else if (kind === 'cobble') { c.fillStyle = '#d8d2c0'; c.fillRect(0, 0, 64, 64); c.strokeStyle = '#b3ad9b'; c.lineWidth = 2; for (let i = 0; i < 10; i++) { c.beginPath(); c.arc(Math.random() * 64, Math.random() * 64, 6 + Math.random() * 5, 0, 7); c.stroke(); } }
+      const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; texCache[kind] = t; return t;
+    }
+    const floorMatCache = {};
+    function floorMaterial(fkey) {
+      if (floorMatCache[fkey]) return floorMatCache[fkey];
+      const f = floorByKey(fkey);
+      const m = new THREE.MeshStandardMaterial({ color: f.color, roughness: 0.9 });
+      if (f.tex) m.map = floorTexture(f.tex);
+      floorMatCache[fkey] = m; return m;
+    }
+
+    // ---- emoji sprites ----
+    const emojiTexCache = {};
+    function emojiTexture(emoji) {
+      if (emojiTexCache[emoji]) return emojiTexCache[emoji];
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      const c = cv.getContext('2d'); c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = '104px serif';
+      c.fillText(emoji, 64, 70);
+      const t = new THREE.CanvasTexture(cv); emojiTexCache[emoji] = t; return t;
+    }
+    function emojiSprite(emoji) {
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTexture(emoji), transparent: true }));
+      return s;
+    }
+
+    // ---- a couple of real 3D builds ----
+    function buildTrampoline() {
+      const g = new THREE.Group();
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.12, 8, 24), new THREE.MeshStandardMaterial({ color: 0x2b6cff, roughness: 0.5 }));
+      ring.rotation.x = Math.PI / 2; ring.position.y = 0.9; g.add(ring);
+      const mat = new THREE.Mesh(new THREE.CircleGeometry(0.9, 24), new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.7, side: THREE.DoubleSide }));
+      mat.rotation.x = -Math.PI / 2; mat.position.y = 0.9; g.add(mat);
+      for (const a of [0, 1, 2, 3]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8), new THREE.MeshStandardMaterial({ color: 0x3355cc }));
+        leg.position.set(Math.cos(a * Math.PI / 2) * 0.85, 0.45, Math.sin(a * Math.PI / 2) * 0.85); g.add(leg);
+      }
+      return g;
+    }
+
+    // ============================================================
+    // Grid build
+    // ============================================================
+    function buildGrid(w, h) {
+      GW = w; GH = h; originX = -w * CELL / 2; originZ = -h * CELL / 2;
+      cellGroup.clear(); objGroup.clear(); cells = [];
+      const geo = new THREE.BoxGeometry(CELL, 0.3, CELL);
+      for (let r = 0; r < h; r++) {
+        cells[r] = [];
+        for (let c = 0; c < w; c++) {
+          const mesh = new THREE.Mesh(geo, floorMaterial('grass'));
+          mesh.position.set(originX + c * CELL + CELL / 2, -0.15, originZ + r * CELL + CELL / 2);
+          mesh.receiveShadow = true; cellGroup.add(mesh);
+          cells[r][c] = { floorKey: 'grass', obj: null, mesh };
+        }
+      }
+    }
+
+    function cellCenter(c, r) { return [originX + c * CELL + CELL / 2, originZ + r * CELL + CELL / 2]; }
+
+    function setFloor(c, r, fkey) {
+      const cell = cells[r][c];
+      cell.floorKey = fkey;
+      cell.mesh.material = floorMaterial(fkey);
+      cell.mesh.position.y = fkey === 'pond' ? -0.28 : -0.15;
+    }
+
+    function removeObject(c, r) {
+      const cell = cells[r][c];
+      if (cell.obj) { objGroup.remove(cell.obj.node); cell.obj = null; }
+    }
+
+    function placeObject(c, r, tab, key, stage = 0, watersToday = 0) {
+      removeObject(c, r);
+      const item = itemByTabKey(tab, key);
+      if (!item) return;
+      const [x, z] = cellCenter(c, r);
+      const node = new THREE.Group();
+      node.position.set(x, 0, z);
+      let visual;
+      if (item.build) { visual = item.build(); }
+      else { visual = emojiSprite(item.emoji); }
+      node.add(visual);
+      // thirsty bubble
+      let bubble = null;
+      if (isGrow(tab)) { bubble = emojiSprite('💧'); bubble.scale.set(0.6, 0.6, 0.6); node.add(bubble); }
+      objGroup.add(node);
+      const obj = { tab, key, stage, watersToday, node, visual, bubble, item, bob: Math.random() * 6.28 };
+      cells[r][c].obj = obj;
+      updateObjectVisual(obj);
+      return obj;
+    }
+
+    function updateObjectVisual(obj) {
+      const { tab, item, visual } = obj;
+      let h; // world height of the cutout
+      if (tab === 'flowers') {
+        const sizes = [0.5, 0.8, 1.1, 1.4];
+        h = sizes[obj.stage];
+        if (visual.material) visual.material.map = emojiTexture(obj.stage === 0 ? '🌱' : item.emoji);
+      } else if (tab === 'trees') {
+        const sizes = [0.7, 1.4, 2.3, 3.2];
+        h = sizes[obj.stage];
+        if (visual.material) visual.material.map = emojiTexture(obj.stage === 0 ? '🌱' : obj.stage === 1 ? '🌿' : item.emoji);
+      } else if (tab === 'animals') h = 1.0;
+      else if (tab === 'seating') h = 1.3;
+      else if (tab === 'extra') h = item.build ? 1 : 1.6;
+      else h = 1.2;
+
+      if (visual.isSprite) { visual.scale.set(h, h, h); visual.position.set(0, h / 2, 0); }
+      else { visual.scale.setScalar(h); visual.position.set(0, 0, 0); } // 3D builds sit on floor
+      if (obj.bubble) {
+        obj.bubble.visible = isGrow(tab) && obj.watersToday < waterReq(tab);
+        obj.bubble.position.set(0, h + 0.5, 0);
+      }
+    }
+
+    // ============================================================
+    // Day cycle & growth
+    // ============================================================
+    const DAY_LEN = 120; // seconds per in-game day
+    let day = 1, dayProgress = 0.18;
+
+    function processDay() {
+      for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+        const o = cells[r][c].obj;
+        if (!o || !isGrow(o.tab)) continue;
+        if (o.watersToday >= waterReq(o.tab) && o.stage < maxStage) o.stage++;
+        o.watersToday = 0;
+        updateObjectVisual(o);
+      }
+      day++; dayProgress = 0.18; updateDayHud(); save();
+    }
+
+    function waterCell(c, r) {
+      const o = cells[r][c].obj;
+      if (!o || !isGrow(o.tab)) return false;
+      if (o.watersToday < waterReq(o.tab)) o.watersToday++;
+      updateObjectVisual(o);
+      splash(c, r);
+      updateDayHud();
+      return true;
+    }
+
+    function thirstyCount() {
+      let n = 0;
+      for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+        const o = cells[r][c].obj;
+        if (o && isGrow(o.tab) && o.watersToday < waterReq(o.tab)) n++;
+      }
+      return n;
+    }
+    function updateDayHud() {
+      const icon = dayProgress < 0.5 ? '☀️' : dayProgress < 0.75 ? '🌇' : '🌙';
+      document.getElementById('dayLabel').textContent = `Day ${day} ${icon}`;
+      const t = thirstyCount();
+      document.getElementById('thirst').textContent = t ? `💧 ${t} thirsty` : '🌿 all happy';
+    }
+
+    function updateSky(p) {
+      // p 0..1 across the day → sky colour + sun position
+      const phases = [
+        { t: 0.0, sky: 0xffd9a0, sun: 0.15 }, { t: 0.25, sky: 0xaee7ff, sun: 1.0 },
+        { t: 0.5, sky: 0xffc285, sun: 0.5 }, { t: 0.7, sky: 0x3a3a6a, sun: 0.12 },
+        { t: 0.85, sky: 0x1a1a3a, sun: 0.08 }, { t: 1.0, sky: 0xffd9a0, sun: 0.15 },
+      ];
+      let a = phases[0], b = phases[phases.length - 1];
+      for (let i = 0; i < phases.length - 1; i++) if (p >= phases[i].t && p <= phases[i + 1].t) { a = phases[i]; b = phases[i + 1]; break; }
+      const f = (p - a.t) / (b.t - a.t || 1);
+      const col = new THREE.Color(a.sky).lerp(new THREE.Color(b.sky), f);
+      scene.background = col; scene.fog = scene.fog || new THREE.Fog(col, 30, 120); scene.fog.color = col;
+      const sunI = a.sun + (b.sun - a.sun) * f;
+      sun.intensity = 0.3 + sunI * 0.9; hemi.intensity = 0.4 + sunI * 0.7;
+      const ang = p * Math.PI * 2 - Math.PI / 2;
+      sun.position.set(Math.cos(ang) * 60, Math.max(8, Math.sin(ang) * 80), 30);
+    }
+
+    function splash(c, r) {
+      const [x, z] = cellCenter(c, r);
+      for (let i = 0; i < 5; i++) {
+        const d = emojiSprite('💧'); d.scale.set(0.3, 0.3, 0.3);
+        d.position.set(x + (Math.random() - 0.5), 1.5, z + (Math.random() - 0.5));
+        scene.add(d);
+        const vy = 2 + Math.random() * 2; let life = 0;
+        const anim = () => { life += 0.03; d.position.y += (vy - life * 12) * 0.03; d.material.opacity = 1 - life * 1.5; if (life < 0.7) requestAnimationFrame(anim); else scene.remove(d); };
+        anim();
+      }
+    }
+
+    // ============================================================
+    // Player controls
+    // ============================================================
+    const EYE = 1.6;
+    const player = { x: 0, z: 0, yaw: 0, pitch: -0.35 };
+    const moveVec = { f: 0, s: 0 };
+
+    // hand on camera
+    const hand = emojiSprite('🖐️'); hand.scale.set(0.9, 0.9, 0.9); hand.position.set(0.7, -0.62, -1.3); camera.add(hand);
+    let handJab = 0;
+
+    // joystick
+    const joy = document.getElementById('joy'), thumb = joy.querySelector('.thumb');
+    let joyId = null;
+    function setJoy(cx, cy) {
+      const rc = joy.getBoundingClientRect();
+      let dx = cx - (rc.left + rc.width / 2), dy = cy - (rc.top + rc.height / 2);
+      const max = rc.width / 2, d = Math.hypot(dx, dy);
+      if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+      thumb.style.transform = `translate(${dx}px,${dy}px)`; moveVec.s = dx / max; moveVec.f = -dy / max;
+    }
+    joy.addEventListener('pointerdown', e => { joyId = e.pointerId; setJoy(e.clientX, e.clientY); joy.setPointerCapture(e.pointerId); });
+    joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) setJoy(e.clientX, e.clientY); });
+    const endJoy = e => { if (e.pointerId === joyId) { joyId = null; thumb.style.transform = ''; moveVec.f = moveVec.s = 0; } };
+    joy.addEventListener('pointerup', endJoy); joy.addEventListener('pointercancel', endJoy);
+
+    // look + tap-to-place on canvas
+    let lookId = null, lastLook = null, downPos = null, downTime = 0, moved = 0;
+    renderer.domElement.addEventListener('pointerdown', e => {
+      lookId = e.pointerId; lastLook = { x: e.clientX, y: e.clientY }; downPos = { x: e.clientX, y: e.clientY }; downTime = performance.now(); moved = 0;
+    });
+    addEventListener('pointermove', e => {
+      if (e.pointerId !== lookId) return;
+      const dx = e.clientX - lastLook.x, dy = e.clientY - lastLook.y;
+      moved += Math.abs(dx) + Math.abs(dy);
+      if (!gyroOn) {
+        player.yaw -= dx * 0.005; player.pitch -= dy * 0.005;
+        player.pitch = Math.max(-1.3, Math.min(0.4, player.pitch));
+      }
+      lastLook = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', e => {
+      if (e.pointerId !== lookId) return;
+      const dt = performance.now() - downTime;
+      if (moved < 12 && dt < 350 && started) tapPlace(e.clientX, e.clientY);
+      lookId = null;
+    });
+
+    // keyboard
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.code] = true; });
+    addEventListener('keyup', e => { keys[e.code] = false; });
+    function readKeys() {
+      let f = 0, s = 0;
+      if (keys.KeyW || keys.ArrowUp) f += 1; if (keys.KeyS || keys.ArrowDown) f -= 1;
+      if (keys.KeyD || keys.ArrowRight) s += 1; if (keys.KeyA || keys.ArrowLeft) s -= 1;
+      if (f || s) { moveVec.f = f; moveVec.s = s; }
+    }
+
+    // gyro
+    let gyroOn = false, gyroBase = null;
+    const gyroBtn = document.getElementById('gyroBtn');
+    gyroBtn.addEventListener('click', async () => {
+      if (!gyroOn) {
+        if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+          try { if (await DeviceOrientationEvent.requestPermission() !== 'granted') return; } catch (e) { return; }
+        }
+        gyroOn = true; gyroBase = null; gyroBtn.classList.add('on');
+      } else { gyroOn = false; gyroBtn.classList.remove('on'); }
+    });
+    addEventListener('deviceorientation', e => {
+      if (!gyroOn || e.alpha === null) return;
+      if (gyroBase === null) gyroBase = e.alpha;
+      const d = ((e.alpha - gyroBase + 540) % 360) - 180;
+      player.yaw = -d * Math.PI / 180;
+      player.pitch = Math.max(-1.3, Math.min(0.4, ((e.beta ?? 90) - 90) * Math.PI / 180));
+    });
+
+    // ============================================================
+    // Tools / placement
+    // ============================================================
+    let tool = 'item';                 // 'item' | 'water' | 'remove'
+    let equipped = { tab: 'floor', key: 'tiles' };
+    const ray = new THREE.Raycaster();
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const hitPoint = new THREE.Vector3();
+
+    function cellUnder(ndcX, ndcY) {
+      ray.setFromCamera({ x: ndcX, y: ndcY }, camera);
+      if (!ray.ray.intersectPlane(groundPlane, hitPoint)) return null;
+      const c = Math.floor((hitPoint.x - originX) / CELL);
+      const r = Math.floor((hitPoint.z - originZ) / CELL);
+      if (c < 0 || c >= GW || r < 0 || r >= GH) return null;
+      return [c, r];
+    }
+
+    function tapPlace(clientX, clientY) {
+      const ndcX = (clientX / innerWidth) * 2 - 1, ndcY = -(clientY / innerHeight) * 2 + 1;
+      const t = cellUnder(ndcX, ndcY);
+      if (!t) return;
+      applyTool(t[0], t[1]);
+    }
+
+    function applyTool(c, r) {
+      handJab = 1;
+      if (tool === 'water') { if (waterCell(c, r)) plip(); return; }
+      if (tool === 'remove') {
+        const cell = cells[r][c];
+        if (cell.obj) removeObject(c, r); else setFloor(c, r, 'grass');
+        thunk(); save(); return;
+      }
+      // place item
+      if (equipped.tab === 'floor') { setFloor(c, r, equipped.key); }
+      else { placeObject(c, r, equipped.tab, equipped.key); }
+      thunk(); updateDayHud(); save();
+    }
+
+    // toolbar
+    const equipBtn = document.getElementById('equipBtn'), waterBtn = document.getElementById('waterBtn'), removeBtn = document.getElementById('removeBtn');
+    function selectTool(t) {
+      tool = t;
+      equipBtn.classList.toggle('sel', t === 'item');
+      waterBtn.classList.toggle('sel', t === 'water');
+      removeBtn.classList.toggle('sel', t === 'remove');
+    }
+    waterBtn.addEventListener('click', () => selectTool('water'));
+    removeBtn.addEventListener('click', () => selectTool('remove'));
+    equipBtn.addEventListener('click', openInventory);
+    document.getElementById('nextDayBtn').addEventListener('click', processDay);
+
+    // inventory overlay
+    const inv = document.getElementById('inv'), invTabs = document.getElementById('invTabs'), invGrid = document.getElementById('invGrid');
+    let invTab = 'floor';
+    function openInventory() { inv.classList.add('open'); renderInvTabs(); renderInvGrid(); }
+    document.getElementById('invClose').addEventListener('click', () => inv.classList.remove('open'));
+    function renderInvTabs() {
+      invTabs.innerHTML = '';
+      TABS.forEach(t => {
+        const b = document.createElement('button'); b.className = 'tab' + (t.id === invTab ? ' on' : ''); b.textContent = t.name;
+        b.addEventListener('click', () => { invTab = t.id; renderInvTabs(); renderInvGrid(); });
+        invTabs.appendChild(b);
+      });
+    }
+    function renderInvGrid() {
+      invGrid.innerHTML = '';
+      const list = invTab === 'floor' ? FLOORS : ITEMS[invTab];
+      list.forEach(it => {
+        const d = document.createElement('div'); d.className = 'it';
+        if (invTab === 'floor') {
+          const hex = '#' + it.color.toString(16).padStart(6, '0');
+          d.innerHTML = `<div class="sw" style="background:${hex}"></div><div class="nm">${it.name}</div>`;
+        } else {
+          d.innerHTML = `<div class="em">${it.emoji || '🛝'}</div><div class="nm">${it.name}</div>`;
+        }
+        d.addEventListener('click', () => {
+          equipped = { tab: invTab === 'floor' ? 'floor' : invTab, key: it.key };
+          selectTool('item');
+          equipBtn.textContent = invTab === 'floor' ? '🟫' : (it.emoji || '🛝');
+          inv.classList.remove('open');
+        });
+        invGrid.appendChild(d);
+      });
+    }
+
+    // ============================================================
+    // Save / load
+    // ============================================================
+    const SAVE_KEY = 'growing-gardens-save';
+    function save() {
+      const grid = [];
+      for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+        const cell = cells[r][c];
+        grid.push({ c, r, f: cell.floorKey, o: cell.obj ? { tab: cell.obj.tab, key: cell.obj.key, s: cell.obj.stage, w: cell.obj.watersToday } : null });
+      }
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify({ gw: GW, gh: GH, day, grid })); } catch (e) {}
+    }
+    function hasSave() { return !!localStorage.getItem(SAVE_KEY); }
+    function load() {
+      const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+      buildGrid(data.gw, data.gh); day = data.day || 1;
+      data.grid.forEach(g => {
+        if (g.f && g.f !== 'grass') setFloor(g.c, g.r, g.f);
+        if (g.o) placeObject(g.c, g.r, g.o.tab, g.o.key, g.o.s, g.o.w);
+      });
+      updateDayHud();
+    }
+
+    // ============================================================
+    // Loop
+    // ============================================================
+    const clock = new THREE.Clock();
+    let started = false;
+    const fwd = new THREE.Vector3();
+    const highlight = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.05, CELL), new THREE.MeshBasicMaterial({ color: 0xffe600, transparent: true, opacity: 0.35 }));
+    highlight.position.y = 0.02; highlight.visible = false; scene.add(highlight);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, clock.getDelta());
+
+      camera.position.set(player.x, EYE, player.z);
+      camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+
+      if (started) {
+        readKeys();
+        if (moveVec.f || moveVec.s) {
+          camera.getWorldDirection(fwd);
+          const fl = Math.hypot(fwd.x, fwd.z) || 1;
+          const fx = fwd.x / fl, fz = fwd.z / fl, rx = -fz, rz = fx;
+          let vx = fx * moveVec.f + rx * moveVec.s, vz = fz * moveVec.f + rz * moveVec.s;
+          const m = Math.hypot(vx, vz) || 1;
+          const SPEED = 7;
+          const lim = (GW * CELL) / 2 + CELL, limZ = (GH * CELL) / 2 + CELL;
+          player.x = Math.max(-lim, Math.min(lim, player.x + (vx / m) * SPEED * dt));
+          player.z = Math.max(-limZ, Math.min(limZ, player.z + (vz / m) * SPEED * dt));
+        }
+        if (!keys.KeyW && !keys.KeyS && !keys.KeyA && !keys.KeyD && joyId === null &&
+            !keys.ArrowUp && !keys.ArrowDown && !keys.ArrowLeft && !keys.ArrowRight) { moveVec.f = moveVec.s = 0; }
+
+        // day cycle
+        dayProgress += dt / DAY_LEN;
+        if (dayProgress >= 1) processDay();
+        updateSky(dayProgress);
+        if (Math.floor(clock.elapsedTime * 2) % 2 === 0) updateDayHud();
+
+        // reticle highlight at screen centre
+        const t = cellUnder(0, 0);
+        if (t) { const [x, z] = cellCenter(t[0], t[1]); highlight.position.set(x, 0.02, z); highlight.visible = true; }
+        else highlight.visible = false;
+
+        // hand jab + bob
+        const bob = Math.sin(clock.elapsedTime * 6) * (moveVec.f || moveVec.s ? 0.02 : 0.008);
+        handJab = Math.max(0, handJab - dt * 4);
+        hand.position.set(0.7, -0.62 + bob - handJab * 0.1, -1.3 + handJab * 0.25);
+
+        // animal idle bob
+        for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+          const o = cells[r][c].obj;
+          if (o && (o.tab === 'animals' || o.key === 'butterfly')) o.visual.position.y = (o.visual.scale.y / 2) + Math.abs(Math.sin(clock.elapsedTime * 3 + o.bob)) * 0.15;
+        }
+      } else {
+        updateSky(0.25);
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ============================================================
+    // Screens
+    // ============================================================
+    const screenDiv = document.getElementById('screen');
+    function showIntro() {
+      const cont = hasSave() ? `<button class="btn" data-act="continue">🌱 CONTINUE GARDEN</button>` : '';
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <h1>GROWING<br>GARDENS</h1>
+        <div style="font-size:2.5rem">🌷🌳🐰</div>
+        <p>Design your dream garden! Walk around with your big hand 🖐️, place anything you like on the ground, and <b>water your flowers and trees</b> to make them grow.</p>
+        <div class="controls-help">🕹️ Move &middot; 👆 Swipe to look &middot; 🖐️ Pick from inventory<br>👆 Tap a square to place &middot; 💧 Water &middot; 🌙 End the day</div>
+        ${cont}
+        <p style="font-weight:800;margin-top:0.5rem">New garden size:</p>
+        <button class="btn alt" data-size="6">Small 6×6</button>
+        <button class="btn alt" data-size="10">Medium 10×10</button>
+        <button class="btn alt" data-size="16">Big 16×16</button>
+      </div></div>`;
+      screenDiv.querySelectorAll('[data-size]').forEach(b => b.addEventListener('click', () => { buildGrid(+b.dataset.size, +b.dataset.size); begin(); }));
+      const cb = screenDiv.querySelector('[data-act=continue]');
+      if (cb) cb.addEventListener('click', () => { load(); begin(); });
+    }
+    function begin() {
+      screenDiv.innerHTML = '';
+      document.getElementById('dayhud').style.display = 'flex';
+      document.getElementById('reticle').style.display = 'block';
+      started = true;
+      equipped = { tab: 'floor', key: 'tiles' }; equipBtn.textContent = '🟫'; selectTool('item');
+      updateDayHud();
+    }
+    showIntro();
+  </script>
+</body>
+</html>

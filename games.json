@@ -64,5 +64,11 @@
     "title": "Football Pens",
     "icon": "⚽",
     "description": "Win the World Cup one penalty shootout at a time. Pick your nation and aim!"
+  },
+  {
+    "slug": "growing-gardens",
+    "title": "Growing Gardens",
+    "icon": "🌷",
+    "description": "Design a 3D garden block by block — plant, water and watch it grow over the days."
   }
 ]
