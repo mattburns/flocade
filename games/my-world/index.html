@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>My World — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --pink: #ff7eb6;
+      --pink-deep: #ff2e88;
+      --cyan: #7ee8fa;
+      --yellow: #ffe600;
+      --text: #4a2e52;
+      --cream: #fff5fb;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #cdeffd;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas { position: fixed; inset: 0; display: block; }
+
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    #ui > * { pointer-events: auto; }
+
+    a.back {
+      position: fixed; top: 12px; left: 12px;
+      color: #fff; font-family: 'Press Start 2P', monospace; font-size: 0.65rem;
+      text-decoration: none; text-shadow: 2px 2px 0 var(--pink-deep);
+    }
+
+    /* friends counter */
+    #friends {
+      position: fixed; top: 10px; right: 12px;
+      background: rgba(255, 245, 251, 0.9);
+      border: 3px solid var(--pink);
+      border-radius: 999px;
+      padding: 0.4rem 0.9rem;
+      font-weight: 700; color: var(--text);
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 3px 0 rgba(255, 46, 136, 0.3);
+    }
+
+    /* joystick */
+    #joy {
+      position: fixed; left: 18px; bottom: 18px;
+      width: 130px; height: 130px;
+      border-radius: 50%;
+      background: rgba(255, 245, 251, 0.35);
+      border: 3px solid rgba(255, 255, 255, 0.7);
+      touch-action: none;
+    }
+    #joy .thumb {
+      position: absolute; left: 50%; top: 50%;
+      width: 56px; height: 56px; margin: -28px 0 0 -28px;
+      border-radius: 50%;
+      background: rgba(255, 126, 182, 0.85);
+      border: 3px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    /* interaction prompt */
+    #prompt {
+      position: fixed; left: 50%; bottom: 30px;
+      transform: translateX(-50%);
+      background: var(--pink-deep); color: #fff;
+      border: 3px solid #fff;
+      border-radius: 999px;
+      padding: 0.7rem 1.3rem;
+      font-weight: 700; font-size: 1rem;
+      cursor: pointer; display: none;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+      animation: bobBtn 0.8s ease-in-out infinite alternate;
+    }
+    @keyframes bobBtn { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-6px); } }
+
+    /* small round toggle buttons */
+    .toggle {
+      position: fixed; right: 14px;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(255, 245, 251, 0.9);
+      border: 3px solid var(--pink);
+      font-size: 1.3rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .toggle.off { opacity: 0.5; }
+    #gyroBtn { bottom: 90px; }
+    #muteBtn { bottom: 24px; }
+
+    /* dialog + screens */
+    .modal {
+      position: fixed; inset: 0; z-index: 10;
+      background: rgba(74, 46, 82, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--cream);
+      border: 4px solid var(--pink);
+      border-radius: 24px;
+      padding: 1.5rem;
+      max-width: 380px; width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 0 rgba(255, 46, 136, 0.25);
+    }
+    .card .face { font-size: 3.5rem; line-height: 1; }
+    .card h2 { color: var(--pink-deep); font-family: 'Press Start 2P', monospace; font-size: 0.95rem; margin: 0.6rem 0; }
+    .card p { color: var(--text); font-size: 1.05rem; line-height: 1.6; margin-bottom: 1rem; }
+    .card .btn {
+      background: var(--pink-deep); color: #fff; border: none;
+      border-radius: 999px; font-weight: 700; font-size: 1rem;
+      padding: 0.8rem 1.4rem; cursor: pointer; margin: 0.25rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+    }
+    .card .btn.alt { background: #fff; color: var(--pink-deep); border: 3px solid var(--pink); }
+    .card .btn:active { transform: translateY(3px); box-shadow: none; }
+
+    #intro h1 { font-family: 'Press Start 2P', monospace; color: var(--pink-deep); font-size: 1.5rem; line-height: 1.6; margin-bottom: 0.5rem; }
+    #intro .friends-list { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin: 0.5rem 0 1rem; }
+    #intro .friends-list span { font-size: 1.6rem; }
+    .controls-help { color: var(--text); font-size: 0.9rem; line-height: 1.8; margin-bottom: 1rem; }
+
+    .heartpop {
+      position: fixed; font-size: 2rem; pointer-events: none; z-index: 20;
+      animation: heartUp 1s ease-out forwards;
+    }
+    @keyframes heartUp { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-80px) scale(1.6); } }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <div id="friends">💖 0</div>
+    <div id="joy"><div class="thumb"></div></div>
+    <button id="prompt">👋 Say hi!</button>
+    <button class="toggle off" id="gyroBtn" title="Tilt to look">🔄</button>
+    <button class="toggle" id="muteBtn" title="Music">🔊</button>
+  </div>
+  <div id="screen"></div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ============================================================
+    // Characters & world data
+    // ============================================================
+    const NPCS = [
+      // park friends (wander)
+      { name: 'Bun',     type: 'bunny', color: 0xfff0f5, x: -10, z: -14, wander: true, line: "Hop hop! Wanna race to the flowers? 🌸" },
+      { name: 'Mochi',   type: 'bear',  color: 0xffe0b3, x: -16, z: -22, wander: true, line: "I found the comfiest napping spot. Zzz... 🐻" },
+      { name: 'Whiskers',type: 'cat',   color: 0xd9c2ff, x: 12,  z: -18, wander: true, line: "Mrow! Did you see the butterflies today? 🦋" },
+      { name: 'Tweet',   type: 'bird',  color: 0xb3f0ff, x: 6,   z: -26, wander: true, line: "Tweet tweet! I know ALL the best songs! 🎵" },
+      { name: 'Pip',     type: 'blob',  color: 0xc2ffd9, x: -4,  z: -28, wander: true, line: "Boing! I'm a little jelly bean of joy! 🟢" },
+      { name: 'Cocoa',   type: 'bear',  color: 0xc99c6b, x: 16,  z: -12, wander: true, line: "Want to share my picnic? I have berry buns! 🫐" },
+      // mall shopkeepers (stay)
+      { name: 'Sprinkle',type: 'cat',   color: 0xffd1ea, x: -7,  z: 15, face: Math.PI/2, line: "Welcome to the ice cream parlour! Two scoops? 🍦", shop: '🍦' },
+      { name: 'Buttons', type: 'bear',  color: 0xffcf8f, x: -7,  z: 23, face: Math.PI/2, line: "So many toys! What do you want to play with? 🧸", shop: '🧸' },
+      { name: 'Clover',  type: 'bunny', color: 0xe6ffe0, x: 7,   z: 15, face: -Math.PI/2, line: "All my pets need cuddles. Say hello! 🐾", shop: '🐾' },
+      { name: 'Coco',    type: 'blob',  color: 0xffc2e0, x: 7,   z: 23, face: -Math.PI/2, line: "Ooh, let's find you the cutest outfit! 👗", shop: '👗' },
+      { name: 'Muffin',  type: 'bird',  color: 0xfff0b3, x: 0,   z: 29, face: Math.PI,   line: "Fresh cupcakes, baked with love today! 🧁", shop: '🧁' },
+    ];
+
+    const SHOPS = NPCS.filter(n => n.shop).map(n => ({ x: n.x, z: n.z, rot: n.face, emoji: n.shop, label: n.name }));
+
+    let friends = new Set(JSON.parse(localStorage.getItem('myworld-friends') || '[]'));
+
+    // ============================================================
+    // Three.js setup
+    // ============================================================
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xcdeffd);
+    scene.fog = new THREE.Fog(0xcdeffd, 35, 75);
+
+    const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 200);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xffd6ec, 1.05));
+    const sun = new THREE.DirectionalLight(0xfff4e0, 0.8);
+    sun.position.set(12, 25, 8);
+    scene.add(sun);
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    const obstacles = []; // {x, z, r}
+    const mat = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
+
+    // ---- Ground ----
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 48), mat(0xb6e8a0));
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // soft path from park to mall
+    const path = new THREE.Mesh(new THREE.PlaneGeometry(5, 70), mat(0xf3e2c7));
+    path.rotation.x = -Math.PI / 2;
+    path.position.y = 0.02;
+    scene.add(path);
+
+    // plaza disc
+    const plaza = new THREE.Mesh(new THREE.CircleGeometry(7, 40), mat(0xffe3f1));
+    plaza.rotation.x = -Math.PI / 2;
+    plaza.position.y = 0.03;
+    scene.add(plaza);
+
+    // ---- Fountain (centre) ----
+    (function fountain() {
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.3, 0.6, 24), mat(0xffd6ec));
+      base.position.y = 0.3;
+      const water = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 0.62, 24), mat(0x9fe0ff, 0.4));
+      water.position.y = 0.34;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 1.2, 16), mat(0xffffff));
+      stem.position.y = 1.1;
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), mat(0x9fe0ff, 0.4));
+      top.position.y = 1.9;
+      g.add(base, water, stem, top);
+      scene.add(g);
+      obstacles.push({ x: 0, z: 0, r: 2.4 });
+    })();
+
+    // ---- Trees & flowers (park, -z) ----
+    function tree(x, z, scale = 1) {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 1.6, 10), mat(0xb98b5e));
+      trunk.position.y = 0.8;
+      const leafColor = [0x8fd96b, 0xa7e88a, 0x7fd0a0][Math.floor(Math.random() * 3)];
+      for (let i = 0; i < 3; i++) {
+        const blob = new THREE.Mesh(new THREE.SphereGeometry(1 - i * 0.18, 14, 12), mat(leafColor));
+        blob.position.set((Math.random() - 0.5) * 0.5, 1.8 + i * 0.55, (Math.random() - 0.5) * 0.5);
+        g.add(blob);
+      }
+      g.add(trunk);
+      g.position.set(x, 0, z);
+      g.scale.setScalar(scale);
+      scene.add(g);
+      obstacles.push({ x, z, r: 0.6 * scale });
+    }
+    function flower(x, z) {
+      const g = new THREE.Group();
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6), mat(0x6cc24a));
+      stem.position.y = 0.25;
+      const petalColor = [0xff7eb6, 0xffe600, 0xffffff, 0xb38bff, 0xff9e57][Math.floor(Math.random() * 5)];
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), mat(petalColor));
+      head.position.y = 0.55;
+      const centre = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), mat(0xffe600));
+      centre.position.y = 0.62;
+      g.add(stem, head, centre);
+      g.position.set(x, 0, z);
+      scene.add(g);
+    }
+    const treePositions = [[-12,-10],[-18,-16],[-22,-24],[-8,-22],[-14,-30],[10,-12],[15,-22],[20,-16],[8,-30],[18,-28],[-25,-8],[24,-8],[-20,-32],[22,-32]];
+    treePositions.forEach(([x, z], i) => tree(x, z, 0.8 + (i % 3) * 0.15));
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, d = 6 + Math.random() * 26;
+      const x = Math.sin(a) * d, z = -8 - Math.random() * 24;
+      if (Math.abs(x) > 3.2) flower(x, z);
+    }
+
+    // ---- Pond ----
+    (function pond() {
+      const p = new THREE.Mesh(new THREE.CircleGeometry(4, 32), mat(0x8fd6ff, 0.3));
+      p.rotation.x = -Math.PI / 2;
+      p.position.set(-14, 0.04, -20);
+      scene.add(p);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(4, 0.25, 10, 36), mat(0xe8c98f));
+      rim.rotation.x = -Math.PI / 2;
+      rim.position.set(-14, 0.1, -20);
+      scene.add(rim);
+      obstacles.push({ x: -14, z: -20, r: 4.3 });
+    })();
+
+    // ---- Mall pavilion (+z) ----
+    (function mall() {
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 22), mat(0xfff0d6));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(0, 0.05, 21);
+      scene.add(floor);
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(26, 0.7, 24), mat(0xff9ec7));
+      roof.position.set(0, 6, 21);
+      scene.add(roof);
+      // candy-stripe roof trim
+      const trim = new THREE.Mesh(new THREE.BoxGeometry(26.4, 0.5, 0.6), mat(0xffffff));
+      for (const z of [10, 32]) { const t = trim.clone(); t.position.set(0, 5.7, z); scene.add(t); }
+      const pillarPos = [[-11, 11], [11, 11], [-11, 31], [11, 31]];
+      pillarPos.forEach(([x, z]) => {
+        const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6, 14), mat(0xffffff));
+        pil.position.set(x, 3, z);
+        scene.add(pil);
+        obstacles.push({ x, z, r: 0.7 });
+      });
+    })();
+
+    // ---- Shop stalls ----
+    function emojiSign(emoji, label) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 256;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff5fb';
+      c.strokeStyle = '#ff7eb6'; c.lineWidth = 14;
+      roundRect(c, 12, 12, 232, 232, 36); c.fill(); c.stroke();
+      c.font = '120px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(emoji, 128, 110);
+      c.fillStyle = '#ff2e88'; c.font = 'bold 40px Inter, sans-serif';
+      c.fillText(label, 128, 205);
+      const tex = new THREE.CanvasTexture(cv);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+      return m;
+    }
+    function roundRect(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+    SHOPS.forEach(s => {
+      const g = new THREE.Group();
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1, 1), mat(0xffd6ec));
+      counter.position.set(0, 0.5, 1);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 0.3), mat(0xffe0f0));
+      back.position.set(0, 1.2, -0.6);
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 1.4), mat(0xff7eb6));
+      awning.position.set(0, 2.6, 0.4);
+      const sign = emojiSign(s.emoji, s.label);
+      sign.position.set(0, 1.5, 1.55);
+      g.add(counter, back, awning, sign);
+      g.position.set(s.x, 0, s.z);
+      g.rotation.y = s.rot;
+      scene.add(g);
+      obstacles.push({ x: s.x, z: s.z, r: 1.8 });
+    });
+
+    // ---- Directional signposts in plaza ----
+    function signpost(text, x, z, ry) {
+      const cv = document.createElement('canvas');
+      cv.width = 256; cv.height = 128;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff5fb'; c.strokeStyle = '#ff7eb6'; c.lineWidth = 10;
+      roundRect(c, 6, 6, 244, 116, 24); c.fill(); c.stroke();
+      c.fillStyle = '#ff2e88'; c.font = 'bold 56px Inter, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(text, 128, 66);
+      const tex = new THREE.CanvasTexture(cv);
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial({ map: tex }));
+      board.position.set(x, 2, z); board.rotation.y = ry;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2, 8), mat(0xb98b5e));
+      post.position.set(x, 0.75, z);
+      scene.add(board, post);
+    }
+    signpost('🌳 PARK', -4, -5, 0);
+    signpost('🛍️ MALL', 4, 9, Math.PI);
+
+    // ============================================================
+    // Cute character builder
+    // ============================================================
+    const white = mat(0xffffff), dark = mat(0x4a2e52, 0.5), blush = mat(0xff9ec7);
+    function makeCharacter(type, color) {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 16), mat(color));
+      body.scale.set(1, 0.95, 1);
+      body.position.y = 0.55;
+      g.add(body);
+
+      // eyes (front = +z)
+      for (const sx of [-0.17, 0.17]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), white);
+        eye.position.set(sx, 0.62, 0.42);
+        const pup = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), dark);
+        pup.position.set(sx, 0.62, 0.5);
+        g.add(eye, pup);
+      }
+      // cheeks
+      for (const sx of [-0.28, 0.28]) {
+        const ch = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), blush);
+        ch.position.set(sx, 0.5, 0.44); ch.rotation.y = sx > 0 ? -0.4 : 0.4;
+        g.add(ch);
+      }
+      // feet
+      for (const sx of [-0.2, 0.2]) {
+        const foot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), mat(color));
+        foot.scale.set(1, 0.6, 1.3);
+        foot.position.set(sx, 0.1, 0.15);
+        g.add(foot);
+      }
+      // type toppings
+      const cm = mat(color);
+      if (type === 'bunny') {
+        for (const sx of [-0.13, 0.13]) {
+          const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.4, 4, 8), cm);
+          ear.position.set(sx, 1.15, 0); g.add(ear);
+        }
+      } else if (type === 'bear') {
+        for (const sx of [-0.32, 0.32]) {
+          const ear = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), cm);
+          ear.position.set(sx, 0.92, 0.05); g.add(ear);
+        }
+      } else if (type === 'cat') {
+        for (const sx of [-0.25, 0.25]) {
+          const ear = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 8), cm);
+          ear.position.set(sx, 0.98, 0); g.add(ear);
+        }
+      } else if (type === 'bird') {
+        const beak = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.22, 8), mat(0xffb347));
+        beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.52, 0.5); g.add(beak);
+        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 8), cm);
+        tuft.position.set(0, 1.0, 0); g.add(tuft);
+      }
+      // friendship heart (hidden until befriended)
+      const heart = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), mat(0xff2e88));
+      heart.position.y = 1.4; heart.visible = false;
+      g.add(heart);
+      g.userData.heart = heart;
+      return g;
+    }
+
+    // instantiate NPCs
+    const npcMeshes = [];
+    NPCS.forEach(n => {
+      const g = makeCharacter(n.type, n.color);
+      g.position.set(n.x, 0, n.z);
+      g.rotation.y = n.face ?? Math.random() * Math.PI * 2;
+      if (friends.has(n.name)) g.userData.heart.visible = true;
+      scene.add(g);
+      npcMeshes.push({ data: n, group: g, baseX: n.x, baseZ: n.z, phase: Math.random() * 6.28, tx: n.x, tz: n.z, wt: 0, faceYaw: g.rotation.y });
+    });
+
+    // ============================================================
+    // Player + controls
+    // ============================================================
+    const player = { x: 0, z: 7, yaw: 0, pitch: 0 };
+    const EYE = 1.5, RADIUS = 0.5, WORLD_R = 40;
+    const move = { f: 0, s: 0 };
+
+    function resolveCollisions(nx, nz) {
+      for (const o of obstacles) {
+        const dx = nx - o.x, dz = nz - o.z;
+        const d = Math.hypot(dx, dz), min = o.r + RADIUS;
+        if (d < min && d > 0.0001) {
+          nx = o.x + (dx / d) * min;
+          nz = o.z + (dz / d) * min;
+        }
+      }
+      const dc = Math.hypot(nx, nz);
+      if (dc > WORLD_R) { nx = (nx / dc) * WORLD_R; nz = (nz / dc) * WORLD_R; }
+      return [nx, nz];
+    }
+
+    // ---- Joystick ----
+    const joy = document.getElementById('joy');
+    const thumb = joy.querySelector('.thumb');
+    let joyId = null;
+    function setJoy(cx, cy) {
+      const r = joy.getBoundingClientRect();
+      let dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      const max = r.width / 2, d = Math.hypot(dx, dy);
+      if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+      thumb.style.transform = `translate(${dx}px, ${dy}px)`;
+      move.s = dx / max;
+      move.f = -dy / max;
+    }
+    joy.addEventListener('pointerdown', e => { joyId = e.pointerId; setJoy(e.clientX, e.clientY); joy.setPointerCapture(e.pointerId); });
+    joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) setJoy(e.clientX, e.clientY); });
+    function endJoy(e) { if (e.pointerId === joyId) { joyId = null; thumb.style.transform = ''; move.f = move.s = 0; } }
+    joy.addEventListener('pointerup', endJoy);
+    joy.addEventListener('pointercancel', endJoy);
+
+    // ---- Look (drag anywhere else) ----
+    let lookId = null, lastLook = null;
+    renderer.domElement.addEventListener('pointerdown', e => { lookId = e.pointerId; lastLook = { x: e.clientX, y: e.clientY }; });
+    addEventListener('pointermove', e => {
+      if (e.pointerId !== lookId || gyroOn) return;
+      player.yaw -= (e.clientX - lastLook.x) * 0.005;
+      player.pitch -= (e.clientY - lastLook.y) * 0.005;
+      player.pitch = Math.max(-1.2, Math.min(1.2, player.pitch));
+      lastLook = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', e => { if (e.pointerId === lookId) lookId = null; });
+
+    // ---- Keyboard (desktop) ----
+    const keys = {};
+    addEventListener('keydown', e => { keys[e.code] = true; });
+    addEventListener('keyup', e => { keys[e.code] = false; });
+    function readKeys() {
+      let f = 0, s = 0;
+      if (keys.KeyW || keys.ArrowUp) f += 1;
+      if (keys.KeyS || keys.ArrowDown) f -= 1;
+      if (keys.KeyD || keys.ArrowRight) s += 1;
+      if (keys.KeyA || keys.ArrowLeft) s -= 1;
+      if (f || s) { move.f = f; move.s = s; }
+    }
+
+    // ---- Gyro look (optional) ----
+    let gyroOn = false, gyroBase = null;
+    const gyroBtn = document.getElementById('gyroBtn');
+    gyroBtn.addEventListener('click', async () => {
+      if (!gyroOn) {
+        if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+          try { const p = await DeviceOrientationEvent.requestPermission(); if (p !== 'granted') return; } catch (e) { return; }
+        }
+        gyroOn = true; gyroBase = null; gyroBtn.classList.remove('off');
+      } else {
+        gyroOn = false; gyroBtn.classList.add('off');
+      }
+    });
+    addEventListener('deviceorientation', e => {
+      if (!gyroOn || e.alpha === null) return;
+      if (!gyroBase) gyroBase = e.alpha;
+      let d = ((e.alpha - gyroBase + 540) % 360) - 180;
+      player.yaw = -d * Math.PI / 180;
+      player.pitch = Math.max(-1.2, Math.min(1.2, ((e.beta ?? 90) - 90) * Math.PI / 180));
+    });
+
+    // ============================================================
+    // NPC interaction
+    // ============================================================
+    const promptBtn = document.getElementById('prompt');
+    const friendsEl = document.getElementById('friends');
+    let nearNpc = null;
+    updateFriendsCounter();
+
+    function updateFriendsCounter() {
+      friendsEl.textContent = `💖 ${friends.size}/${NPCS.length}`;
+    }
+
+    function findNearest() {
+      const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
+      let best = null, bestD = 3.6;
+      for (const m of npcMeshes) {
+        const dx = m.group.position.x - player.x, dz = m.group.position.z - player.z;
+        const d = Math.hypot(dx, dz);
+        if (d > bestD) continue;
+        const dot = (dx / d) * fwdX + (dz / d) * fwdZ;
+        if (dot < 0.2) continue; // must be roughly in front
+        best = m; bestD = d;
+      }
+      return best;
+    }
+
+    promptBtn.addEventListener('click', () => { if (nearNpc) openDialog(nearNpc); });
+
+    const screenDiv = document.getElementById('screen');
+    function openDialog(m) {
+      const n = m.data;
+      const already = friends.has(n.name);
+      const face = { bunny: '🐰', bear: '🐻', cat: '🐱', bird: '🐤', blob: '🟢' }[n.type];
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <div class="face">${face}</div>
+        <h2>${n.name}${n.shop ? ' ' + n.shop : ''}</h2>
+        <p>"${already ? "I'm so happy we're friends! Come visit anytime! 💕" : n.line}"</p>
+        ${already
+          ? `<button class="btn" data-act="wave">👋 Wave</button>`
+          : `<button class="btn" data-act="friend">💖 Be friends!</button>`}
+        <button class="btn alt" data-act="bye">Bye!</button>
+      </div></div>`;
+      const close = () => { screenDiv.innerHTML = ''; };
+      screenDiv.querySelector('[data-act=bye]').addEventListener('click', close);
+      const waveBtn = screenDiv.querySelector('[data-act=wave]');
+      if (waveBtn) waveBtn.addEventListener('click', () => { heartPop(); close(); });
+      const friendBtn = screenDiv.querySelector('[data-act=friend]');
+      if (friendBtn) friendBtn.addEventListener('click', () => {
+        friends.add(n.name);
+        localStorage.setItem('myworld-friends', JSON.stringify([...friends]));
+        m.group.userData.heart.visible = true;
+        updateFriendsCounter();
+        chime();
+        heartPop();
+        close();
+        if (friends.size === NPCS.length) setTimeout(showWin, 400);
+      });
+    }
+
+    function heartPop() {
+      for (let i = 0; i < 6; i++) {
+        const h = document.createElement('div');
+        h.className = 'heartpop';
+        h.textContent = ['💖', '✨', '💕', '⭐'][i % 4];
+        h.style.left = (innerWidth / 2 + (Math.random() - 0.5) * 160) + 'px';
+        h.style.top = (innerHeight / 2 + (Math.random() - 0.5) * 80) + 'px';
+        document.body.appendChild(h);
+        setTimeout(() => h.remove(), 1000);
+      }
+    }
+
+    // ============================================================
+    // Sound (WebAudio)
+    // ============================================================
+    let actx = null, ambientGain = null, muted = false;
+    function initAudio() {
+      if (actx) return;
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      // gentle ambient pad
+      ambientGain = actx.createGain();
+      ambientGain.gain.value = 0.04;
+      ambientGain.connect(actx.destination);
+      [220, 277.18, 329.63].forEach((f, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        const lfo = actx.createOscillator(), lg = actx.createGain();
+        lfo.frequency.value = 0.07 + i * 0.03; lg.gain.value = 0.5;
+        lfo.connect(lg).connect(g.gain);
+        g.gain.value = 0.5;
+        o.connect(g).connect(ambientGain);
+        o.start(); lfo.start();
+      });
+    }
+    function chime() {
+      if (!actx || muted) return;
+      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'triangle'; o.frequency.value = f;
+        const t = actx.currentTime + i * 0.08;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.connect(g).connect(actx.destination);
+        o.start(t); o.stop(t + 0.55);
+      });
+    }
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.addEventListener('click', () => {
+      muted = !muted;
+      if (ambientGain) ambientGain.gain.value = muted ? 0 : 0.04;
+      muteBtn.textContent = muted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('off', muted);
+    });
+
+    // ============================================================
+    // Main loop
+    // ============================================================
+    const clock = new THREE.Clock();
+    let started = false;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, clock.getDelta());
+      const t = clock.elapsedTime;
+
+      if (started) {
+        readKeys();
+        const SPEED = 5.5;
+        if (move.f || move.s) {
+          const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
+          const rgtX = Math.cos(player.yaw), rgtZ = -Math.sin(player.yaw);
+          let vx = fwdX * move.f + rgtX * move.s;
+          let vz = fwdZ * move.f + rgtZ * move.s;
+          const vm = Math.hypot(vx, vz) || 1;
+          const nx = player.x + (vx / vm) * SPEED * dt;
+          const nz = player.z + (vz / vm) * SPEED * dt;
+          [player.x, player.z] = resolveCollisions(nx, nz);
+        }
+        if (!keys.KeyW && !keys.KeyS && !keys.KeyA && !keys.KeyD && joyId === null &&
+            !keys.ArrowUp && !keys.ArrowDown && !keys.ArrowLeft && !keys.ArrowRight) { move.f = move.s = 0; }
+      }
+
+      camera.position.set(player.x, EYE, player.z);
+      camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+
+      // NPC animation
+      for (const m of npcMeshes) {
+        m.group.position.y = Math.abs(Math.sin(t * 2 + m.phase)) * 0.08;
+        if (m.group.userData.heart.visible) {
+          m.group.userData.heart.position.y = 1.35 + Math.sin(t * 3 + m.phase) * 0.08;
+          m.group.userData.heart.rotation.y = t * 2;
+        }
+        if (m.data.wander && started) {
+          m.wt -= dt;
+          if (m.wt <= 0) {
+            m.tx = m.baseX + (Math.random() - 0.5) * 8;
+            m.tz = m.baseZ + (Math.random() - 0.5) * 8;
+            m.wt = 2 + Math.random() * 3;
+          }
+          const dx = m.tx - m.group.position.x, dz = m.tz - m.group.position.z;
+          const d = Math.hypot(dx, dz);
+          if (d > 0.1) {
+            m.group.position.x += (dx / d) * 1.1 * dt;
+            m.group.position.z += (dz / d) * 1.1 * dt;
+            m.faceYaw = Math.atan2(dx, dz);
+          }
+          m.group.rotation.y += (((m.faceYaw - m.group.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI) * Math.min(1, dt * 6);
+        }
+      }
+
+      // interaction prompt
+      if (started) {
+        nearNpc = findNearest();
+        if (nearNpc && !screenDiv.firstChild) {
+          promptBtn.style.display = 'block';
+          promptBtn.textContent = friends.has(nearNpc.data.name) ? `💬 Chat with ${nearNpc.data.name}` : `👋 Say hi to ${nearNpc.data.name}`;
+        } else {
+          promptBtn.style.display = 'none';
+        }
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ============================================================
+    // Intro / win screens
+    // ============================================================
+    function showIntro() {
+      const known = NPCS.filter(n => friends.has(n.name));
+      screenDiv.innerHTML = `<div class="modal"><div class="card" id="intro">
+        <h1>MY WORLD</h1>
+        <div style="font-size:2.5rem">🌸🏬🌳</div>
+        <p>Explore the park and the mall, pop into the shops, and make friends with everyone you meet!</p>
+        ${known.length ? `<div class="friends-list">${known.map(n => ({bunny:'🐰',bear:'🐻',cat:'🐱',bird:'🐤',blob:'🟢'}[n.type])).join(' ')}</div>` : ''}
+        <div class="controls-help">🕹️ Drag the circle to walk<br>👆 Swipe the screen to look around<br>💖 Walk up to a friend and say hi!</div>
+        <button class="btn" data-act="go">LET'S GO!</button>
+      </div></div>`;
+      screenDiv.querySelector('[data-act=go]').addEventListener('click', () => {
+        screenDiv.innerHTML = '';
+        started = true;
+        initAudio();
+        if (actx && actx.state === 'suspended') actx.resume();
+      });
+    }
+
+    function showWin() {
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <div class="face">🎉🌈🎉</div>
+        <h2>BEST FRIENDS!</h2>
+        <p>You made friends with everyone in My World! What a superstar. 💖</p>
+        <button class="btn" data-act="go">KEEP EXPLORING</button>
+      </div></div>`;
+      screenDiv.querySelector('[data-act=go]').addEventListener('click', () => { screenDiv.innerHTML = ''; });
+    }
+
+    showIntro();
+  </script>
+</body>
+</html>

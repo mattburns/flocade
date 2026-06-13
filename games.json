@@ -40,5 +40,11 @@
     "title": "DJ Panel",
     "icon": "🎧",
     "description": "Drop beats and jam over rock, jazz and pop grooves. Airhorn included."
+  },
+  {
+    "slug": "my-world",
+    "title": "My World",
+    "icon": "🌸",
+    "description": "Explore a cute 3D world — wander the park and mall, pop into shops, make friends."
   }
 ]
