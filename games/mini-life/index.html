@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mini Life — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600; --text: #e8e6f0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #1a1226;
+      user-select: none; -webkit-user-select: none; touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas { position: fixed; inset: 0; display: block; }
+
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    #ui > * { pointer-events: auto; }
+    a.back { position: fixed; top: 12px; left: 12px; color: #fff; font-family: 'Press Start 2P', monospace; font-size: 0.65rem; text-decoration: none; text-shadow: 2px 2px 0 var(--pink); }
+
+    #status {
+      position: fixed; top: 10px; right: 12px;
+      background: rgba(26, 18, 38, 0.75); border: 2px solid var(--cyan); border-radius: 999px;
+      padding: 0.35rem 0.85rem; color: var(--text); font-weight: 700; font-size: 0.85rem;
+    }
+
+    #joy { position: fixed; left: 18px; bottom: 18px; width: 130px; height: 130px; border-radius: 50%;
+      background: rgba(255,255,255,0.12); border: 3px solid rgba(255,255,255,0.6); touch-action: none; }
+    #joy .thumb { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+      border-radius: 50%; background: rgba(0,240,255,0.8); border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+    .rbtn { position: fixed; right: 16px; width: 62px; height: 62px; border-radius: 50%;
+      background: rgba(26,18,38,0.7); border: 3px solid var(--pink); color: #fff; font-size: 1.6rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; }
+    .rbtn:active { background: var(--pink); }
+    .rbtn.on { background: var(--cyan); border-color: var(--cyan); color: #1a1226; }
+    #jumpBtn { bottom: 18px; }
+    #flyBtn { bottom: 92px; }
+    #downBtn { bottom: 166px; display: none; }
+    #gyroBtn { bottom: 18px; right: 86px; width: 50px; height: 50px; font-size: 1.2rem; opacity: 0.6; }
+    #gyroBtn.on { opacity: 1; }
+
+    .modal { position: fixed; inset: 0; z-index: 10; background: rgba(13,2,33,0.9);
+      display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
+    .card { background: #fff5fb; border: 4px solid var(--pink); border-radius: 24px; padding: 1.6rem; max-width: 400px; text-align: center;
+      box-shadow: 0 10px 0 rgba(255,46,136,0.25); color: #4a2e52; }
+    .card h1 { font-family: 'Press Start 2P', monospace; color: var(--pink); font-size: 1.3rem; line-height: 1.6; margin-bottom: 0.4rem; }
+    .card p { line-height: 1.6; margin-bottom: 0.8rem; }
+    .card .controls-help { font-size: 0.9rem; line-height: 1.9; }
+    .card .btn { background: var(--pink); color: #fff; border: none; border-radius: 999px; font-weight: 700; font-size: 1rem;
+      padding: 0.8rem 1.6rem; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.15); }
+    .card .btn:active { transform: translateY(3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <div id="status">🚶 walking</div>
+    <div id="joy"><div class="thumb"></div></div>
+    <button class="rbtn" id="jumpBtn">⬆️</button>
+    <button class="rbtn" id="flyBtn">🦋</button>
+    <button class="rbtn" id="downBtn">⬇️</button>
+    <button class="rbtn on" id="gyroBtn" style="opacity:.6">🔄</button>
+  </div>
+  <div id="screen"></div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    // Units = centimetres. You are ~1cm tall, so the kitchen is enormous.
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf3e9d8);
+    scene.fog = new THREE.Fog(0xf3e9d8, 350, 700);
+
+    const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 2000);
+
+    scene.add(new THREE.HemisphereLight(0xfff4e0, 0xb89878, 0.85));
+    const sun = new THREE.DirectionalLight(0xfff0d0, 1.25);
+    sun.position.set(-260, 300, 120);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -260; sun.shadow.camera.right = 260;
+    sun.shadow.camera.top = 240; sun.shadow.camera.bottom = -240;
+    sun.shadow.camera.near = 1; sun.shadow.camera.far = 1400;
+    sun.shadow.bias = -0.0008;
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    const mat = (color, opts = {}) => new THREE.MeshStandardMaterial({ color, roughness: opts.r ?? 0.8, metalness: opts.m ?? 0, emissive: opts.e ?? 0x000000, emissiveIntensity: opts.ei ?? 1 });
+    // addBox positions by FOOTPRINT (cx,cz) with bottom at baseY
+    function addBox(w, h, d, m, cx, baseY, cz, parent = scene) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(cx, baseY + h / 2, cz);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      parent.add(mesh);
+      return mesh;
+    }
+    function cyl(rt, rb, h, m, x, baseY, z, seg = 18) {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m);
+      mesh.position.set(x, baseY + h / 2, z);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      scene.add(mesh); return mesh;
+    }
+
+    // Room
+    const RX = 200, RZ = 130, WALL_H = 250;
+    // checkerboard floor texture
+    (function floor() {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#1a1a1a'; c.fillRect(0, 0, 64, 64);
+      c.fillStyle = '#f5f5f5'; c.fillRect(0, 0, 32, 32); c.fillRect(32, 32, 32, 32);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.magFilter = THREE.NearestFilter;
+      const TILE = 20; // each check = 20cm
+      tex.repeat.set((RX * 2) / TILE, (RZ * 2) / TILE);
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(RX * 2, RZ * 2), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }));
+      f.rotation.x = -Math.PI / 2; f.receiveShadow = true;
+      scene.add(f);
+    })();
+    // walls
+    const wallMat = mat(0xf6ead2, { r: 0.95 });
+    addBox(RX * 2, WALL_H, 8, wallMat, 0, 0, -RZ - 4);           // back
+    addBox(8, WALL_H, RZ * 2, wallMat, -RX - 4, 0, 0);           // left
+    addBox(8, WALL_H, RZ * 2, mat(0xeaddc4, { r: 0.95 }), RX + 4, 0, 0); // right
+    addBox(RX * 2, WALL_H, 8, mat(0xeaddc4, { r: 0.95 }), 0, 0, RZ + 4); // front
+    // ceiling
+    addBox(RX * 2, 6, RZ * 2, mat(0xfffaf0, { r: 1 }), 0, WALL_H, 0);
+
+    // big bright window on the left wall (sun streams through)
+    (function window_() {
+      addBox(6, 150, 170, mat(0xffffff, { r: 0.6 }), -RX, 60, -10);                 // frame
+      const pane = addBox(2, 134, 154, mat(0xfffbe6, { e: 0xfff2c0, ei: 0.9, r: 0.2 }), -RX + 3, 68, -10);
+      pane.castShadow = false;
+      // glazing bars
+      addBox(3, 134, 5, mat(0xffffff), -RX + 4, 68, -10);
+      addBox(3, 5, 154, mat(0xffffff), -RX + 4, 134, -10);
+    })();
+
+    // ===== Counter run along the back wall =====
+    const counterTopY = 85;
+    const woodTop = mat(0xc98a52, { r: 0.5 });
+    const cabinet = mat(0xf2f2f5, { r: 0.7 });
+    // base cabinets + worktop  (footprint x:-190..60, z:-126..-66)
+    addBox(250, counterTopY - 6, 60, cabinet, -65, 0, -96);
+    addBox(254, 8, 64, woodTop, -65, counterTopY - 6, -96);     // worktop slab
+    // backsplash tiles
+    (function splash() {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 32;
+      const c = cv.getContext('2d'); c.fillStyle = '#cfe8ff'; c.fillRect(0, 0, 32, 32);
+      c.strokeStyle = '#aacbe6'; c.lineWidth = 3; c.strokeRect(0, 0, 32, 32);
+      const tex = new THREE.CanvasTexture(cv); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(25, 5);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(250, 55), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.4 }));
+      m.position.set(-65, counterTopY + 25, -125.5); m.receiveShadow = true; scene.add(m);
+    })();
+    // cabinet doors + handles along the front of the base units
+    for (let i = 0; i < 5; i++) {
+      const dx = -180 + i * 48;
+      addBox(44, 60, 2, mat(0xe6e6ee, { r: 0.6 }), dx, 12, -66.5);
+      cyl(1.2, 1.2, 16, mat(0xb8b8c0, { m: 0.6, r: 0.4 }), dx + 16, 40, -64).rotation.z = Math.PI / 2;
+    }
+
+    // ===== Sink =====
+    (function sink() {
+      addBox(60, 4, 44, mat(0xc9ccd2, { m: 0.7, r: 0.3 }), -150, counterTopY + 2, -96); // steel surround
+      addBox(48, 18, 32, mat(0x9aa0aa, { m: 0.6, r: 0.4 }), -150, counterTopY - 14, -96); // basin (recessed look)
+      // tap
+      cyl(2.2, 2.6, 14, mat(0xd5d8de, { m: 0.85, r: 0.25 }), -150, counterTopY + 4, -112);
+      const spout = new THREE.Mesh(new THREE.TorusGeometry(8, 2, 10, 16, Math.PI), mat(0xd5d8de, { m: 0.85, r: 0.25 }));
+      spout.position.set(-150, counterTopY + 18, -106); spout.rotation.x = Math.PI / 2; spout.castShadow = true; scene.add(spout);
+      // a giant water droplet on the worktop
+      const drop = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 14), mat(0x8fd0ff, { r: 0.1, m: 0.1, e: 0x2a6fa0, ei: 0.2 }));
+      drop.scale.y = 0.6; drop.position.set(-118, counterTopY + 1.8, -90); scene.add(drop);
+    })();
+
+    // ===== Cooker / stove (built into the counter) =====
+    (function stove() {
+      const sx = -10;
+      addBox(70, 4, 56, mat(0x2b2b30, { r: 0.5, m: 0.3 }), sx, counterTopY, -96); // black hob top
+      const burnerMat = mat(0x111114, { r: 0.6 });
+      const grateMat = mat(0x3a3a40, { r: 0.7, m: 0.4 });
+      const burners = [[-18, -108], [18, -108], [-18, -84], [18, -84]];
+      burners.forEach(([bx, bz], i) => {
+        cyl(9, 9, 1.5, burnerMat, sx + bx, counterTopY + 4, bz, 24);
+        // grate cross
+        addBox(20, 2, 3, grateMat, sx + bx, counterTopY + 6, bz);
+        addBox(3, 2, 20, grateMat, sx + bx, counterTopY + 6, bz);
+        if (i === 0) { // a pot on the front-left burner
+          cyl(11, 10, 16, mat(0xcf4040, { r: 0.4 }), sx + bx, counterTopY + 6, bz);
+          cyl(12, 12, 2, mat(0xd9d9dd, { m: 0.6, r: 0.3 }), sx + bx, counterTopY + 22, bz);
+          cyl(2, 2, 4, mat(0x2b2b30), sx + bx, counterTopY + 24, bz);
+        }
+      });
+      // control knobs on the front
+      for (let i = 0; i < 4; i++) cyl(2.2, 2.2, 3, mat(0x44444a, { m: 0.5 }), sx - 24 + i * 16, counterTopY - 12, -66.5).rotation.x = Math.PI / 2;
+      // oven door below with window + handle
+      addBox(64, 50, 2, mat(0x303036, { r: 0.4, m: 0.4 }), sx, 14, -66);
+      addBox(44, 28, 1, mat(0x14141a, { e: 0x331100, ei: 0.4, r: 0.2 }), sx, 26, -65);
+      // oven door handle (horizontal bar)
+      const handle = addBox(54, 4, 4, mat(0xd5d8de, { m: 0.85, r: 0.25 }), sx, 48, -63);
+      // range hood above
+      addBox(74, 26, 40, mat(0xdfe2e8, { m: 0.5, r: 0.4 }), sx, 150, -106);
+      addBox(30, 40, 16, mat(0xdfe2e8, { m: 0.5, r: 0.4 }), sx, 176, -120);
+    })();
+
+    // ===== Fridge =====
+    (function fridge() {
+      const fx = 130, fzC = -90;
+      addBox(64, 180, 62, mat(0xe9ebf0, { m: 0.4, r: 0.45 }), fx, 0, fzC);
+      // door split
+      addBox(60, 4, 2, mat(0xc7cad2), fx, 112, fzC + 31.5);
+      // handles
+      addBox(4, 70, 5, mat(0xbfc3cc, { m: 0.7, r: 0.3 }), fx - 26, 122, fzC + 33);
+      addBox(4, 60, 5, mat(0xbfc3cc, { m: 0.7, r: 0.3 }), fx - 26, 44, fzC + 33);
+      // a couple of fridge magnets for detail
+      addBox(8, 8, 1.5, mat(0xff4757), fx + 14, 130, fzC + 32);
+      cyl(4, 4, 1.5, mat(0xffe600), fx + 6, 96, fzC + 32).rotation.x = Math.PI / 2;
+    })();
+
+    // ===== Table + chairs (centre of room) =====
+    (function table() {
+      const tx = 30, tz = 40, topY = 72;
+      addBox(120, 6, 80, woodTop, tx, topY, tz);
+      for (const [lx, lz] of [[-54, -34], [54, -34], [-54, 34], [54, 34]])
+        cyl(4, 4, topY, mat(0xa9743f, { r: 0.6 }), tx + lx, 0, tz + lz);
+      // a giant mug on the table
+      cyl(10, 9, 16, mat(0x4a7dff, { r: 0.5 }), tx - 30, topY + 6, tz - 10);
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(6, 1.8, 10, 18), mat(0x4a7dff, { r: 0.5 }));
+      handle.position.set(tx - 18, topY + 14, tz - 10); handle.castShadow = true; scene.add(handle);
+      // a plate with a giant cereal loop on it
+      cyl(16, 15, 2, mat(0xfafafa, { r: 0.4 }), tx + 24, topY + 6, tz + 12);
+      const loop = new THREE.Mesh(new THREE.TorusGeometry(5, 2.4, 12, 20), mat(0xffb43a, { r: 0.7 }));
+      loop.position.set(tx + 24, topY + 11, tz + 12); loop.castShadow = true; scene.add(loop);
+      // fruit bowl with fruit
+      cyl(15, 11, 9, mat(0xcf8a4a, { r: 0.6 }), tx, topY + 6, tz + 22, 22);
+      const apple = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 14), mat(0xe23b3b, { r: 0.4 })); apple.position.set(tx - 5, topY + 16, tz + 22); apple.castShadow = true; scene.add(apple);
+      const orange = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 14), mat(0xff9e2a, { r: 0.6 })); orange.position.set(tx + 6, topY + 16, tz + 20); orange.castShadow = true; scene.add(orange);
+    })();
+    // chairs
+    function chair(cx, cz, rot) {
+      const g = new THREE.Group();
+      addBox(34, 4, 34, mat(0xb5814a, { r: 0.6 }), 0, 40, 0, g);
+      addBox(34, 36, 4, mat(0xb5814a, { r: 0.6 }), 0, 44, -15, g);
+      for (const [lx, lz] of [[-14, -14], [14, -14], [-14, 14], [14, 14]]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 40, 10), mat(0x8a6234, { r: 0.6 }));
+        leg.position.set(lx, 20, lz); leg.castShadow = true; g.add(leg);
+      }
+      g.position.set(cx, 0, cz); g.rotation.y = rot; scene.add(g);
+    }
+    chair(-12, 40, 0.2); chair(72, 40, -0.2);
+
+    // ===== Tiny-scale details on the floor =====
+    (function crumbs() {
+      const crumbMat = mat(0x8a5a2b, { r: 0.9 });
+      [[80, 80, 5], [-90, 60, 3.5], [40, -20, 4]].forEach(([x, z, s]) => {
+        const c = new THREE.Mesh(new THREE.DodecahedronGeometry(s), crumbMat);
+        c.position.set(x, s * 0.7, z); c.rotation.set(Math.random(), Math.random(), Math.random());
+        c.castShadow = true; c.receiveShadow = true; scene.add(c);
+      });
+      // a kettle by the counter
+      const kx = 40, kz = -96;
+      cyl(13, 15, 22, mat(0xd9dde4, { m: 0.7, r: 0.3 }), kx, counterTopY + 2, kz, 20);
+      const spout = new THREE.Mesh(new THREE.CylinderGeometry(2, 3.5, 14, 10), mat(0xd9dde4, { m: 0.7, r: 0.3 }));
+      spout.position.set(kx + 12, counterTopY + 12, kz); spout.rotation.z = 0.9; spout.castShadow = true; scene.add(spout);
+      const kh = new THREE.Mesh(new THREE.TorusGeometry(9, 2, 8, 16, Math.PI), mat(0x2b2b30));
+      kh.position.set(kx, counterTopY + 26, kz); kh.castShadow = true; scene.add(kh);
+    })();
+
+    // ===== Collision obstacles (AABB footprints with a standable top) =====
+    const obstacles = [
+      { x0: -190, x1: 60, z0: -126, z1: -66, top: counterTopY + 2 }, // counter run (+ stove + sink)
+      { x0: 98, x1: 162, z0: -121, z1: -59, top: 180 },              // fridge
+      { x0: -30, x1: 90, z0: 0, z1: 80, top: 78 },                   // table
+      { x0: -29, x1: 5, z0: 23, z1: 57, top: 44 },                   // chair 1
+      { x0: 55, x1: 89, z0: 23, z1: 57, top: 44 },                   // chair 2
+    ];
+
+    // ============================================================
+    // Player & controls
+    // ============================================================
+    const EYE = 1.2, RADIUS = 2.2, GRAV = 240, JUMP_V = 95, WALK = 38, FLY = 70, RISE = 60;
+    const player = { x: 0, z: 90, y: 0, vy: 0, yaw: 0, pitch: -0.1, grounded: true };
+    let flying = false, rising = false, sinking = false;
+    const moveVec = { f: 0, s: 0 };
+
+    function groundHeightAt(x, z) {
+      let g = 0;
+      for (const o of obstacles) if (x > o.x0 && x < o.x1 && z > o.z0 && z < o.z1) g = Math.max(g, o.top);
+      return g;
+    }
+    function blockedAt(x, z, feetY) {
+      if (x < -RX + RADIUS || x > RX - RADIUS || z < -RZ + RADIUS || z > RZ - RADIUS) return true;
+      for (const o of obstacles) {
+        if (feetY < o.top - 3 && x > o.x0 - RADIUS && x < o.x1 + RADIUS && z > o.z0 - RADIUS && z < o.z1 + RADIUS) return true;
+      }
+      return false;
+    }
+
+    // joystick
+    const joy = document.getElementById('joy'), thumb = joy.querySelector('.thumb');
+    let joyId = null;
+    function setJoy(cx, cy) {
+      const r = joy.getBoundingClientRect();
+      let dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      const max = r.width / 2, d = Math.hypot(dx, dy);
+      if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+      thumb.style.transform = `translate(${dx}px,${dy}px)`;
+      moveVec.s = dx / max; moveVec.f = -dy / max;
+    }
+    joy.addEventListener('pointerdown', e => { joyId = e.pointerId; setJoy(e.clientX, e.clientY); joy.setPointerCapture(e.pointerId); });
+    joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) setJoy(e.clientX, e.clientY); });
+    const endJoy = e => { if (e.pointerId === joyId) { joyId = null; thumb.style.transform = ''; moveVec.f = moveVec.s = 0; } };
+    joy.addEventListener('pointerup', endJoy); joy.addEventListener('pointercancel', endJoy);
+
+    // look (swipe / drag)
+    let lookId = null, lastLook = null;
+    renderer.domElement.addEventListener('pointerdown', e => { lookId = e.pointerId; lastLook = { x: e.clientX, y: e.clientY }; });
+    addEventListener('pointermove', e => {
+      if (e.pointerId !== lookId || gyroOn) return;
+      player.yaw -= (e.clientX - lastLook.x) * 0.005;
+      player.pitch -= (e.clientY - lastLook.y) * 0.005;
+      player.pitch = Math.max(-1.45, Math.min(1.45, player.pitch));
+      lastLook = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', e => { if (e.pointerId === lookId) lookId = null; });
+
+    // keyboard
+    const keys = {};
+    addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'Space') { e.preventDefault(); if (flying) rising = true; else jump(); }
+      if (e.code === 'ShiftLeft' || e.code === 'KeyC') sinking = true;
+      if (e.code === 'KeyF') toggleFly();
+    });
+    addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'Space') rising = false; if (e.code === 'ShiftLeft' || e.code === 'KeyC') sinking = false; });
+    function readKeys() {
+      let f = 0, s = 0;
+      if (keys.KeyW || keys.ArrowUp) f += 1;
+      if (keys.KeyS || keys.ArrowDown) f -= 1;
+      if (keys.KeyD || keys.ArrowRight) s += 1;
+      if (keys.KeyA || keys.ArrowLeft) s -= 1;
+      if (f || s) { moveVec.f = f; moveVec.s = s; }
+    }
+
+    // buttons
+    function jump() { if (player.grounded) { player.vy = JUMP_V; player.grounded = false; whoosh(); } }
+    const statusEl = document.getElementById('status');
+    function toggleFly() {
+      flying = !flying;
+      document.getElementById('flyBtn').classList.toggle('on', flying);
+      document.getElementById('jumpBtn').textContent = flying ? '⬆️' : '⬆️';
+      document.getElementById('downBtn').style.display = flying ? 'flex' : 'none';
+      statusEl.textContent = flying ? '🦋 flying' : '🚶 walking';
+      if (flying) player.vy = 0;
+      whoosh();
+    }
+    document.getElementById('flyBtn').addEventListener('click', toggleFly);
+    const jumpBtn = document.getElementById('jumpBtn');
+    jumpBtn.addEventListener('pointerdown', e => { e.preventDefault(); if (flying) rising = true; else jump(); });
+    jumpBtn.addEventListener('pointerup', () => rising = false);
+    jumpBtn.addEventListener('pointercancel', () => rising = false);
+    const downBtn = document.getElementById('downBtn');
+    downBtn.addEventListener('pointerdown', e => { e.preventDefault(); sinking = true; });
+    downBtn.addEventListener('pointerup', () => sinking = false);
+    downBtn.addEventListener('pointercancel', () => sinking = false);
+
+    // gyro
+    let gyroOn = false, gyroBase = null;
+    const gyroBtn = document.getElementById('gyroBtn');
+    gyroBtn.classList.remove('on');
+    gyroBtn.addEventListener('click', async () => {
+      if (!gyroOn) {
+        if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+          try { if (await DeviceOrientationEvent.requestPermission() !== 'granted') return; } catch (e) { return; }
+        }
+        gyroOn = true; gyroBase = null; gyroBtn.classList.add('on');
+      } else { gyroOn = false; gyroBtn.classList.remove('on'); }
+    });
+    addEventListener('deviceorientation', e => {
+      if (!gyroOn || e.alpha === null) return;
+      if (gyroBase === null) gyroBase = e.alpha;
+      const d = ((e.alpha - gyroBase + 540) % 360) - 180;
+      player.yaw = -d * Math.PI / 180;
+      player.pitch = Math.max(-1.45, Math.min(1.45, ((e.beta ?? 90) - 90) * Math.PI / 180));
+    });
+
+    // ===== sound =====
+    let actx = null, muted = false;
+    function initAudio() {
+      if (actx) return;
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      const g = actx.createGain(); g.gain.value = 0.025; g.connect(actx.destination);
+      [110, 138.6, 164.8].forEach((f, i) => {
+        const o = actx.createOscillator(), gg = actx.createGain();
+        o.type = 'sine'; o.frequency.value = f; gg.gain.value = 0.5;
+        const lfo = actx.createOscillator(), lg = actx.createGain();
+        lfo.frequency.value = 0.05 + i * 0.02; lg.gain.value = 0.5; lfo.connect(lg).connect(gg.gain);
+        o.connect(gg).connect(g); o.start(); lfo.start();
+      });
+    }
+    function whoosh() {
+      if (!actx || muted) return;
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(300, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(700, actx.currentTime + 0.18);
+      g.gain.setValueAtTime(0.08, actx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + 0.2);
+      o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.22);
+    }
+
+    // ============================================================
+    // Loop
+    // ============================================================
+    const clock = new THREE.Clock();
+    let started = false;
+    const fwd = new THREE.Vector3();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, clock.getDelta());
+
+      camera.position.set(player.x, player.y + EYE, player.z);
+      camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+
+      if (started) {
+        readKeys();
+        camera.getWorldDirection(fwd);
+        // horizontal right vector (independent of pitch)
+        const rx = fwd.z, rz = -fwd.x, rl = Math.hypot(rx, rz) || 1;
+        let vx, vz, vUp = 0;
+        if (flying) {
+          vx = fwd.x * moveVec.f + (rx / rl) * moveVec.s;
+          vz = fwd.z * moveVec.f + (rz / rl) * moveVec.s;
+          vUp = fwd.y * moveVec.f;
+          const sp = FLY;
+          const m = Math.hypot(vx, vz, vUp) || 1;
+          player.x = clampMove(player.x, (vx / m) * sp * dt, 'x');
+          player.z = clampMove(player.z, (vz / m) * sp * dt, 'z');
+          player.y += (vUp / m) * sp * dt + (rising ? RISE : 0) * dt - (sinking ? RISE : 0) * dt;
+          player.y = Math.max(groundHeightAt(player.x, player.z), Math.min(WALL_H - 8, player.y));
+          player.grounded = player.y <= groundHeightAt(player.x, player.z) + 0.5;
+        } else {
+          const fl = Math.hypot(fwd.x, fwd.z) || 1;
+          vx = (fwd.x / fl) * moveVec.f + (rx / rl) * moveVec.s;
+          vz = (fwd.z / fl) * moveVec.f + (rz / rl) * moveVec.s;
+          const m = Math.hypot(vx, vz) || 1;
+          if (moveVec.f || moveVec.s) {
+            player.x = clampMove(player.x, (vx / m) * WALK * dt, 'x');
+            player.z = clampMove(player.z, (vz / m) * WALK * dt, 'z');
+          }
+          // gravity
+          player.vy -= GRAV * dt;
+          player.y += player.vy * dt;
+          const gh = groundHeightAt(player.x, player.z);
+          if (player.y <= gh) { player.y = gh; player.vy = 0; player.grounded = true; }
+          else player.grounded = false;
+        }
+        if (!keys.KeyW && !keys.KeyS && !keys.KeyA && !keys.KeyD && joyId === null &&
+            !keys.ArrowUp && !keys.ArrowDown && !keys.ArrowLeft && !keys.ArrowRight) { moveVec.f = moveVec.s = 0; }
+      }
+
+      renderer.render(scene, camera);
+    }
+    function clampMove(cur, delta, axis) {
+      const nx = axis === 'x' ? cur + delta : player.x;
+      const nz = axis === 'z' ? cur + delta : player.z;
+      return blockedAt(nx, nz, player.y) ? cur : cur + delta;
+    }
+    animate();
+
+    // ============================================================
+    // Intro
+    // ============================================================
+    const screenDiv = document.getElementById('screen');
+    function showIntro() {
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <h1>MINI LIFE</h1>
+        <div style="font-size:2.5rem">🐜🍳🧊</div>
+        <p>You're only <b>1cm tall</b> — and this kitchen is ENORMOUS! Explore the cooker, the fridge, the table... everything towers over you.</p>
+        <div class="controls-help">🕹️ Drag the circle to walk<br>👆 Swipe to look around<br>⬆️ Jump &middot; 🦋 Fly! &middot; 🔄 Tilt-look</div>
+        <button class="btn" data-act="go">SHRINK ME!</button>
+      </div></div>`;
+      screenDiv.querySelector('[data-act=go]').addEventListener('click', () => {
+        screenDiv.innerHTML = ''; started = true; initAudio();
+        if (actx && actx.state === 'suspended') actx.resume();
+      });
+    }
+    showIntro();
+  </script>
+</body>
+</html>

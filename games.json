@@ -52,5 +52,11 @@
     "title": "Super Pac Man",
     "icon": "🟡",
     "description": "Pac-Man with a twist: powerups, fire hazards, and role reversal — become the ghost!"
+  },
+  {
+    "slug": "mini-life",
+    "title": "Mini Life",
+    "icon": "🐜",
+    "description": "You're 1cm tall! Jump and fly around a giant, super-detailed kitchen."
   }
 ]
