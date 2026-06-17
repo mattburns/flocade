@@ -70,5 +70,11 @@
     "title": "Growing Gardens",
     "icon": "🌷",
     "description": "Design a 3D garden block by block — plant, water and watch it grow over the days."
+  },
+  {
+    "slug": "speed-tables",
+    "title": "Speed Tables",
+    "icon": "🧮",
+    "description": "Times tables sprint! Score as many 12×12 answers as you can in 60 seconds."
   }
 ]
