@@ -114,7 +114,7 @@
     .thumb.done::after { content: '✓'; position: absolute; top: 6px; right: 8px; color: var(--yellow); font-weight: 700; font-size: 1.05rem; text-shadow: 0 0 5px rgba(0,0,0,0.7); }
     .thumb .del { position: absolute; top: 4px; right: 4px; background: rgba(10,2,30,0.7); border: none; color: var(--pink); border-radius: 7px; width: 24px; height: 24px; cursor: pointer; font-size: 0.95rem; line-height: 1; display: none; }
     .thumb:hover .del { display: block; }
-    .empty { color: var(--dim); text-align: center; padding: 2rem 0.5rem; line-height: 1.6; }
+    .empty { color: var(--dim); text-align: center; padding: 2rem 0.5rem; line-height: 1.6; grid-column: 1 / -1; }
 
     /* Board */
     .board {
@@ -277,18 +277,38 @@
         <span><h2>CREATE</h2><p>Draw your own, or snap a selfie to pixelify</p></span></button>`);
       const designs = el(`<button class="mode-btn"><span class="big">📁</span>
         <span><h2>MY DESIGNS</h2><p>${designCount ? designCount + ' saved creation' + (designCount === 1 ? '' : 's') : 'Your saved creations live here'}</p></span></button>`);
-      search.addEventListener('click', showGallery);
+      search.addEventListener('click', () => showGallery());
       create.addEventListener('click', showCreate);
-      designs.addEventListener('click', showDesigns);
+      designs.addEventListener('click', () => showGallery('designs'));
       panel.append(search, create, designs);
       game.appendChild(panel);
     }
 
-    // ---------- Gallery (Search) with category / difficulty / text filters ----------
+    // ---------- Gallery (Search) — built-in pictures + your saved designs ----------
 
-    function showGallery() {
+    function diffForColors(n) { return n <= 3 ? 'easy' : n <= 4 ? 'medium' : 'hard'; }
+
+    // saved designs presented as picture-like entries so they filter/search like the rest
+    function designEntries() {
+      return loadDesigns().slice().reverse().map(d => ({
+        id: d.id,
+        name: d.name,
+        category: 'designs',
+        difficulty: diffForColors(d.colors.length),
+        _design: d,
+      }));
+    }
+    function entryPuzzle(pic) {
+      const d = pic._design;
+      return d ? { w: d.w, h: d.h, colors: d.colors, cells: d.cells } : puzzleFromPicture(pic);
+    }
+
+    // initialCat (optional) preselects a category chip, e.g. showGallery('designs')
+    function showGallery(initialCat) {
+      stopCamera();
       game.innerHTML = '';
-      const state = { cat: 'all', diff: 'all', q: '' };
+      const state = { cat: initialCat || 'all', diff: 'all', q: '' };
+      let allPics = PICTURES.concat(designEntries());
 
       const panel = el(`<div class="panel">
         <p class="prompt">PICK A PICTURE</p>
@@ -307,7 +327,6 @@
       const countEl = panel.querySelector('.count');
       const thumbs = panel.querySelector('.thumbs');
 
-      // category chips
       function mkChip(parent, label, active, onClick) {
         const chip = el(`<button class="chip${active ? ' active' : ''}">${label}</button>`);
         chip.addEventListener('click', () => {
@@ -316,12 +335,22 @@
           onClick();
         });
         parent.appendChild(chip);
+        return chip;
       }
-      mkChip(catChips, `All <span class="c-count">${PICTURES.length}</span>`, true, () => { state.cat = 'all'; render(); });
+      // category chips: All, then My Designs, then the built-in categories
+      const allChip = mkChip(catChips, `All <span class="c-count"></span>`, state.cat === 'all', () => { state.cat = 'all'; render(); });
+      const designChip = mkChip(catChips, `📁 My Designs <span class="c-count"></span>`, state.cat === 'designs', () => { state.cat = 'designs'; render(); });
       for (const cat of CATEGORIES) {
         const n = PICTURES.filter(p => p.category === cat.id).length;
-        mkChip(catChips, `${cat.icon} ${cat.label} <span class="c-count">${n}</span>`, false, () => { state.cat = cat.id; render(); });
+        mkChip(catChips, `${cat.icon} ${cat.label} <span class="c-count">${n}</span>`, state.cat === cat.id, () => { state.cat = cat.id; render(); });
       }
+      const allCount = allChip.querySelector('.c-count');
+      const designCount = designChip.querySelector('.c-count');
+      function refreshCounts() {
+        allCount.textContent = allPics.length;
+        designCount.textContent = allPics.filter(p => p.category === 'designs').length;
+      }
+
       mkChip(diffChips, 'All', true, () => { state.diff = 'all'; render(); });
       for (const d of DIFFS) {
         mkChip(diffChips, `${d.stars} ${d.label}`, false, () => { state.diff = d.id; render(); });
@@ -334,33 +363,52 @@
         searchTimer = setTimeout(render, 120);
       });
 
+      function removeDesign(d) {
+        if (!confirm('Delete "' + d.name + '"?')) return;
+        storeDesigns(loadDesigns().filter(x => x.id !== d.id));
+        allPics = PICTURES.concat(designEntries());
+        refreshCounts();
+        render();
+      }
+
       function render() {
         thumbs.innerHTML = '';
-        const list = PICTURES.filter(p =>
+        const list = allPics.filter(p =>
           (state.cat === 'all' || p.category === state.cat) &&
           (state.diff === 'all' || p.difficulty === state.diff) &&
           (!state.q || p.name.toLowerCase().includes(state.q))
         );
         countEl.textContent = list.length + ' picture' + (list.length === 1 ? '' : 's');
         if (!list.length) {
-          thumbs.appendChild(el(`<p class="empty">No pictures match.<br>Try another category or search.</p>`));
+          if (state.cat === 'designs' && !state.q && state.diff === 'all') {
+            thumbs.appendChild(el(`<p class="empty">No saved designs yet.<br>Tap <b>CREATE</b> to draw or snap one,<br>then <b>SAVE TO GALLERY</b>. 🎨</p>`));
+            const make = el(`<button class="btn" style="grid-column:1/-1; justify-self:center">🖌️ CREATE ONE</button>`);
+            make.addEventListener('click', showCreate);
+            thumbs.appendChild(make);
+          } else {
+            thumbs.appendChild(el(`<p class="empty">No pictures match.<br>Try another category or search.</p>`));
+          }
           return;
         }
         // tiny canvases draw fast, so render the filtered set straight away
         const frag = document.createDocumentFragment();
         for (const pic of list) {
-          const puzzle = puzzleFromPicture(pic);
+          const puzzle = entryPuzzle(pic);
+          const isDesign = !!pic._design;
           const thumb = el(`<div class="thumb${finished[pic.id] ? ' done' : ''}">
+            ${isDesign ? '<button class="del" title="Delete">🗑</button>' : ''}
             <canvas></canvas>
             <div class="label">${pic.name}</div>
             <div class="diff">${diffStars(pic.difficulty)}</div>
           </div>`);
           drawPuzzleToCanvas(thumb.querySelector('canvas'), puzzle);
-          thumb.addEventListener('click', () => showPaint(puzzle, { markId: pic.id }));
+          thumb.addEventListener('click', () => showPaint(puzzle, isDesign ? { designId: pic.id } : { markId: pic.id }));
+          if (isDesign) thumb.querySelector('.del').addEventListener('click', (ev) => { ev.stopPropagation(); removeDesign(pic._design); });
           frag.appendChild(thumb);
         }
         thumbs.appendChild(frag);
       }
+      refreshCounts();
       render();
 
       const back = el(`<button class="btn alt">&larr; BACK</button>`);
@@ -369,49 +417,7 @@
       game.appendChild(panel);
     }
 
-    // ---------- My Designs ----------
-
-    function showDesigns() {
-      stopCamera();
-      game.innerHTML = '';
-      const designs = loadDesigns();
-      const panel = el(`<div class="panel"><p class="prompt">MY DESIGNS</p></div>`);
-
-      if (!designs.length) {
-        panel.appendChild(el(`<p class="empty">No saved designs yet.<br>Tap <b>CREATE</b> to draw or snap one,<br>then <b>SAVE TO GALLERY</b>. 🎨</p>`));
-        const make = el(`<button class="btn">🖌️ CREATE ONE</button>`);
-        make.addEventListener('click', showCreate);
-        panel.appendChild(make);
-      } else {
-        const thumbs = el(`<div class="thumbs"></div>`);
-        // newest first
-        designs.slice().reverse().forEach((d) => {
-          const puzzle = { w: d.w, h: d.h, colors: d.colors, cells: d.cells };
-          const thumb = el(`<div class="thumb">
-            <button class="del" title="Delete">🗑</button>
-            <canvas></canvas>
-            <div class="label">${d.name}</div>
-          </div>`);
-          drawPuzzleToCanvas(thumb.querySelector('canvas'), puzzle);
-          thumb.addEventListener('click', () => showPaint(puzzle, { designId: d.id }));
-          thumb.querySelector('.del').addEventListener('click', (ev) => {
-            ev.stopPropagation();
-            if (!confirm('Delete "' + d.name + '"?')) return;
-            storeDesigns(loadDesigns().filter(x => x.id !== d.id));
-            showDesigns();
-          });
-          thumbs.appendChild(thumb);
-        });
-        panel.appendChild(thumbs);
-      }
-
-      const back = el(`<button class="btn alt">&larr; BACK</button>`);
-      back.addEventListener('click', showHome);
-      panel.appendChild(back);
-      game.appendChild(panel);
-    }
-
-    // Save a created puzzle into My Designs, then show the gallery of designs.
+    // Save a created puzzle into My Designs, then show it in the gallery.
     function saveDesign(puzzle) {
       const designs = loadDesigns();
       const fallback = 'My Design ' + (designs.length + 1);
@@ -423,7 +429,7 @@
         name, w: puzzle.w, h: puzzle.h, colors: puzzle.colors, cells: puzzle.cells, created: Date.now(),
       });
       storeDesigns(designs);
-      showDesigns();
+      showGallery('designs');
     }
 
     // ---------- Create ----------
@@ -736,7 +742,7 @@
       }
 
       // QUIT / PAINT ANOTHER returns to where it makes sense
-      panel.querySelector('[data-act=back]').addEventListener('click', opts.designId ? showDesigns : (opts.markId ? showGallery : showHome));
+      panel.querySelector('[data-act=back]').addEventListener('click', opts.designId ? () => showGallery('designs') : (opts.markId ? () => showGallery() : showHome));
       game.appendChild(panel);
     }
 
