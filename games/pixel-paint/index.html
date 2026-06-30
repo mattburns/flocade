@@ -34,7 +34,7 @@
     h1 { font-family: 'Press Start 2P', monospace; font-size: 1.4rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 1rem 0 0.25rem; }
     .subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem; text-align: center; }
 
-    #game { width: 100%; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    #game { width: 100%; max-width: 620px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 
     .panel {
       background: var(--card);
@@ -84,19 +84,42 @@
     .mode-btn h2 { font-family: 'Press Start 2P', monospace; font-size: 0.8rem; color: var(--yellow); margin-bottom: 0.35rem; }
     .mode-btn p { color: var(--dim); font-size: 0.9rem; }
 
+    /* Gallery toolbar: search + filters */
+    .toolbar { width: 100%; display: flex; flex-direction: column; gap: 0.6rem; }
+    .search {
+      width: 100%; padding: 0.7rem 0.9rem; border-radius: 10px;
+      border: 2px solid var(--cyan); background: var(--bg); color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 0.95rem;
+    }
+    .search::placeholder { color: var(--dim); }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .chip {
+      background: var(--bg); border: 2px solid #3a2a5e; color: var(--text);
+      border-radius: 999px; padding: 0.35rem 0.7rem; font-size: 0.8rem;
+      cursor: pointer; font-family: 'Inter', sans-serif; white-space: nowrap;
+    }
+    .chip:hover { border-color: var(--cyan); }
+    .chip.active { background: var(--pink); border-color: var(--pink); color: #fff; font-weight: 600; }
+    .chip .c-count { opacity: 0.7; font-size: 0.72rem; margin-left: 0.3rem; }
+    .filter-label { color: var(--dim); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; align-self: flex-start; margin-top: 0.2rem; }
+    .count { color: var(--dim); font-size: 0.8rem; align-self: flex-start; }
+
     /* Gallery */
-    .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem; width: 100%; }
-    .thumb { background: var(--bg); border: 2px solid var(--dim); border-radius: 12px; padding: 0.75rem; cursor: pointer; text-align: center; transition: transform 0.1s, border-color 0.1s; }
-    .thumb:hover { transform: scale(1.04); border-color: var(--cyan); }
-    .thumb canvas { width: 96px; height: 96px; image-rendering: pixelated; border-radius: 6px; }
-    .thumb .label { font-size: 0.85rem; font-weight: 600; margin-top: 0.4rem; }
-    .thumb .done-tag { color: var(--yellow); font-size: 0.75rem; }
+    .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.85rem; width: 100%; }
+    .thumb { position: relative; background: var(--bg); border: 2px solid var(--dim); border-radius: 12px; padding: 0.5rem; cursor: pointer; text-align: center; transition: transform 0.1s, border-color 0.1s; }
+    .thumb:hover { transform: scale(1.05); border-color: var(--cyan); }
+    .thumb canvas { width: 100%; image-rendering: pixelated; border-radius: 6px; display: block; background: #120726; }
+    .thumb .label { font-size: 0.78rem; font-weight: 600; margin-top: 0.35rem; line-height: 1.15; }
+    .thumb .diff { color: var(--cyan); font-size: 0.7rem; letter-spacing: 1px; }
+    .thumb.done::after { content: '✓'; position: absolute; top: 6px; right: 8px; color: var(--yellow); font-weight: 700; font-size: 1.05rem; text-shadow: 0 0 5px rgba(0,0,0,0.7); }
+    .thumb .del { position: absolute; top: 4px; right: 4px; background: rgba(10,2,30,0.7); border: none; color: var(--pink); border-radius: 7px; width: 24px; height: 24px; cursor: pointer; font-size: 0.95rem; line-height: 1; display: none; }
+    .thumb:hover .del { display: block; }
+    .empty { color: var(--dim); text-align: center; padding: 2rem 0.5rem; line-height: 1.6; }
 
     /* Board */
     .board {
       display: grid;
       width: 100%;
-      aspect-ratio: 1;
       touch-action: none;
       border: 2px solid var(--dim);
       border-radius: 8px;
@@ -165,150 +188,32 @@
   <p class="subtitle">Colour by number — bring pixel pictures to life 🎨</p>
   <div id="game"></div>
 
+  <script src="oneoffs.js"></script>
+  <script src="pictures.js"></script>
   <script>
-    // ---------- Built-in pictures (Search mode) ----------
-    // Each picture: a char-keyed palette and 16 rows of 16 chars.
-    const PICTURES = [
-      {
-        name: 'Panda',
-        palette: { '.': '#aee7ff', 'k': '#1d1d2b', 'w': '#ffffff', 'p': '#ff9ec7' },
-        rows: [
-          '................',
-          '..kkk......kkk..',
-          '.kkkkk....kkkkk.',
-          '.kkwwwwwwwwwwkk.',
-          '..wwwwwwwwwwww..',
-          '.wwwwwwwwwwwwww.',
-          '.wwkkkwwwwkkkww.',
-          '.wwkwkwwwwkwkww.',
-          '.wwkkkwwwwkkkww.',
-          '.wwwwwwwwwwwwww.',
-          '.wwwwwwkkwwwwww.',
-          '.wwwwwkwwkwwwww.',
-          '..wwwwwwwwwwww..',
-          '..wwwpwwwwpwww..',
-          '...wwwwwwwwww...',
-          '................',
-        ],
-      },
-      {
-        name: 'Capybara',
-        palette: { '.': '#bfe8ff', 'b': '#b07d4f', 'd': '#7a5230', 'k': '#1d1d2b', 'g': '#7ed957' },
-        rows: [
-          '................',
-          '................',
-          '................',
-          '....bbbbbb......',
-          '...bbbbbbbb.....',
-          '..bbdbbbbbbbbb..',
-          '..bbbbbbbbbbbb..',
-          '..bkbbbbbbbbbb..',
-          '..bbbbbbbbbbbb..',
-          '..dbbbbbbbbbbb..',
-          '...bbbbbbbbbb...',
-          '...bb..bb..bb...',
-          'gggggggggggggggg',
-          'gggggggggggggggg',
-          'gggggggggggggggg',
-          'gggggggggggggggg',
-        ],
-      },
-      {
-        name: 'Heart',
-        palette: { '.': '#e6d8ff', 'r': '#ff4757', 'w': '#ffd5dc' },
-        rows: [
-          '................',
-          '................',
-          '..rrrr....rrrr..',
-          '.rrrrrr..rrrrrr.',
-          '.rrrrrrrrrrrrrr.',
-          '.rwwrrrrrrrrrrr.',
-          '.rwrrrrrrrrrrrr.',
-          '.rrrrrrrrrrrrrr.',
-          '..rrrrrrrrrrrr..',
-          '...rrrrrrrrrr...',
-          '....rrrrrrrr....',
-          '.....rrrrrr.....',
-          '......rrrr......',
-          '.......rr.......',
-          '................',
-          '................',
-        ],
-      },
-      {
-        name: 'Ice Cream',
-        palette: { '.': '#aee7ff', 'r': '#ff4757', 'p': '#ff9ec7', 'm': '#9fe6c3', 'c': '#d9a066', 'd': '#b07d3f' },
-        rows: [
-          '................',
-          '.......rr.......',
-          '......pppp......',
-          '....pppppppp....',
-          '...pppppppppp...',
-          '...pmpppppppp...',
-          '...mmmmmmmmmm...',
-          '..mmmmmmmmmmmm..',
-          '..mmmmmmmmmmmm..',
-          '...cccccccccc...',
-          '...cdcdcdcdcc...',
-          '....cccccccc....',
-          '....cdcdcdcc....',
-          '.....cccccc.....',
-          '......cccc......',
-          '.......cc.......',
-        ],
-      },
-      {
-        name: 'Cat',
-        palette: { '.': '#d8f3dc', 'o': '#f5a25d', 'd': '#d97b29', 'k': '#1d1d2b', 'p': '#ff9ec7' },
-        rows: [
-          '................',
-          '.o............o.',
-          '.oo..........oo.',
-          '.opo........opo.',
-          '.oooooooooooooo.',
-          '.oodooddoodoooo.',
-          '.oookkoooookkoo.',
-          '.oookkoooookkoo.',
-          '.ooooooppoooooo.',
-          '.oooookoookoooo.',
-          '.oooooooooooooo.',
-          '..oooooooooooo..',
-          '...oooooooooo...',
-          '................',
-          '................',
-          '................',
-        ],
-      },
-      {
-        name: 'Flower',
-        palette: { '.': '#aee7ff', 'p': '#ff9ec7', 'y': '#ffe600', 'g': '#4caf50', 'l': '#7ed957' },
-        rows: [
-          '................',
-          '......pppp......',
-          '....pppppppp....',
-          '...pppppppppp...',
-          '...pppyyyyppp...',
-          '...pppyyyyppp...',
-          '...pppppppppp...',
-          '....pppppppp....',
-          '......pppp......',
-          '.......gg.......',
-          '.......gg.......',
-          '...lll.gg.......',
-          '....lllgg.......',
-          '.......gg.......',
-          'llllllllllllllll',
-          'llllllllllllllll',
-        ],
-      },
+    // ---------- Data ----------
+    const PICTURES = window.PIXEL_PICTURES || [];
+    const CATEGORIES = (window.PIXEL_CATEGORIES || []).filter(c => PICTURES.some(p => p.category === c.id));
+    const DIFFS = [
+      { id: 'easy', label: 'Easy', stars: '★' },
+      { id: 'medium', label: 'Medium', stars: '★★' },
+      { id: 'hard', label: 'Hard', stars: '★★★' },
     ];
+    const diffStars = d => (DIFFS.find(x => x.id === d) || { stars: '' }).stars;
 
     // Fixed palette for Draw mode
     const DRAW_COLORS = ['#ffffff', '#1d1d2b', '#ff4757', '#ff9ec7', '#f5a25d', '#ffe600', '#7ed957', '#4caf50', '#00f0ff', '#4a7dff', '#b07d4f', '#a55eea'];
 
     const game = document.getElementById('game');
-    const finished = JSON.parse(localStorage.getItem('pixelpaint-done') || '{}');
+    const finished = JSON.parse(localStorage.getItem('pixelpaint-done') || '{}'); // keyed by picture id
     let camStream = null;
+
+    // ---------- Saved designs (localStorage) ----------
+    function loadDesigns() {
+      try { return JSON.parse(localStorage.getItem('pixelpaint-designs') || '[]'); }
+      catch (e) { return []; }
+    }
+    function storeDesigns(d) { localStorage.setItem('pixelpaint-designs', JSON.stringify(d)); }
 
     function el(html) {
       const t = document.createElement('template');
@@ -349,50 +254,186 @@
       return { w: pic.rows[0].length, h: pic.rows.length, colors, cells };
     }
 
+    function drawPuzzleToCanvas(canvas, puzzle) {
+      canvas.width = puzzle.w;
+      canvas.height = puzzle.h;
+      const ctx = canvas.getContext('2d');
+      puzzle.cells.forEach((ci, i) => {
+        ctx.fillStyle = puzzle.colors[ci];
+        ctx.fillRect(i % puzzle.w, Math.floor(i / puzzle.w), 1, 1);
+      });
+    }
+
     // ---------- Screens ----------
 
     function showHome() {
       stopCamera();
       game.innerHTML = '';
+      const designCount = loadDesigns().length;
       const panel = el(`<div class="panel"><p class="prompt">CHOOSE A MODE</p></div>`);
       const search = el(`<button class="mode-btn"><span class="big">🔍</span>
-        <span><h2>SEARCH</h2><p>Browse the gallery and colour in a picture</p></span></button>`);
+        <span><h2>SEARCH</h2><p>Browse ${PICTURES.length}+ pictures by category &amp; difficulty</p></span></button>`);
       const create = el(`<button class="mode-btn"><span class="big">🖌️</span>
         <span><h2>CREATE</h2><p>Draw your own, or snap a selfie to pixelify</p></span></button>`);
+      const designs = el(`<button class="mode-btn"><span class="big">📁</span>
+        <span><h2>MY DESIGNS</h2><p>${designCount ? designCount + ' saved creation' + (designCount === 1 ? '' : 's') : 'Your saved creations live here'}</p></span></button>`);
       search.addEventListener('click', showGallery);
       create.addEventListener('click', showCreate);
-      panel.append(search, create);
+      designs.addEventListener('click', showDesigns);
+      panel.append(search, create, designs);
       game.appendChild(panel);
     }
 
+    // ---------- Gallery (Search) with category / difficulty / text filters ----------
+
     function showGallery() {
       game.innerHTML = '';
-      const panel = el(`<div class="panel"><p class="prompt">PICK A PICTURE</p><div class="thumbs"></div></div>`);
+      const state = { cat: 'all', diff: 'all', q: '' };
+
+      const panel = el(`<div class="panel">
+        <p class="prompt">PICK A PICTURE</p>
+        <div class="toolbar">
+          <input class="search" type="search" placeholder="🔍 Search pictures…" autocomplete="off">
+          <div class="chips cat-chips"></div>
+          <div class="filter-label">Difficulty</div>
+          <div class="chips diff-chips"></div>
+        </div>
+        <div class="count"></div>
+        <div class="thumbs"></div>
+      </div>`);
+      const searchInput = panel.querySelector('.search');
+      const catChips = panel.querySelector('.cat-chips');
+      const diffChips = panel.querySelector('.diff-chips');
+      const countEl = panel.querySelector('.count');
       const thumbs = panel.querySelector('.thumbs');
-      for (const pic of PICTURES) {
-        const puzzle = puzzleFromPicture(pic);
-        const thumb = el(`<div class="thumb"><canvas width="16" height="16"></canvas>
-          <div class="label">${pic.name}</div>
-          ${finished[pic.name] ? '<div class="done-tag">★ painted</div>' : ''}</div>`);
-        const ctx = thumb.querySelector('canvas').getContext('2d');
-        puzzle.cells.forEach((ci, i) => {
-          ctx.fillStyle = puzzle.colors[ci];
-          ctx.fillRect(i % 16, Math.floor(i / 16), 1, 1);
+
+      // category chips
+      function mkChip(parent, label, active, onClick) {
+        const chip = el(`<button class="chip${active ? ' active' : ''}">${label}</button>`);
+        chip.addEventListener('click', () => {
+          parent.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          onClick();
         });
-        thumb.addEventListener('click', () => showPaint(puzzle, pic.name));
-        thumbs.appendChild(thumb);
+        parent.appendChild(chip);
       }
+      mkChip(catChips, `All <span class="c-count">${PICTURES.length}</span>`, true, () => { state.cat = 'all'; render(); });
+      for (const cat of CATEGORIES) {
+        const n = PICTURES.filter(p => p.category === cat.id).length;
+        mkChip(catChips, `${cat.icon} ${cat.label} <span class="c-count">${n}</span>`, false, () => { state.cat = cat.id; render(); });
+      }
+      mkChip(diffChips, 'All', true, () => { state.diff = 'all'; render(); });
+      for (const d of DIFFS) {
+        mkChip(diffChips, `${d.stars} ${d.label}`, false, () => { state.diff = d.id; render(); });
+      }
+
+      let searchTimer = null;
+      searchInput.addEventListener('input', () => {
+        state.q = searchInput.value.trim().toLowerCase();
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(render, 120);
+      });
+
+      function render() {
+        thumbs.innerHTML = '';
+        const list = PICTURES.filter(p =>
+          (state.cat === 'all' || p.category === state.cat) &&
+          (state.diff === 'all' || p.difficulty === state.diff) &&
+          (!state.q || p.name.toLowerCase().includes(state.q))
+        );
+        countEl.textContent = list.length + ' picture' + (list.length === 1 ? '' : 's');
+        if (!list.length) {
+          thumbs.appendChild(el(`<p class="empty">No pictures match.<br>Try another category or search.</p>`));
+          return;
+        }
+        // tiny canvases draw fast, so render the filtered set straight away
+        const frag = document.createDocumentFragment();
+        for (const pic of list) {
+          const puzzle = puzzleFromPicture(pic);
+          const thumb = el(`<div class="thumb${finished[pic.id] ? ' done' : ''}">
+            <canvas></canvas>
+            <div class="label">${pic.name}</div>
+            <div class="diff">${diffStars(pic.difficulty)}</div>
+          </div>`);
+          drawPuzzleToCanvas(thumb.querySelector('canvas'), puzzle);
+          thumb.addEventListener('click', () => showPaint(puzzle, { markId: pic.id }));
+          frag.appendChild(thumb);
+        }
+        thumbs.appendChild(frag);
+      }
+      render();
+
       const back = el(`<button class="btn alt">&larr; BACK</button>`);
       back.addEventListener('click', showHome);
       panel.appendChild(back);
       game.appendChild(panel);
     }
 
+    // ---------- My Designs ----------
+
+    function showDesigns() {
+      stopCamera();
+      game.innerHTML = '';
+      const designs = loadDesigns();
+      const panel = el(`<div class="panel"><p class="prompt">MY DESIGNS</p></div>`);
+
+      if (!designs.length) {
+        panel.appendChild(el(`<p class="empty">No saved designs yet.<br>Tap <b>CREATE</b> to draw or snap one,<br>then <b>SAVE TO GALLERY</b>. 🎨</p>`));
+        const make = el(`<button class="btn">🖌️ CREATE ONE</button>`);
+        make.addEventListener('click', showCreate);
+        panel.appendChild(make);
+      } else {
+        const thumbs = el(`<div class="thumbs"></div>`);
+        // newest first
+        designs.slice().reverse().forEach((d) => {
+          const puzzle = { w: d.w, h: d.h, colors: d.colors, cells: d.cells };
+          const thumb = el(`<div class="thumb">
+            <button class="del" title="Delete">🗑</button>
+            <canvas></canvas>
+            <div class="label">${d.name}</div>
+          </div>`);
+          drawPuzzleToCanvas(thumb.querySelector('canvas'), puzzle);
+          thumb.addEventListener('click', () => showPaint(puzzle, { designId: d.id }));
+          thumb.querySelector('.del').addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            if (!confirm('Delete "' + d.name + '"?')) return;
+            storeDesigns(loadDesigns().filter(x => x.id !== d.id));
+            showDesigns();
+          });
+          thumbs.appendChild(thumb);
+        });
+        panel.appendChild(thumbs);
+      }
+
+      const back = el(`<button class="btn alt">&larr; BACK</button>`);
+      back.addEventListener('click', showHome);
+      panel.appendChild(back);
+      game.appendChild(panel);
+    }
+
+    // Save a created puzzle into My Designs, then show the gallery of designs.
+    function saveDesign(puzzle) {
+      const designs = loadDesigns();
+      const fallback = 'My Design ' + (designs.length + 1);
+      let name = prompt('Name your design:', fallback);
+      if (name === null) return; // cancelled
+      name = name.trim() || fallback;
+      designs.push({
+        id: 'd' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        name, w: puzzle.w, h: puzzle.h, colors: puzzle.colors, cells: puzzle.cells, created: Date.now(),
+      });
+      storeDesigns(designs);
+      showDesigns();
+    }
+
+    // ---------- Create ----------
+
     function showCreate() {
+      stopCamera();
       game.innerHTML = '';
       const panel = el(`<div class="panel"><p class="prompt">HOW WILL YOU CREATE?</p></div>`);
       const draw = el(`<button class="mode-btn"><span class="big">✏️</span>
-        <span><h2>DRAW</h2><p>Paint your own pixel picture, then colour it by number</p></span></button>`);
+        <span><h2>DRAW</h2><p>Paint your own pixel picture, save it or colour it</p></span></button>`);
       const cam = el(`<button class="mode-btn"><span class="big">📸</span>
         <span><h2>CAMERA</h2><p>Take a selfie and turn it into a colouring puzzle</p></span></button>`);
       draw.addEventListener('click', showDraw);
@@ -413,11 +454,12 @@
 
       const panel = el(`<div class="panel">
         <p class="prompt">DRAW YOUR PICTURE</p>
-        <div class="board" style="grid-template-columns: repeat(${SIZE}, 1fr)"></div>
+        <div class="board" style="grid-template-columns: repeat(${SIZE}, 1fr); aspect-ratio: 1"></div>
         <div class="palette"></div>
         <div class="row">
           <button class="btn alt" data-act="back">&larr; BACK</button>
           <button class="btn alt" data-act="clear">CLEAR</button>
+          <button class="btn alt" data-act="save">💾 SAVE</button>
           <button class="btn" data-act="go">PAINT IT &rarr;</button>
         </div>
       </div>`);
@@ -447,20 +489,30 @@
       }
       attachPointerPaint(board, paintAt);
 
+      // build a puzzle from the drawing (null if too few colours)
+      function drawnPuzzle() {
+        const used = [...new Set(pixels)];
+        if (used.length < 2) {
+          alert('Use at least 2 colours so there is something to paint!');
+          return null;
+        }
+        const colors = used.map(u => DRAW_COLORS[u]);
+        const cells = pixels.map(p => used.indexOf(p));
+        return { w: SIZE, h: SIZE, colors, cells };
+      }
+
       panel.querySelector('[data-act=back]').addEventListener('click', showCreate);
       panel.querySelector('[data-act=clear]').addEventListener('click', () => {
         pixels.fill(0);
         cellEls.forEach(c => c.style.background = DRAW_COLORS[0]);
       });
+      panel.querySelector('[data-act=save]').addEventListener('click', () => {
+        const pz = drawnPuzzle();
+        if (pz) saveDesign(pz);
+      });
       panel.querySelector('[data-act=go]').addEventListener('click', () => {
-        const used = [...new Set(pixels)];
-        if (used.length < 2) {
-          alert('Use at least 2 colours so there is something to paint!');
-          return;
-        }
-        const colors = used.map(u => DRAW_COLORS[u]);
-        const cells = pixels.map(p => used.indexOf(p));
-        showPaint({ w: SIZE, h: SIZE, colors, cells }, null);
+        const pz = drawnPuzzle();
+        if (pz) showPaint(pz, {});
       });
 
       game.appendChild(panel);
@@ -521,16 +573,14 @@
         <canvas class="cam-preview" width="${puzzle.w}" height="${puzzle.h}"></canvas>
         <div class="row">
           <button class="btn alt" data-act="retake">RETAKE</button>
+          <button class="btn alt" data-act="save">💾 SAVE</button>
           <button class="btn" data-act="go">PAINT IT &rarr;</button>
         </div>
       </div>`);
-      const ctx = panel.querySelector('canvas').getContext('2d');
-      puzzle.cells.forEach((ci, i) => {
-        ctx.fillStyle = puzzle.colors[ci];
-        ctx.fillRect(i % puzzle.w, Math.floor(i / puzzle.w), 1, 1);
-      });
+      drawPuzzleToCanvas(panel.querySelector('canvas'), puzzle);
       panel.querySelector('[data-act=retake]').addEventListener('click', showCamera);
-      panel.querySelector('[data-act=go]').addEventListener('click', () => showPaint(puzzle, null));
+      panel.querySelector('[data-act=save]').addEventListener('click', () => saveDesign(puzzle));
+      panel.querySelector('[data-act=go]').addEventListener('click', () => showPaint(puzzle, {}));
       game.appendChild(panel);
     }
 
@@ -588,7 +638,9 @@
       board.addEventListener('pointercancel', stop);
     }
 
-    function showPaint(puzzle, pictureName) {
+    // opts: { markId } marks a gallery picture painted; { designId } came from My Designs
+    function showPaint(puzzle, opts) {
+      opts = opts || {};
       game.innerHTML = '';
       const { w, h, colors, cells } = puzzle;
       const remaining = colors.map((_, ci) => cells.filter(c => c === ci).length);
@@ -598,7 +650,7 @@
 
       const panel = el(`<div class="panel">
         <p class="prompt">TAP THE NUMBERS TO PAINT</p>
-        <div class="board" style="grid-template-columns: repeat(${w}, 1fr)"></div>
+        <div class="board" style="grid-template-columns: repeat(${w}, 1fr); aspect-ratio: ${w}/${h}"></div>
         <div class="palette"></div>
         <div class="row"><button class="btn alt" data-act="back">&larr; QUIT</button></div>
       </div>`);
@@ -671,8 +723,8 @@
 
       function win() {
         board.classList.add('complete');
-        if (pictureName) {
-          finished[pictureName] = true;
+        if (opts.markId) {
+          finished[opts.markId] = true;
           localStorage.setItem('pixelpaint-done', JSON.stringify(finished));
         }
         panel.querySelector('.prompt').textContent = 'MASTERPIECE!';
@@ -683,11 +735,16 @@
         confettiBurst();
       }
 
-      panel.querySelector('[data-act=back]').addEventListener('click', showHome);
+      // QUIT / PAINT ANOTHER returns to where it makes sense
+      panel.querySelector('[data-act=back]').addEventListener('click', opts.designId ? showDesigns : (opts.markId ? showGallery : showHome));
       game.appendChild(panel);
     }
 
-    showHome();
+    if (!PICTURES.length) {
+      game.appendChild(el(`<div class="panel"><p class="prompt">COULDN'T LOAD PICTURES</p><p class="empty">Try refreshing the page.</p></div>`));
+    } else {
+      showHome();
+    }
   </script>
 </body>
 </html>
