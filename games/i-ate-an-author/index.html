@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>I Ate an Author — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✍️</text></svg>">
+  <style>
+    :root {
+      --bg: #0d0221;
+      --bg-card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+      --line: #3e2f65;
+      --paper: #fdf6e3;
+      --ink: #241a12;
+      --arcade: 'Press Start 2P', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 50% -10%, #2b0a5e 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    body.no-scroll { overflow: hidden; }
+
+    /* ---- Top bar ---- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.7rem 1rem;
+      border-bottom: 2px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .back {
+      color: var(--cyan);
+      text-decoration: none;
+      font-family: var(--arcade);
+      font-size: 0.55rem;
+      white-space: nowrap;
+    }
+    .back:hover { color: var(--yellow); }
+    .brand {
+      font-family: var(--arcade);
+      color: var(--pink);
+      font-size: clamp(0.7rem, 3.4vw, 1.1rem);
+      text-shadow: 0 0 10px rgba(255,46,136,0.5), 2px 2px 0 rgba(0,240,255,0.35);
+      text-align: center;
+      flex: 1;
+    }
+    .tagline { color: var(--dim); font-size: 0.72rem; margin-top: 0.3rem; font-family: system-ui; text-shadow: none; }
+    .spacer { width: 70px; }
+
+    /* ---- Tabs ---- */
+    .tabs {
+      display: flex;
+      gap: 0.4rem;
+      padding: 0.6rem 0.7rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      border-bottom: 2px solid var(--line);
+    }
+    .tab {
+      font-family: var(--arcade);
+      font-size: 0.55rem;
+      color: var(--dim);
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 9px;
+      padding: 0.6rem 0.7rem;
+      cursor: pointer;
+      transition: all 0.12s ease;
+    }
+    .tab:hover { color: var(--text); border-color: var(--cyan); }
+    .tab.active {
+      color: var(--bg);
+      background: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 14px rgba(0,240,255,0.5);
+    }
+
+    main { flex: 1; padding: 1rem; max-width: 1100px; width: 100%; margin: 0 auto; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ---- Buttons ---- */
+    .btn {
+      font-family: var(--arcade);
+      font-size: 0.6rem;
+      color: var(--bg);
+      background: var(--pink);
+      border: none;
+      border-radius: 9px;
+      padding: 0.7rem 0.9rem;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(255,46,136,0.4);
+      transition: transform 0.1s ease, filter 0.1s ease;
+    }
+    .btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.ghost {
+      background: transparent;
+      color: var(--cyan);
+      border: 2px solid var(--cyan);
+      box-shadow: none;
+    }
+    .btn.ghost:hover { background: rgba(0,240,255,0.1); }
+    .btn.yellow { background: var(--yellow); box-shadow: 0 0 12px rgba(255,230,0,0.4); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
+
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+    .grow { flex: 1; min-width: 120px; }
+    .hint { color: var(--dim); font-size: 0.75rem; margin: 0.4rem 0; }
+    label.lbl { font-family: var(--arcade); font-size: 0.5rem; color: var(--yellow); display: block; margin-bottom: 0.3rem; }
+
+    input.title-input, input.text-input {
+      font-family: var(--arcade);
+      font-size: 0.7rem;
+      color: var(--text);
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      padding: 0.7rem;
+    }
+    input.title-input:focus, input.text-input:focus { outline: none; border-color: var(--cyan); }
+
+    select.pick {
+      font-family: var(--arcade);
+      font-size: 0.5rem;
+      color: var(--text);
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 7px;
+      padding: 0.5rem;
+      cursor: pointer;
+    }
+
+    /* ---- Write ---- */
+    .doc-toolbar {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      align-items: center;
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 10px 10px 0 0;
+      padding: 0.5rem;
+      border-bottom: none;
+    }
+    .fbtn {
+      font-family: var(--arcade);
+      font-size: 0.6rem;
+      color: var(--text);
+      background: #241147;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      min-width: 34px;
+      padding: 0.5rem 0.55rem;
+      cursor: pointer;
+    }
+    .fbtn:hover { border-color: var(--cyan); }
+    .fbtn b { font-family: Georgia, serif; }
+    .fbtn i { font-family: Georgia, serif; }
+    .fbtn u { font-family: Georgia, serif; }
+    input.color-btn { width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+    .write-paper {
+      background: var(--paper);
+      color: var(--ink);
+      border: 2px solid var(--line);
+      border-radius: 0 0 10px 10px;
+      min-height: 45vh;
+      padding: 1.4rem 1.6rem;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 18px;
+      line-height: 1.6;
+      outline: none;
+      overflow-wrap: break-word;
+    }
+    .write-paper:empty:before { content: attr(data-ph); color: #b9ad8c; }
+
+    /* ---- shared paint stage (draw tab, overlays) ---- */
+    .stage-wrap {
+      position: relative;
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+      line-height: 0;
+      overflow: hidden;
+      display: inline-block;
+      max-width: 100%;
+    }
+    .paint-canvas { touch-action: none; display: block; max-width: 100%; height: auto; cursor: crosshair; }
+
+    .paint-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.55rem;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      padding: 0.55rem;
+      margin-top: 0.7rem;
+    }
+    .tool-group { display: flex; gap: 0.3rem; }
+    .tool-btn {
+      font-size: 1.1rem;
+      background: #241147;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      width: 40px; height: 40px;
+      cursor: pointer;
+      line-height: 1;
+      color: var(--text);
+    }
+    .tool-btn:hover { border-color: var(--cyan); }
+    .tool-btn.active { border-color: var(--yellow); background: rgba(255,230,0,0.15); box-shadow: 0 0 10px rgba(255,230,0,0.4); }
+    .tool-field { font-family: var(--arcade); font-size: 0.45rem; color: var(--dim); display: flex; align-items: center; gap: 0.35rem; }
+    .size-range { width: 90px; accent-color: var(--pink); }
+    .palette { display: flex; flex-wrap: wrap; gap: 0.25rem; max-width: 220px; }
+    .swatch { width: 24px; height: 24px; border-radius: 5px; border: 2px solid rgba(255,255,255,0.25); cursor: pointer; padding: 0; }
+    .swatch.active { border-color: var(--yellow); transform: scale(1.15); }
+    .custom-color { width: 30px; height: 30px; padding: 0; border: none; background: none; border-radius: 6px; cursor: pointer; }
+
+    /* ---- Comic ---- */
+    .comic-strip {
+      display: flex;
+      gap: 0.8rem;
+      overflow-x: auto;
+      padding: 0.8rem 0.2rem 1rem;
+    }
+    .panel-card {
+      flex: 0 0 auto;
+      width: 180px;
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .panel-no { font-family: var(--arcade); font-size: 0.5rem; color: var(--cyan); }
+    .panel-open { padding: 0; border: none; background: none; cursor: pointer; }
+    .panel-thumb {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 6px;
+      background: #fff;
+      object-fit: cover;
+      display: block;
+      border: 1px solid var(--line);
+    }
+    .panel-thumb.empty {
+      display: flex; align-items: center; justify-content: center;
+      color: #b9a; font-family: var(--arcade); font-size: 0.5rem; text-align: center;
+    }
+    .panel-actions { display: flex; gap: 0.25rem; justify-content: space-between; }
+    .mini {
+      flex: 1;
+      background: #241147; color: var(--text);
+      border: 1px solid var(--line); border-radius: 6px;
+      padding: 0.4rem 0; cursor: pointer; font-size: 0.8rem;
+    }
+    .mini:hover { border-color: var(--cyan); }
+    .mini:disabled { opacity: 0.3; cursor: default; }
+    .add-panel {
+      flex: 0 0 auto;
+      width: 120px;
+      align-self: stretch;
+      background: transparent;
+      border: 2px dashed var(--pink);
+      border-radius: 10px;
+      color: var(--pink);
+      font-family: var(--arcade);
+      font-size: 0.55rem;
+      cursor: pointer;
+      white-space: pre-line;
+      line-height: 1.6;
+    }
+    .add-panel:hover { background: rgba(255,46,136,0.1); }
+
+    /* ---- Design (fonts) ---- */
+    .glyph-section-title { font-family: var(--arcade); font-size: 0.55rem; color: var(--yellow); margin: 1rem 0 0.5rem; }
+    .glyph-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 0.5rem;
+    }
+    .glyph-tile {
+      position: relative;
+      aspect-ratio: 5 / 6;
+      background: #fff;
+      border: 2px solid var(--line);
+      border-radius: 8px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .glyph-tile:hover { border-color: var(--cyan); }
+    .glyph-tile.done { border-color: var(--yellow); }
+    .glyph-tile .ghost {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: Georgia, serif; font-size: 2rem; color: #d9cfae;
+    }
+    .glyph-tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+    .glyph-tile .tag { position: absolute; top: 2px; left: 4px; font-size: 0.6rem; color: #8a8; font-family: var(--arcade); }
+    .font-preview {
+      background: #fff; border-radius: 10px; padding: 0.8rem; margin-top: 0.6rem;
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: 2px; min-height: 70px;
+    }
+    .fp-glyph { height: 48px; width: auto; }
+    .fp-space { width: 22px; }
+    .fp-miss { height: 48px; width: 30px; border: 1px dashed #ccc; color: #ccc; display: flex; align-items: flex-end; justify-content: center; font-family: Georgia, serif; }
+
+    /* ---- Gallery ---- */
+    .work-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem;
+    }
+    .work-card {
+      background: var(--bg-card);
+      border: 2px solid var(--line);
+      border-radius: 12px;
+      padding: 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .work-card:hover { border-color: var(--cyan); }
+    .work-thumb {
+      background: #fff; border-radius: 8px; height: 130px; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .work-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .work-thumb.comic { gap: 2px; padding: 4px; }
+    .work-thumb.comic img { height: 100%; width: auto; border-radius: 3px; }
+    .work-thumb.font { gap: 2px; padding: 6px; }
+    .work-thumb.font img { height: 60px; width: auto; }
+    .story-thumb {
+      background: var(--paper); color: var(--ink); font-family: Georgia, serif;
+      font-size: 0.75rem; line-height: 1.4; padding: 0.6rem; height: 100%; width: 100%;
+      overflow: hidden; text-align: left;
+    }
+    .work-title { font-family: var(--arcade); font-size: 0.6rem; color: var(--text); word-break: break-word; }
+    .work-sub { font-size: 0.7rem; color: var(--dim); display: flex; justify-content: space-between; align-items: center; gap: 0.4rem; }
+    .badge {
+      font-family: var(--arcade); font-size: 0.4rem; padding: 0.25rem 0.4rem; border-radius: 5px;
+      color: var(--bg);
+    }
+    .badge.story { background: var(--yellow); }
+    .badge.comic { background: var(--cyan); }
+    .badge.font { background: #b06bff; }
+    .badge.drawing { background: var(--pink); }
+    .work-btns { display: flex; gap: 0.4rem; }
+    .work-btns .btn { flex: 1; font-size: 0.5rem; padding: 0.55rem 0.4rem; }
+    .empty-state { text-align: center; color: var(--dim); font-family: var(--arcade); font-size: 0.7rem; line-height: 2; padding: 3rem 1rem; }
+
+    /* ---- Overlay ---- */
+    .overlay {
+      position: fixed; inset: 0; z-index: 50;
+      background: rgba(3,0,12,0.92);
+      display: none;
+      align-items: center; justify-content: center;
+      padding: 0.6rem;
+    }
+    .overlay.show { display: flex; }
+    .overlay-box {
+      display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+      max-height: 100%; max-width: 100%;
+    }
+    .overlay-title { font-family: var(--arcade); font-size: 0.6rem; color: var(--yellow); }
+    .overlay-actions { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+    .glyph-guide {
+      position: absolute; inset: 0; z-index: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-family: Georgia, serif; font-size: 15rem; color: #eee;
+      pointer-events: none; user-select: none;
+    }
+    .stage-wrap .paint-canvas { position: relative; z-index: 1; background: transparent; }
+
+    /* viewer overlays */
+    .viewer-box {
+      background: var(--bg-card); border: 2px solid var(--line); border-radius: 12px;
+      padding: 1rem; max-width: min(920px, 96vw); max-height: 92vh; overflow: auto;
+      display: flex; flex-direction: column; gap: 0.8rem;
+    }
+    .viewer-box .write-paper { min-height: auto; }
+    .viewer-comic { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; }
+    .viewer-comic img { width: 260px; max-width: 44vw; border-radius: 8px; background: #fff; }
+    .viewer-drawing img { max-width: 100%; border-radius: 8px; }
+    .close-x {
+      align-self: flex-end; background: var(--pink); color: var(--bg); border: none;
+      border-radius: 8px; width: 34px; height: 34px; font-size: 1rem; cursor: pointer; font-family: var(--arcade);
+    }
+
+    /* toast */
+    #toast {
+      position: fixed; bottom: 1.2rem; left: 50%; transform: translateX(-50%) translateY(2rem);
+      background: var(--yellow); color: var(--bg); font-family: var(--arcade); font-size: 0.6rem;
+      padding: 0.8rem 1.1rem; border-radius: 9px; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease; z-index: 80; box-shadow: 0 0 20px rgba(255,230,0,0.5);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <div class="brand">✍️ I ATE AN AUTHOR<div class="tagline">One bite and their words are yours — now write, draw &amp; design.</div></div>
+    <span class="spacer"></span>
+  </div>
+
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="write">Write</button>
+    <button class="tab" data-tab="comic">Comic</button>
+    <button class="tab" data-tab="design">Design</button>
+    <button class="tab" data-tab="draw">Draw</button>
+    <button class="tab" data-tab="gallery">Gallery</button>
+  </nav>
+
+  <main>
+    <!-- WRITE -->
+    <section class="panel active" id="panel-write">
+      <input class="title-input grow" id="story-title" placeholder="Story title…" style="width:100%; margin-bottom:0.6rem;">
+      <div class="doc-toolbar">
+        <select class="pick" id="font-family" title="Font"></select>
+        <select class="pick" id="font-size" title="Size"></select>
+        <button class="fbtn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button class="fbtn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button class="fbtn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <input type="color" class="color-btn" id="ink-color" value="#241a12" title="Text colour">
+        <button class="fbtn" data-cmd="justifyLeft" title="Align left"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="1" y1="6" x2="10" y2="6"/><line x1="1" y1="10" x2="13" y2="10"/></svg></button>
+        <button class="fbtn" data-cmd="justifyCenter" title="Centre"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="4" y1="6" x2="12" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/></svg></button>
+        <button class="fbtn" data-cmd="justifyRight" title="Align right"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="6" y1="6" x2="15" y2="6"/><line x1="3" y1="10" x2="15" y2="10"/></svg></button>
+      </div>
+      <div class="write-paper" id="editor" contenteditable="true" spellcheck="true" data-ph="Once upon a time…"></div>
+      <p class="hint">Tip: select some text first, then change its font, size, colour or style.</p>
+      <div class="row">
+        <button class="btn" id="save-story">💾 Save to Gallery</button>
+        <button class="btn ghost" id="new-story">📄 New</button>
+      </div>
+    </section>
+
+    <!-- COMIC -->
+    <section class="panel" id="panel-comic">
+      <input class="title-input grow" id="comic-title" placeholder="Comic title…" style="width:100%; margin-bottom:0.4rem;">
+      <p class="hint">Click a panel to draw it fullscreen. Add, delete and reorder panels to build your strip.</p>
+      <div class="comic-strip" id="comic-strip"></div>
+      <div class="row">
+        <button class="btn" id="save-comic">💾 Save comic</button>
+        <button class="btn ghost" id="new-comic">🗑 New strip</button>
+      </div>
+    </section>
+
+    <!-- DESIGN -->
+    <section class="panel" id="panel-design">
+      <input class="title-input grow" id="font-name" placeholder="Font name…" style="width:100%; margin-bottom:0.4rem;">
+      <p class="hint">Draw your own letters! Tap any tile to draw that character. <span id="glyph-count"></span></p>
+      <div id="glyph-sections"></div>
+      <label class="lbl" style="margin-top:1rem;">Type to test your font</label>
+      <input class="text-input grow" id="fp-input" value="Hello!" style="width:100%;">
+      <div class="font-preview" id="font-preview"></div>
+      <div class="row" style="margin-top:0.8rem;">
+        <button class="btn" id="save-font">💾 Save font</button>
+        <button class="btn ghost" id="clear-font">🗑 Clear all letters</button>
+      </div>
+    </section>
+
+    <!-- DRAW -->
+    <section class="panel" id="panel-draw">
+      <input class="title-input grow" id="draw-title" placeholder="Drawing title…" style="width:100%; margin-bottom:0.6rem;">
+      <div style="text-align:center;">
+        <div class="stage-wrap" id="draw-wrap">
+          <canvas class="paint-canvas" id="draw-canvas" width="1000" height="700"></canvas>
+        </div>
+      </div>
+      <div class="paint-tools" id="draw-tools"></div>
+      <div class="row" style="margin-top:0.8rem;">
+        <button class="btn" id="save-draw">💾 Save to Gallery</button>
+      </div>
+    </section>
+
+    <!-- GALLERY -->
+    <section class="panel" id="panel-gallery">
+      <div class="work-grid" id="work-grid"></div>
+    </section>
+  </main>
+
+  <div class="overlay" id="overlay"></div>
+  <div id="toast"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ---------- constants ----------
+    const STORE_KEY = 'iateanauthor-works';
+    const TOOLS = {
+      pencil: { label: '✏️', name: 'Pencil' },
+      brush:  { label: '🖌️', name: 'Brush' },
+      marker: { label: '🖊️', name: 'Marker' },
+      crayon: { label: '🖍️', name: 'Crayon' },
+      spray:  { label: '💨', name: 'Spray' },
+      eraser: { label: '🧽', name: 'Eraser' },
+      fill:   { label: '🪣', name: 'Fill' },
+    };
+    const PALETTE = ['#000000','#ffffff','#8a8a8a','#e53935','#fb8c00','#ffe600',
+                     '#43a047','#00c2ff','#1e88e5','#8e24aa','#ff2e88','#795548','#ffccaa','#5d4037'];
+    const FONTS = [
+      { label: 'Serif',  css: 'Georgia, "Times New Roman", serif' },
+      { label: 'Sans',   css: 'Arial, Helvetica, sans-serif' },
+      { label: 'Mono',   css: '"Courier New", monospace' },
+      { label: 'Comic',  css: '"Comic Sans MS", "Comic Sans", cursive' },
+      { label: 'Script', css: '"Brush Script MT", "Segoe Script", cursive' },
+      { label: 'Arcade', css: '"Press Start 2P", monospace' },
+    ];
+    const SIZES = [14, 16, 18, 22, 28, 36, 48];
+
+    // ---------- tiny helpers ----------
+    const $ = (id) => document.getElementById(id);
+    function el(tag, props, ...kids) {
+      const n = document.createElement(tag);
+      props = props || {};
+      for (const k in props) {
+        const v = props[k];
+        if (k === 'class') n.className = v;
+        else if (k === 'html') n.innerHTML = v;
+        else if (k === 'style' && typeof v === 'object') Object.assign(n.style, v);
+        else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+        else if (v === true) n.setAttribute(k, '');
+        else if (v !== false && v != null) n.setAttribute(k, v);
+      }
+      for (const c of kids) {
+        if (c == null || c === false) continue;
+        n.append(c.nodeType ? c : document.createTextNode(c));
+      }
+      return n;
+    }
+    function toast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    function hexToRgb(hex) {
+      hex = hex.replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map((c) => c + c).join('');
+      const n = parseInt(hex, 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+
+    // ---------- storage ----------
+    function loadWorks() {
+      try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
+      catch (e) { return []; }
+    }
+    function saveWorks(w) {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(w)); return true; }
+      catch (e) { alert('Out of storage space! Delete some creations from the Gallery to make room.'); return false; }
+    }
+    function addWork(work) {
+      const w = loadWorks();
+      work.id = 'w' + Date.now() + Math.random().toString(36).slice(2, 6);
+      work.created = Date.now();
+      w.push(work);
+      if (!saveWorks(w)) return false;
+      return true;
+    }
+    function draftSet(key, val) {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore draft quota */ }
+    }
+    function draftGet(key) {
+      try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
+    }
+
+    // ---------- image utilities ----------
+    function exportImage(canvas, opts) {
+      opts = opts || {};
+      const t = el('canvas');
+      t.width = canvas.width; t.height = canvas.height;
+      const c = t.getContext('2d');
+      if (opts.bg) { c.fillStyle = opts.bg; c.fillRect(0, 0, t.width, t.height); }
+      c.drawImage(canvas, 0, 0);
+      return t.toDataURL(opts.type || 'image/png', opts.quality);
+    }
+    function loadImageTo(ctx, dataURL, cb) {
+      if (!dataURL) { if (cb) cb(); return; }
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.drawImage(img, 0, 0, ctx.canvas.width, ctx.canvas.height);
+        if (cb) cb();
+      };
+      img.src = dataURL;
+    }
+    function downloadDataURL(name, dataURL) {
+      const a = el('a', { href: dataURL, download: name });
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    // ---------- Painter (shared drawing engine) ----------
+    function makePainter(canvas) {
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const off = el('canvas'); off.width = canvas.width; off.height = canvas.height;
+      const offctx = off.getContext('2d');
+      const undoStack = [];
+      let drawing = false, last = null, base = null;
+
+      const painter = { canvas, ctx, tool: 'brush', color: '#111111', size: 10 };
+
+      function pushUndo() {
+        try {
+          undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+          if (undoStack.length > 15) undoStack.shift();
+        } catch (e) { /* ignore */ }
+      }
+      painter.undo = function () {
+        const img = undoStack.pop();
+        if (img) ctx.putImageData(img, 0, 0);
+      };
+      painter.clear = function () { pushUndo(); ctx.clearRect(0, 0, canvas.width, canvas.height); };
+
+      function pos(e) {
+        const r = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * canvas.width / r.width,
+          y: (e.clientY - r.top) * canvas.height / r.height,
+        };
+      }
+      function configMain() {
+        ctx.globalCompositeOperation = painter.tool === 'eraser' ? 'destination-out' : 'source-over';
+        ctx.globalAlpha = 1;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.strokeStyle = painter.color; ctx.fillStyle = painter.color;
+        ctx.lineWidth = painter.tool === 'pencil' ? Math.max(1, painter.size * 0.45)
+                      : painter.tool === 'eraser' ? painter.size * 1.6
+                      : painter.size;
+      }
+      function spray(p) {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = painter.color; ctx.globalAlpha = 0.55;
+        const density = painter.size * 1.4, rad = painter.size * 1.1;
+        for (let i = 0; i < density; i++) {
+          const a = Math.random() * Math.PI * 2, rr = Math.random() * rad;
+          ctx.fillRect(p.x + Math.cos(a) * rr, p.y + Math.sin(a) * rr, 1.4, 1.4);
+        }
+        ctx.globalAlpha = 1;
+      }
+      function crayonSeg(a, b) {
+        const dist = Math.hypot(b.x - a.x, b.y - a.y);
+        const steps = Math.max(1, Math.floor(dist / 2));
+        offctx.fillStyle = painter.color;
+        for (let i = 0; i <= steps; i++) {
+          const t = i / steps, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+          const dabs = 3 + Math.floor(painter.size / 4);
+          for (let k = 0; k < dabs; k++) {
+            const jx = (Math.random() - 0.5) * painter.size, jy = (Math.random() - 0.5) * painter.size;
+            offctx.globalAlpha = 0.5 + Math.random() * 0.4;
+            offctx.beginPath();
+            offctx.arc(x + jx, y + jy, painter.size * 0.14 * (0.6 + Math.random() * 0.8), 0, 7);
+            offctx.fill();
+          }
+        }
+        offctx.globalAlpha = 1;
+        ctx.putImageData(base, 0, 0);
+        ctx.globalAlpha = 0.85; ctx.drawImage(off, 0, 0); ctx.globalAlpha = 1;
+      }
+      function markerSeg(a, b) {
+        offctx.globalCompositeOperation = 'source-over';
+        offctx.lineCap = 'round'; offctx.lineJoin = 'round';
+        offctx.strokeStyle = painter.color; offctx.lineWidth = painter.size * 1.7;
+        offctx.beginPath(); offctx.moveTo(a.x, a.y); offctx.lineTo(b.x, b.y); offctx.stroke();
+        ctx.putImageData(base, 0, 0);
+        ctx.globalAlpha = 0.32; ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(off, 0, 0); ctx.globalAlpha = 1;
+      }
+      function seg(a, b) {
+        const t = painter.tool;
+        if (t === 'spray') { spray(b); return; }
+        if (t === 'marker') { markerSeg(a, b); return; }
+        if (t === 'crayon') { crayonSeg(a, b); return; }
+        configMain();
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+
+      painter.floodFill = function (x, y) {
+        const w = canvas.width, h = canvas.height;
+        const img = ctx.getImageData(0, 0, w, h), d = img.data;
+        const sx = Math.floor(x), sy = Math.floor(y);
+        if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
+        const s = (sy * w + sx) * 4;
+        const tr = d[s], tg = d[s + 1], tb = d[s + 2], ta = d[s + 3];
+        const [fr, fg, fb] = hexToRgb(painter.color);
+        if (tr === fr && tg === fg && tb === fb && ta === 255) return;
+        const tol = 48;
+        const stack = [sx, sy];
+        while (stack.length) {
+          const cy = stack.pop(), cx = stack.pop();
+          if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+          const i = (cy * w + cx) * 4;
+          if (Math.abs(d[i] - tr) > tol || Math.abs(d[i + 1] - tg) > tol ||
+              Math.abs(d[i + 2] - tb) > tol || Math.abs(d[i + 3] - ta) > tol) continue;
+          d[i] = fr; d[i + 1] = fg; d[i + 2] = fb; d[i + 3] = 255;
+          stack.push(cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1);
+        }
+        ctx.putImageData(img, 0, 0);
+      };
+
+      function down(e) {
+        e.preventDefault();
+        if (canvas.setPointerCapture) { try { canvas.setPointerCapture(e.pointerId); } catch (x) {} }
+        pushUndo();
+        const p = pos(e); last = p; drawing = true;
+        if (painter.tool === 'fill') { painter.floodFill(p.x, p.y); drawing = false; onChange(); return; }
+        if (painter.tool === 'marker' || painter.tool === 'crayon') {
+          base = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          offctx.clearRect(0, 0, off.width, off.height);
+        }
+        if (painter.tool === 'spray') spray(p); else seg(p, p);
+      }
+      function move(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const p = pos(e); seg(last, p); last = p;
+      }
+      function up() {
+        if (!drawing) return;
+        drawing = false; base = null; onChange();
+      }
+      let changeCb = null;
+      function onChange() { if (changeCb) changeCb(); }
+      painter.onChange = function (cb) { changeCb = cb; };
+
+      canvas.addEventListener('pointerdown', down);
+      canvas.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      canvas.addEventListener('pointercancel', up);
+      return painter;
+    }
+
+    // ---------- paint toolbar builder ----------
+    function renderPaintTools(host, painter, opts) {
+      opts = opts || {};
+      const tools = opts.tools || ['pencil', 'brush', 'marker', 'crayon', 'spray', 'eraser', 'fill'];
+      host.innerHTML = '';
+      const btns = {};
+      const group = el('div', { class: 'tool-group' });
+      const setActive = () => { for (const t in btns) btns[t].classList.toggle('active', painter.tool === t); };
+      tools.forEach((t) => {
+        const b = el('button', { class: 'tool-btn', title: TOOLS[t].name, type: 'button',
+          onclick: () => { painter.tool = t; setActive(); } }, TOOLS[t].label);
+        btns[t] = b; group.append(b);
+      });
+      host.append(group);
+
+      const range = el('input', { type: 'range', min: '2', max: '60', value: String(painter.size),
+        class: 'size-range', oninput: (e) => { painter.size = +e.target.value; } });
+      host.append(el('label', { class: 'tool-field' }, 'Size', range));
+
+      if (opts.showColors !== false) {
+        const pal = el('div', { class: 'palette' });
+        const custom = el('input', { type: 'color', value: '#111111', class: 'custom-color', title: 'Custom colour' });
+        const pickColor = (c, swatch) => {
+          painter.color = c;
+          if (painter.tool === 'eraser') { painter.tool = 'brush'; setActive(); }
+          pal.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('active', s === swatch));
+        };
+        PALETTE.forEach((c) => {
+          const s = el('button', { class: 'swatch', type: 'button', title: c, style: { background: c } });
+          s.addEventListener('click', () => { custom.value = /^#[0-9a-f]{6}$/i.test(c) ? c : custom.value; pickColor(c, s); });
+          pal.append(s);
+          if (c === painter.color) s.classList.add('active');
+        });
+        custom.addEventListener('input', (e) => pickColor(e.target.value, null));
+        host.append(pal, el('label', { class: 'tool-field' }, 'Colour', custom));
+      }
+
+      host.append(el('button', { class: 'tool-btn', title: 'Undo', type: 'button', onclick: () => painter.undo() }, '↩'));
+      host.append(el('button', { class: 'tool-btn', title: 'Clear', type: 'button', onclick: () => painter.clear() }, '🗑'));
+      setActive();
+    }
+
+    // ---------- overlay ----------
+    const overlay = $('overlay');
+    function showOverlay(node) {
+      overlay.innerHTML = '';
+      overlay.append(node);
+      overlay.classList.add('show');
+      document.body.classList.add('no-scroll');
+    }
+    function closeOverlay() {
+      overlay.classList.remove('show');
+      overlay.innerHTML = '';
+      document.body.classList.remove('no-scroll');
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay.classList.contains('show')) closeOverlay();
+    });
+
+    // fullscreen paint editor used by Comic panels and Design glyphs
+    function openPaintOverlay(o) {
+      const canvas = el('canvas', { class: 'paint-canvas' });
+      canvas.width = o.width; canvas.height = o.height;
+      const wrap = el('div', { class: 'stage-wrap' });
+      if (o.guideChar) wrap.append(el('div', { class: 'glyph-guide' }, o.guideChar));
+      wrap.append(canvas);
+
+      const painter = makePainter(canvas);
+      if (o.color) painter.color = o.color;
+      const tools = el('div', { class: 'paint-tools' });
+      renderPaintTools(tools, painter, { tools: o.tools });
+
+      const box = el('div', { class: 'overlay-box' },
+        el('div', { class: 'overlay-title' }, o.titleText || 'Draw'),
+        wrap, tools,
+        el('div', { class: 'overlay-actions' },
+          el('button', { class: 'btn ghost', type: 'button', onclick: closeOverlay }, 'Cancel'),
+          el('button', { class: 'btn', type: 'button', onclick: () => {
+            const url = exportImage(canvas, { bg: o.exportBg, type: o.type || 'image/png', quality: o.quality });
+            closeOverlay();
+            o.onDone(url);
+          } }, 'Done ✔')
+        )
+      );
+      showOverlay(box);
+      // load after the canvas is on the page so dimensions are settled
+      loadImageTo(painter.ctx, o.initial);
+    }
+
+    // =====================================================
+    //  WRITE
+    // =====================================================
+    const editor = $('editor');
+    (function setupWrite() {
+      const ff = $('font-family'), fs = $('font-size');
+      FONTS.forEach((f) => ff.append(el('option', { value: f.css }, f.label)));
+      SIZES.forEach((s) => fs.append(el('option', { value: String(s) }, s + 'px')));
+      fs.value = '18';
+
+      try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+
+      const exec = (cmd, val) => { editor.focus(); document.execCommand(cmd, false, val || null); saveWriteDraft(); };
+      document.querySelectorAll('.doc-toolbar .fbtn').forEach((b) =>
+        b.addEventListener('click', () => exec(b.dataset.cmd)));
+      $('ink-color').addEventListener('input', (e) => exec('foreColor', e.target.value));
+      ff.addEventListener('change', (e) => exec('fontName', e.target.value));
+      fs.addEventListener('change', (e) => applyFontSize(+e.target.value));
+
+      function applyFontSize(px) {
+        editor.focus();
+        document.execCommand('fontSize', false, '7');
+        editor.querySelectorAll('font[size="7"]').forEach((f) => {
+          f.removeAttribute('size'); f.style.fontSize = px + 'px';
+        });
+        saveWriteDraft();
+      }
+
+      let draftT;
+      editor.addEventListener('input', () => { clearTimeout(draftT); draftT = setTimeout(saveWriteDraft, 700); });
+      $('story-title').addEventListener('input', () => { clearTimeout(draftT); draftT = setTimeout(saveWriteDraft, 700); });
+
+      $('save-story').addEventListener('click', () => {
+        if (!editor.textContent.trim()) { toast('Write something first!'); return; }
+        const title = ($('story-title').value.trim()) || 'Untitled Story';
+        if (addWork({ type: 'story', title, data: { html: editor.innerHTML } })) {
+          toast('Story saved! 📖');
+        }
+      });
+      $('new-story').addEventListener('click', () => {
+        if (editor.textContent.trim() && !confirm('Start a new story? Unsaved changes will be lost.')) return;
+        editor.innerHTML = ''; $('story-title').value = '';
+        saveWriteDraft();
+      });
+
+      const d = draftGet('iaea-draft-write');
+      if (d) { $('story-title').value = d.title || ''; editor.innerHTML = d.html || ''; }
+    })();
+    function saveWriteDraft() {
+      draftSet('iaea-draft-write', { title: $('story-title').value, html: editor.innerHTML });
+    }
+
+    // =====================================================
+    //  COMIC
+    // =====================================================
+    let comicCells = [];
+    const comicStrip = $('comic-strip');
+    (function setupComic() {
+      const d = draftGet('iaea-draft-comic');
+      comicCells = (d && Array.isArray(d.cells) && d.cells.length) ? d.cells : [null];
+      if (d && d.title) $('comic-title').value = d.title;
+      renderComic();
+
+      $('save-comic').addEventListener('click', () => {
+        const cells = comicCells.filter(Boolean);
+        if (!cells.length) { toast('Draw at least one panel!'); return; }
+        const title = ($('comic-title').value.trim()) || 'Untitled Comic';
+        if (addWork({ type: 'comic', title, data: { cells } })) toast('Comic saved! 💥');
+      });
+      $('new-comic').addEventListener('click', () => {
+        if (comicCells.some(Boolean) && !confirm('Start a new comic strip? Unsaved panels will be lost.')) return;
+        comicCells = [null];
+        $('comic-title').value = '';
+        renderComic(); saveComicDraft();
+      });
+    })();
+    function saveComicDraft() {
+      draftSet('iaea-draft-comic', { title: $('comic-title').value, cells: comicCells });
+    }
+    function editPanel(i) {
+      openPaintOverlay({
+        width: 720, height: 720, initial: comicCells[i], exportBg: '#ffffff',
+        type: 'image/jpeg', quality: 0.82, titleText: 'Panel #' + (i + 1),
+        tools: ['pencil', 'brush', 'marker', 'crayon', 'spray', 'eraser', 'fill'],
+        onDone: (url) => { comicCells[i] = url; renderComic(); saveComicDraft(); },
+      });
+    }
+    function addPanel() {
+      comicCells.push(null);
+      renderComic(); saveComicDraft();
+      editPanel(comicCells.length - 1);
+    }
+    function deletePanel(i) {
+      if (comicCells[i] && !confirm('Delete this panel?')) return;
+      if (comicCells.length === 1) comicCells[0] = null;
+      else comicCells.splice(i, 1);
+      renderComic(); saveComicDraft();
+    }
+    function movePanel(i, dir) {
+      const j = i + dir;
+      if (j < 0 || j >= comicCells.length) return;
+      const t = comicCells[i]; comicCells[i] = comicCells[j]; comicCells[j] = t;
+      renderComic(); saveComicDraft();
+    }
+    function renderComic() {
+      comicStrip.innerHTML = '';
+      comicCells.forEach((cell, i) => {
+        const thumb = cell
+          ? el('img', { class: 'panel-thumb', src: cell, alt: 'panel ' + (i + 1) })
+          : el('div', { class: 'panel-thumb empty' }, '✏️ tap to\ndraw');
+        const card = el('div', { class: 'panel-card' },
+          el('div', { class: 'panel-no' }, '#' + (i + 1)),
+          el('button', { class: 'panel-open', type: 'button', onclick: () => editPanel(i) }, thumb),
+          el('div', { class: 'panel-actions' },
+            el('button', { class: 'mini', title: 'Move left', type: 'button', disabled: i === 0, onclick: () => movePanel(i, -1) }, '◀'),
+            el('button', { class: 'mini', title: 'Edit', type: 'button', onclick: () => editPanel(i) }, '✎'),
+            el('button', { class: 'mini', title: 'Delete', type: 'button', onclick: () => deletePanel(i) }, '✕'),
+            el('button', { class: 'mini', title: 'Move right', type: 'button', disabled: i === comicCells.length - 1, onclick: () => movePanel(i, 1) }, '▶')
+          )
+        );
+        comicStrip.append(card);
+      });
+      comicStrip.append(el('button', { class: 'add-panel', type: 'button', onclick: addPanel }, '＋\nAdd\npanel'));
+    }
+
+    // =====================================================
+    //  DESIGN (font maker)
+    // =====================================================
+    const GLYPH_SECTIONS = [
+      { name: 'Uppercase', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('') },
+      { name: 'Lowercase', chars: 'abcdefghijklmnopqrstuvwxyz'.split('') },
+      { name: 'Numbers & punctuation', chars: '0123456789.,!?'.split('') },
+    ];
+    let currentFont = { name: '', glyphs: {} };
+    (function setupDesign() {
+      const d = draftGet('iaea-draft-font');
+      if (d && d.glyphs) currentFont = { name: d.name || '', glyphs: d.glyphs || {} };
+      $('font-name').value = currentFont.name;
+
+      const sections = $('glyph-sections');
+      GLYPH_SECTIONS.forEach((sec) => {
+        sections.append(el('div', { class: 'glyph-section-title' }, sec.name));
+        const grid = el('div', { class: 'glyph-grid' });
+        sec.chars.forEach((ch) => {
+          const tile = el('button', { class: 'glyph-tile', type: 'button', 'data-ch': ch,
+            onclick: () => editGlyph(ch) },
+            el('span', { class: 'tag' }, ch),
+            el('span', { class: 'ghost' }, ch));
+          grid.append(tile);
+        });
+        sections.append(grid);
+      });
+
+      $('fp-input').addEventListener('input', renderFontPreview);
+      $('font-name').addEventListener('input', () => { currentFont.name = $('font-name').value; saveFontDraft(); });
+
+      $('save-font').addEventListener('click', () => {
+        const n = Object.keys(currentFont.glyphs).length;
+        if (!n) { toast('Draw at least one letter!'); return; }
+        const name = ($('font-name').value.trim()) || 'Untitled Font';
+        if (addWork({ type: 'font', title: name, data: { glyphs: currentFont.glyphs } })) toast('Font saved! 🔤');
+      });
+      $('clear-font').addEventListener('click', () => {
+        if (!Object.keys(currentFont.glyphs).length) return;
+        if (!confirm('Erase all letters in this font?')) return;
+        currentFont.glyphs = {};
+        refreshGlyphs(); renderFontPreview(); saveFontDraft();
+      });
+
+      refreshGlyphs();
+      renderFontPreview();
+    })();
+    function saveFontDraft() {
+      draftSet('iaea-draft-font', { name: currentFont.name, glyphs: currentFont.glyphs });
+    }
+    function editGlyph(ch) {
+      openPaintOverlay({
+        width: 300, height: 360, initial: currentFont.glyphs[ch], guideChar: ch,
+        exportBg: null, type: 'image/png', titleText: 'Draw "' + ch + '"', color: '#111111',
+        tools: ['pencil', 'brush', 'marker', 'eraser', 'fill'],
+        onDone: (url) => { currentFont.glyphs[ch] = url; refreshGlyphs(); renderFontPreview(); saveFontDraft(); },
+      });
+    }
+    function refreshGlyphs() {
+      const n = Object.keys(currentFont.glyphs).length;
+      $('glyph-count').textContent = n ? '(' + n + ' drawn)' : '';
+      document.querySelectorAll('.glyph-tile').forEach((tile) => {
+        const ch = tile.getAttribute('data-ch');
+        const existing = tile.querySelector('img');
+        if (existing) existing.remove();
+        if (currentFont.glyphs[ch]) {
+          tile.classList.add('done');
+          tile.append(el('img', { src: currentFont.glyphs[ch], alt: ch }));
+        } else {
+          tile.classList.remove('done');
+        }
+      });
+    }
+    function renderFontPreview() {
+      const host = $('font-preview');
+      host.innerHTML = '';
+      const text = $('fp-input').value || '';
+      if (!text) { host.append(el('span', { style: { color: '#bbb', fontFamily: 'Georgia' } }, 'type above…')); return; }
+      for (const ch of text) {
+        if (ch === ' ') { host.append(el('span', { class: 'fp-space' })); continue; }
+        const g = currentFont.glyphs[ch] || currentFont.glyphs[ch.toUpperCase()] || currentFont.glyphs[ch.toLowerCase()];
+        if (g) host.append(el('img', { class: 'fp-glyph', src: g, alt: ch }));
+        else host.append(el('span', { class: 'fp-miss' }, ch));
+      }
+    }
+
+    // =====================================================
+    //  DRAW
+    // =====================================================
+    let drawPainter;
+    (function setupDraw() {
+      drawPainter = makePainter($('draw-canvas'));
+      drawPainter.color = '#111111';
+      renderPaintTools($('draw-tools'), drawPainter);
+
+      let dirty = false, draftT;
+      drawPainter.onChange(() => {
+        dirty = true;
+        clearTimeout(draftT);
+        draftT = setTimeout(() => {
+          draftSet('iaea-draft-draw', exportImage($('draw-canvas'), { bg: null, type: 'image/png' }));
+        }, 1200);
+      });
+
+      const d = draftGet('iaea-draft-draw');
+      if (d) { loadImageTo(drawPainter.ctx, d); dirty = true; }
+
+      $('save-draw').addEventListener('click', () => {
+        if (!dirty) { toast('Draw something first!'); return; }
+        const title = ($('draw-title').value.trim()) || 'Untitled Drawing';
+        const url = exportImage($('draw-canvas'), { bg: '#ffffff', type: 'image/jpeg', quality: 0.85 });
+        if (addWork({ type: 'drawing', title, data: { img: url } })) toast('Drawing saved! 🎨');
+      });
+    })();
+
+    // =====================================================
+    //  GALLERY
+    // =====================================================
+    const grid = $('work-grid');
+    const TYPE_LABEL = { story: 'STORY', comic: 'COMIC', font: 'FONT', drawing: 'DRAWING' };
+    function renderGallery() {
+      const works = loadWorks().slice().reverse();
+      grid.innerHTML = '';
+      if (!works.length) {
+        grid.append(el('p', { class: 'empty-state' }, 'YOUR GALLERY IS EMPTY', el('br'), 'go create something!'));
+        return;
+      }
+      works.forEach((w) => grid.append(buildWorkCard(w)));
+    }
+    function buildWorkCard(w) {
+      let thumb;
+      if (w.type === 'drawing') {
+        thumb = el('div', { class: 'work-thumb' }, el('img', { src: w.data.img, alt: w.title }));
+      } else if (w.type === 'comic') {
+        thumb = el('div', { class: 'work-thumb comic' });
+        (w.data.cells || []).slice(0, 4).forEach((c) => thumb.append(el('img', { src: c })));
+      } else if (w.type === 'font') {
+        thumb = el('div', { class: 'work-thumb font' });
+        const keys = Object.keys(w.data.glyphs);
+        const sample = ['A', 'B', 'C'].filter((k) => w.data.glyphs[k]);
+        (sample.length ? sample : keys.slice(0, 4)).forEach((k) => thumb.append(el('img', { src: w.data.glyphs[k] })));
+      } else { // story
+        const text = htmlToText(w.data.html).slice(0, 220);
+        thumb = el('div', { class: 'work-thumb' }, el('div', { class: 'story-thumb' }, text || '(empty)'));
+      }
+      const date = new Date(w.created).toLocaleDateString();
+      const btns = el('div', { class: 'work-btns' },
+        el('button', { class: 'btn', type: 'button', onclick: () => openViewer(w) }, 'View'),
+        (w.type === 'drawing' || w.type === 'comic')
+          ? el('button', { class: 'btn yellow', type: 'button', onclick: () => downloadWork(w) }, '⬇')
+          : null,
+        el('button', { class: 'btn ghost', type: 'button', onclick: () => {
+          if (confirm('Delete "' + w.title + '"?')) {
+            saveWorks(loadWorks().filter((x) => x.id !== w.id));
+            renderGallery();
+          }
+        } }, '🗑')
+      );
+      return el('div', { class: 'work-card' },
+        thumb,
+        el('div', { class: 'work-title' }, w.title),
+        el('div', { class: 'work-sub' },
+          el('span', { class: 'badge ' + w.type }, TYPE_LABEL[w.type]),
+          el('span', {}, date)),
+        btns
+      );
+    }
+    function htmlToText(html) {
+      const d = el('div', { html: html || '' });
+      return (d.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function openViewer(w) {
+      let body;
+      if (w.type === 'story') {
+        body = el('div', { class: 'write-paper', html: w.data.html });
+      } else if (w.type === 'drawing') {
+        body = el('div', { class: 'viewer-drawing' }, el('img', { src: w.data.img, alt: w.title }));
+      } else if (w.type === 'comic') {
+        body = el('div', { class: 'viewer-comic' });
+        (w.data.cells || []).forEach((c) => body.append(el('img', { src: c })));
+      } else { // font
+        body = el('div', {});
+        const grid2 = el('div', { class: 'glyph-grid' });
+        Object.keys(w.data.glyphs).forEach((ch) => {
+          grid2.append(el('div', { class: 'glyph-tile done', style: { cursor: 'default' } },
+            el('span', { class: 'tag' }, ch),
+            el('img', { src: w.data.glyphs[ch], alt: ch })));
+        });
+        const input = el('input', { class: 'text-input', value: 'Hello!', style: { width: '100%', marginTop: '0.6rem' } });
+        const prev = el('div', { class: 'font-preview' });
+        const draw = () => {
+          prev.innerHTML = '';
+          for (const ch of input.value) {
+            if (ch === ' ') { prev.append(el('span', { class: 'fp-space' })); continue; }
+            const g = w.data.glyphs[ch] || w.data.glyphs[ch.toUpperCase()] || w.data.glyphs[ch.toLowerCase()];
+            if (g) prev.append(el('img', { class: 'fp-glyph', src: g }));
+            else prev.append(el('span', { class: 'fp-miss' }, ch));
+          }
+        };
+        input.addEventListener('input', draw);
+        body.append(el('label', { class: 'lbl' }, 'Type to test'), input, prev, el('div', { class: 'glyph-section-title' }, 'Letters'), grid2);
+        setTimeout(draw, 0);
+      }
+      const box = el('div', { class: 'viewer-box' },
+        el('button', { class: 'close-x', type: 'button', onclick: closeOverlay }, '✕'),
+        el('div', { class: 'overlay-title' }, w.title),
+        body
+      );
+      showOverlay(box);
+    }
+
+    function downloadWork(w) {
+      const safe = w.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      if (w.type === 'drawing') { downloadDataURL(safe + '.jpg', w.data.img); return; }
+      // comic: stitch panels into one image
+      const cells = w.data.cells || [];
+      const imgs = cells.map((src) => { const im = new Image(); im.src = src; return im; });
+      let loaded = 0;
+      const finish = () => {
+        const gap = 12, ph = 400;
+        const widths = imgs.map((im) => im.naturalWidth ? Math.round(ph * im.naturalWidth / im.naturalHeight) : ph);
+        const total = widths.reduce((a, b) => a + b, 0) + gap * (imgs.length + 1);
+        const cv = el('canvas'); cv.width = total; cv.height = ph + gap * 2;
+        const c = cv.getContext('2d');
+        c.fillStyle = '#0d0221'; c.fillRect(0, 0, cv.width, cv.height);
+        let x = gap;
+        imgs.forEach((im, i) => { c.drawImage(im, x, gap, widths[i], ph); x += widths[i] + gap; });
+        downloadDataURL(safe + '.png', cv.toDataURL('image/png'));
+      };
+      if (!imgs.length) return;
+      imgs.forEach((im) => {
+        if (im.complete) { if (++loaded === imgs.length) finish(); }
+        else im.onload = im.onerror = () => { if (++loaded === imgs.length) finish(); };
+      });
+    }
+
+    // =====================================================
+    //  TABS
+    // =====================================================
+    document.getElementById('tabs').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab');
+      if (!btn) return;
+      const name = btn.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === btn));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
+      if (name === 'gallery') renderGallery();
+    });
+  })();
+  </script>
+</body>
+</html>
