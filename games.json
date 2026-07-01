@@ -78,6 +78,12 @@
     "description": "Times tables sprint! Score as many 12×12 answers as you can in 60 seconds."
   },
   {
+    "slug": "alive-me",
+    "title": "Alive Me",
+    "icon": "👁",
+    "description": "AR binoculars! Hold your aim on a table or wall and watch it sprout 3D eyes and tentacles that wobble, blink and come alive."
+  },
+  {
     "slug": "germ-racers",
     "title": "Germ Racers",
     "icon": "🦠",
