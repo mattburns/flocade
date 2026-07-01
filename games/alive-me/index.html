@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Alive Me — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    /* Camera + GL + overlay layers */
+    #stage { position: fixed; inset: 0; }
+    #cam {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      object-fit: cover;
+      background: radial-gradient(120% 90% at 50% 20%, #2b0a5e 0%, #150733 45%, #0d0221 100%);
+    }
+    #gl { position: absolute; inset: 0; width: 100%; height: 100%; }
+    /* Overlay = binocular frame + HUD + reticle. Doubles as the WebXR dom-overlay root. */
+    #overlay { position: absolute; inset: 0; z-index: 4; }
+    #mask { position: absolute; inset: 0; pointer-events: none; }
+
+    /* HUD */
+    #hud {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top));
+      left: 0; right: 0;
+      display: none;
+      justify-content: center; gap: 1.4rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.72rem;
+      text-shadow: 2px 2px 0 #000;
+      pointer-events: none;
+    }
+    #hud .alive { color: var(--cyan); }
+    #hud .mode { color: var(--dim); font-size: 0.6rem; align-self: center; }
+
+    /* Toolbar */
+    #tools {
+      position: absolute;
+      bottom: max(14px, env(safe-area-inset-bottom));
+      left: 0; right: 0;
+      display: none;
+      justify-content: center; gap: 0.7rem;
+      z-index: 6;
+    }
+    #tools button {
+      background: rgba(26, 11, 61, 0.82);
+      border: 2px solid var(--pink);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      padding: 0.65rem 0.7rem;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+    }
+    #tools button:active { transform: scale(0.94); }
+    #tools button.exit { border-color: var(--cyan); }
+
+    /* Reticle + awaken ring */
+    #reticle {
+      position: absolute; left: 50%; top: 50%;
+      width: 88px; height: 88px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      display: none;
+    }
+    #reticle svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    #reticle .track { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 4; }
+    #reticle .prog  { fill: none; stroke: var(--yellow); stroke-width: 5; stroke-linecap: round;
+                      transform: rotate(-90deg); transform-origin: 50% 50%; transform-box: fill-box;
+                      transition: stroke-dashoffset 0.08s linear; }
+    #reticle .dot {
+      position: absolute; left: 50%; top: 50%; width: 8px; height: 8px;
+      transform: translate(-50%, -50%); border-radius: 50%;
+      background: var(--cyan); box-shadow: 0 0 8px var(--cyan);
+    }
+    #reticle.armed .dot { background: var(--yellow); box-shadow: 0 0 10px var(--yellow); }
+
+    /* Toast / hint line */
+    #hint {
+      position: absolute; left: 50%;
+      bottom: calc(max(14px, env(safe-area-inset-bottom)) + 62px);
+      transform: translateX(-50%);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.62rem; color: var(--yellow);
+      text-shadow: 2px 2px 0 #000;
+      text-align: center; white-space: nowrap;
+      pointer-events: none; opacity: 0;
+      transition: opacity 0.4s;
+    }
+
+    /* Overlay screens */
+    a.back { position: fixed; top: 12px; left: 12px; z-index: 11; color: var(--cyan);
+             font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; }
+    .screen {
+      position: fixed; inset: 0;
+      background: rgba(13, 2, 33, 0.94);
+      z-index: 10;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 1rem; padding: 1.6rem; overflow-y: auto; text-align: center;
+    }
+    .screen h1 { font-family: 'Press Start 2P', monospace; font-size: 1.3rem; color: var(--yellow);
+                 text-shadow: 3px 3px 0 var(--pink); line-height: 1.9; }
+    .screen p { color: var(--dim); max-width: 440px; line-height: 1.65; font-size: 0.95rem; }
+    .screen p b { color: var(--text); }
+    .screen .eyes { font-size: 3.4rem; letter-spacing: 0.3rem; animation: bob 1.4s ease-in-out infinite alternate; }
+    @keyframes bob { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+    .btn {
+      background: var(--pink); border: none; border-radius: 12px; color: white;
+      font-family: 'Press Start 2P', monospace; font-size: 0.82rem;
+      padding: 1rem 1.5rem; cursor: pointer; line-height: 1.5;
+    }
+    .btn:hover { filter: brightness(1.12); }
+    .btn.ghost { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); font-size: 0.68rem; padding: 0.7rem 1.1rem; }
+    .fineprint { font-size: 0.72rem; color: var(--dim); line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <video id="cam" autoplay playsinline muted></video>
+    <canvas id="gl"></canvas>
+    <div id="overlay">
+      <svg id="mask" width="100%" height="100%" preserveAspectRatio="none"></svg>
+      <div id="hud">
+        <span class="alive">👁 0 alive</span>
+        <span class="mode">—</span>
+      </div>
+      <div id="reticle">
+        <svg viewBox="0 0 88 88">
+          <circle class="track" cx="44" cy="44" r="34"></circle>
+          <circle class="prog"  cx="44" cy="44" r="34"></circle>
+        </svg>
+        <div class="dot"></div>
+      </div>
+      <div id="hint"></div>
+      <div id="tools">
+        <button id="btnPoke">POKE ✋</button>
+        <button id="btnClear">CLEAR 💨</button>
+        <button id="btnExit" class="exit">DONE</button>
+      </div>
+    </div>
+  </div>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <div id="screen"></div>
+
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    window.__aliveReady = true;
+
+    // ============================================================
+    //  Alive Me — AR sandbox. Point at the world; things wake up.
+    //
+    //  Two runtimes share one 3D scene + creature system:
+    //    • AR   — WebXR immersive-ar, real 6-DOF, hit-test anchors
+    //             creatures onto real surfaces. Walk around, see the
+    //             back of the tentacles. (Android Chrome etc.)
+    //    • LOOK — camera passthrough + gyroscope. Creatures are real
+    //             3D meshes, rotation-locked to your room, tinted the
+    //             colour of whatever you pointed at. (iOS / desktop)
+    // ============================================================
+
+    const video   = document.getElementById('cam');
+    const overlay  = document.getElementById('overlay');
+    const maskSvg  = document.getElementById('mask');
+    const hud      = document.getElementById('hud');
+    const hudAlive = hud.querySelector('.alive');
+    const hudMode  = hud.querySelector('.mode');
+    const tools    = document.getElementById('tools');
+    const reticleEl = document.getElementById('reticle');
+    const progEl    = reticleEl.querySelector('.prog');
+    const hintEl    = document.getElementById('hint');
+    const screenEl  = document.getElementById('screen');
+
+    const PALETTE = [0xff2e88, 0x00f0ff, 0xffe600, 0x8a5cff, 0x35e08b, 0xff8a3d];
+    const MAX_CREATURES = 8;
+    const AWAKEN_HOLD = 1.6;        // seconds of steady aim to sprout a creature
+    const UP = new THREE.Vector3(0, 1, 0);
+
+    // Progress ring geometry
+    const RING_C = 2 * Math.PI * 34;
+    progEl.style.strokeDasharray = RING_C;
+    progEl.setAttribute('stroke-dashoffset', RING_C);
+
+    // ---------- Binocular vignette (also frames the AR passthrough) ----------
+    function drawMask() {
+      const w = innerWidth, h = innerHeight;
+      const r = Math.min(w, h) * 0.46;
+      const cy = h / 2, cx1 = w / 2 - r * 0.5, cx2 = w / 2 + r * 0.5;
+      maskSvg.innerHTML = `<defs>
+          <mask id="lenses">
+            <rect width="${w}" height="${h}" fill="white"/>
+            <circle cx="${cx1}" cy="${cy}" r="${r}" fill="black"/>
+            <circle cx="${cx2}" cy="${cy}" r="${r}" fill="black"/>
+          </mask>
+          <radialGradient id="glow"><stop offset="72%" stop-color="transparent"/><stop offset="100%" stop-color="rgba(0,240,255,0.10)"/></radialGradient>
+        </defs>
+        <rect width="${w}" height="${h}" fill="#06010f" mask="url(#lenses)"/>
+        <circle cx="${cx1}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,240,255,0.25)" stroke-width="3"/>
+        <circle cx="${cx2}" cy="${cy}" r="${r}" fill="none" stroke="rgba(0,240,255,0.25)" stroke-width="3"/>`;
+      maskSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    }
+    drawMask();
+
+    // ---------- Sounds (WebAudio, no assets) ----------
+    let audio = null;
+    function ensureAudio() {
+      if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (audio && audio.state === 'suspended') audio.resume();
+      return audio;
+    }
+    function chirp(notes, type = 'sine', vol = 0.07) {
+      const a = ensureAudio(); if (!a) return;
+      notes.forEach(([freq, t, dur = 0.16]) => {
+        const o = a.createOscillator(), g = a.createGain();
+        o.type = type; o.frequency.value = freq;
+        // gentle vibrato so it feels alive
+        const lfo = a.createOscillator(), lg = a.createGain();
+        lfo.frequency.value = 11; lg.gain.value = freq * 0.02;
+        lfo.connect(lg).connect(o.frequency);
+        g.gain.setValueAtTime(0.0001, a.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(vol, a.currentTime + t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + t + dur);
+        o.connect(g).connect(a.destination);
+        o.start(a.currentTime + t); lfo.start(a.currentTime + t);
+        o.stop(a.currentTime + t + dur + 0.02); lfo.stop(a.currentTime + t + dur + 0.02);
+      });
+    }
+    const sndWake = () => chirp([[330, 0, 0.14], [523, 0.1, 0.16], [784, 0.22, 0.28]], 'triangle', 0.08);
+    const sndPoke = () => chirp([[880, 0, 0.09], [660, 0.07, 0.12]], 'square', 0.06);
+    const sndPop  = () => chirp([[440, 0, 0.08], [220, 0.06, 0.14]], 'sawtooth', 0.05);
+
+    function toast(msg, ms = 1800) {
+      hintEl.textContent = msg;
+      hintEl.style.opacity = '1';
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { hintEl.style.opacity = '0'; }, ms);
+    }
+
+    // ============================================================
+    //  3D scene
+    // ============================================================
+    const canvas = document.getElementById('gl');
+    let renderer, scene, camera, reticle3D, hitSource = null, xrRefSpace = null;
+    const clock = new THREE.Clock();
+    const creatures = [];
+
+    function initRenderer() {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+      renderer.setSize(innerWidth, innerHeight, false);
+      renderer.setClearAlpha(0);              // let camera / video show through
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.02, 60);
+
+      // Lighting — soft ambient plus a "headlamp" that follows the viewer so
+      // creatures read well against the real-world backdrop.
+      scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x24123f, 1.15));
+      const head = new THREE.DirectionalLight(0xffffff, 1.1);
+      head.position.set(0, 0, 0.01);
+      camera.add(head); head.target = camera;
+      scene.add(camera);
+
+      // Placement reticle (AR: sits on the detected surface)
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.055, 0.075, 32).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.9 })
+      );
+      const nub = new THREE.Mesh(
+        new THREE.CircleGeometry(0.012, 16).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0xffe600 })
+      );
+      reticle3D = new THREE.Group();
+      reticle3D.add(ring); reticle3D.add(nub);
+      reticle3D.matrixAutoUpdate = false;
+      reticle3D.visible = false;
+      scene.add(reticle3D);
+    }
+
+    function onResize() {
+      if (!renderer || renderer.xr.isPresenting) return;
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight, false);
+      drawMask();
+    }
+    addEventListener('resize', onResize);
+
+    // ============================================================
+    //  Creature factory — living things built from real 3D parts.
+    //  Everything animates: bodies wobble + breathe, eyes track you
+    //  and blink, tentacles wave (full 3D — walk round the back).
+    // ============================================================
+    const _p = new THREE.Vector3(), _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _pq = new THREE.Quaternion();
+
+    // Orient `obj` so its local +Z points at world-space `target`, accounting for its parent.
+    function facePoint(obj, target) {
+      obj.getWorldPosition(_p);
+      _m.lookAt(target, _p, UP);          // +Z axis = normalize(target - obj) → +Z faces target
+      _q.setFromRotationMatrix(_m);
+      if (obj.parent) { obj.parent.getWorldQuaternion(_pq); _q.premultiply(_pq.invert()); }
+      obj.quaternion.copy(_q);
+    }
+
+    function makeEye(size, colorHex) {
+      const g = new THREE.Group();
+      const stalkLen = size * (1.1 + Math.random() * 1.4);
+      const stalkMat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.55, emissive: colorHex, emissiveIntensity: 0.12 });
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(size * 0.26, size * 0.4, stalkLen, 10), stalkMat);
+      stalk.position.y = stalkLen / 2; g.add(stalk);
+
+      const ball = new THREE.Group(); ball.position.y = stalkLen; g.add(ball);
+      const sclera = new THREE.Mesh(new THREE.SphereGeometry(size, 22, 18),
+        new THREE.MeshStandardMaterial({ color: 0xfdf7ff, roughness: 0.25 }));
+      ball.add(sclera);
+      const iris = new THREE.Mesh(new THREE.SphereGeometry(size * 0.52, 18, 14),
+        new THREE.MeshStandardMaterial({ color: 0x1a2b6b, roughness: 0.3, emissive: 0x0a1440, emissiveIntensity: 0.3 }));
+      iris.position.z = size * 0.66; iris.scale.z = 0.45; ball.add(iris);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(size * 0.26, 14, 12),
+        new THREE.MeshBasicMaterial({ color: 0x05010f }));
+      pupil.position.z = size * 0.82; pupil.scale.z = 0.4; ball.add(pupil);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(size * 0.1, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      glint.position.set(size * 0.22, size * 0.24, size * 0.82); ball.add(glint);
+
+      g.userData = { ball, sclera, nextBlink: 1 + Math.random() * 4, blinkT: -1 };
+      return g;
+    }
+
+    function makeTentacle(baseR, len, colorHex, segs = 7) {
+      const root = new THREE.Group();
+      const joints = [];
+      const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5, emissive: colorHex, emissiveIntensity: 0.15 });
+      let parent = root;
+      const segLen = len / segs;
+      for (let i = 0; i < segs; i++) {
+        const joint = new THREE.Group();
+        if (i > 0) joint.position.y = segLen;      // stack on the previous segment's tip
+        const r0 = baseR * (1 - i / (segs + 1));
+        const r1 = baseR * (1 - (i + 1) / (segs + 1));
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(r1, 0.004), Math.max(r0, 0.006), segLen, 9), mat);
+        seg.position.y = segLen / 2;
+        joint.add(seg);
+        parent.add(joint);
+        parent = joint;
+        joints.push(joint);
+      }
+      // little sucker/eye tip
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(baseR * 0.5, 12, 10),
+        new THREE.MeshStandardMaterial({ color: 0xfdf7ff, roughness: 0.3 }));
+      tip.position.y = segLen; parent.add(tip);
+      const tPupil = new THREE.Mesh(new THREE.SphereGeometry(baseR * 0.22, 8, 8), new THREE.MeshBasicMaterial({ color: 0x05010f }));
+      tPupil.position.set(0, segLen, baseR * 0.4); parent.add(tPupil);
+
+      root.userData = { joints, phase: Math.random() * 6.28, speed: 1.6 + Math.random() * 1.4, amp: 0.18 + Math.random() * 0.16 };
+      return root;
+    }
+
+    // A blobby body that breathes and wobbles like jelly.
+    function makeBody(radius, colorHex) {
+      const geo = new THREE.IcosahedronGeometry(radius, 2);   // 162 verts — smooth once normals recompute, cheap on phones
+      const pos = geo.attributes.position;
+      const base = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count * 3; i++) base[i] = pos.array[i];
+      const c = new THREE.Color(colorHex);
+      const mat = new THREE.MeshStandardMaterial({
+        color: c, roughness: 0.42, metalness: 0.0,
+        emissive: c.clone().multiplyScalar(0.35), emissiveIntensity: 0.5,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData = { base, radius };
+      return mesh;
+    }
+
+    function makeCreature(colorHex) {
+      const c = new THREE.Group();
+      const scale = 0.09 + Math.random() * 0.06;          // ~9–15 cm tall in AR metres
+      const bodyR = scale;
+      const body = makeBody(bodyR, colorHex);
+      c.add(body);
+
+      // Eyes on top, splayed out a little
+      const eyeCount = 1 + Math.floor(Math.random() * 3);
+      const eyes = [];
+      for (let i = 0; i < eyeCount; i++) {
+        const eye = makeEye(bodyR * (0.34 + Math.random() * 0.12), colorHex);
+        const ang = eyeCount === 1 ? 0 : (i / (eyeCount - 1) - 0.5) * 1.1;
+        eye.position.set(Math.sin(ang) * bodyR * 0.5, bodyR * 0.55, Math.cos(ang) * bodyR * 0.35);
+        eye.rotation.z = -ang * 0.5;
+        c.add(eye); eyes.push(eye);
+      }
+
+      // Tentacles around the lower half
+      const tentCount = Math.floor(Math.random() * 6);
+      const tentacles = [];
+      for (let i = 0; i < tentCount; i++) {
+        const t = makeTentacle(bodyR * 0.22, bodyR * (1.6 + Math.random()), colorHex);
+        const ang = (i / tentCount) * Math.PI * 2 + Math.random() * 0.4;
+        t.position.set(Math.cos(ang) * bodyR * 0.8, -bodyR * 0.3, Math.sin(ang) * bodyR * 0.8);
+        t.rotation.z = Math.cos(ang) * -0.5;
+        t.rotation.x = Math.sin(ang) * 0.5;
+        c.add(t); tentacles.push(t);
+      }
+
+      c.userData = {
+        body, eyes, tentacles,
+        born: clock.elapsedTime,
+        breathe: 1.1 + Math.random() * 0.8,
+        wobbleAmt: 0.08 + Math.random() * 0.08,
+        spin: (Math.random() - 0.5) * 0.3,
+        pokeT: -1,
+      };
+      c.scale.setScalar(0.001);       // sprout animation grows this to 1
+      return c;
+    }
+
+    // Place a creature at a world position (+ optional surface quaternion for AR).
+    function spawnAt(position, quaternion) {
+      let colorHex = sampleColor();
+      const c = makeCreature(colorHex);
+      c.position.copy(position);
+      if (quaternion) {
+        // keep the creature upright relative to the surface, random spin around its up axis
+        c.quaternion.copy(quaternion);
+      }
+      c.rotateY(Math.random() * Math.PI * 2);
+      scene.add(c);
+      creatures.push(c);
+      if (creatures.length > MAX_CREATURES) despawn(creatures[0]);
+      updateHud();
+      sndWake();
+      return c;
+    }
+
+    function despawn(c) {
+      const i = creatures.indexOf(c);
+      if (i >= 0) creatures.splice(i, 1);
+      c.userData.dying = clock.elapsedTime;
+      updateHud();
+      sndPop();
+    }
+
+    function updateHud() {
+      hudAlive.textContent = `👁 ${creatures.length} alive`;
+    }
+
+    // Poke the nearest creature in view — it recoils, blinks and squeaks.
+    function pokeNearest() {
+      let best = null, bestD = Infinity;
+      const camPos = activeCamera().getWorldPosition(_p).clone();
+      for (const c of creatures) {
+        if (c.userData.dying) continue;
+        const d = c.getWorldPosition(new THREE.Vector3()).distanceTo(camPos);
+        if (d < bestD) { bestD = d; best = c; }
+      }
+      if (best) { best.userData.pokeT = clock.elapsedTime; best.userData.eyes.forEach(e => e.userData.blinkT = clock.elapsedTime); sndPoke(); toast('boop!'); }
+      else toast('nothing to poke — wake one first');
+    }
+
+    // ---------- Per-frame animation ----------
+    const _cam = new THREE.Vector3();
+    function animateCreatures(t, dt) {
+      const camWorld = activeCamera().getWorldPosition(_cam);
+      // iterate creatures + any still fading out (dying ones are off the creatures[] list)
+      const all = scene.children.filter(o => o.userData && o.userData.body);
+      for (const c of all) {
+        const u = c.userData;
+        // sprout / despawn scaling
+        if (u.dying != null) {
+          const k = 1 - (t - u.dying) / 0.4;
+          if (k <= 0) { scene.remove(c); disposeTree(c); continue; }
+          c.scale.setScalar(k * (u._peak || 1));
+          c.position.y += dt * 0.15;
+          continue;
+        }
+        const age = t - u.born;
+        const grow = Math.min(1, age / 0.7);
+        const eased = 1 - Math.pow(1 - grow, 3);                 // easeOutCubic
+        const overshoot = 1 + 0.12 * Math.sin(Math.min(age, 0.7) / 0.7 * Math.PI);
+        u._peak = eased * overshoot;
+
+        // poke recoil (a quick squash + bounce)
+        let poke = 1;
+        if (u.pokeT >= 0) {
+          const pt = t - u.pokeT;
+          if (pt > 0.6) u.pokeT = -1;
+          else poke = 1 + 0.22 * Math.sin(pt / 0.6 * Math.PI * 2) * Math.exp(-pt * 3);
+        }
+        c.scale.setScalar(u._peak * poke);
+        c.rotation.y += u.spin * dt;
+
+        // body: breathe + jelly wobble (recompute normals so lighting tracks the surface)
+        const body = u.body, posAttr = body.geometry.attributes.position, basePos = body.userData.base, R = body.userData.radius;
+        const breath = 1 + 0.05 * Math.sin(t * u.breathe);
+        for (let v = 0; v < posAttr.count; v++) {
+          const bx = basePos[v * 3], by = basePos[v * 3 + 1], bz = basePos[v * 3 + 2];
+          const nx = bx / R, ny = by / R, nz = bz / R;
+          const w = u.wobbleAmt * (
+            0.5 * Math.sin(nx * 3 + t * 1.7) +
+            0.4 * Math.sin(ny * 4 - t * 1.3) +
+            0.35 * Math.sin(nz * 5 + t * 2.1));
+          const s = breath * (1 + w);
+          posAttr.setXYZ(v, bx * s, by * s, bz * s);
+        }
+        posAttr.needsUpdate = true;
+        body.geometry.computeVertexNormals();
+
+        // eyes: track the viewer + blink
+        for (const eye of u.eyes) {
+          const eu = eye.userData;
+          facePoint(eu.ball, camWorld);
+          if (eu.blinkT < 0 && t > eu.nextBlink) { eu.blinkT = t; eu.nextBlink = t + 1.5 + Math.random() * 4; }
+          let sy = 1;
+          if (eu.blinkT >= 0) {
+            const bt = (t - eu.blinkT) / 0.16;
+            if (bt >= 1) eu.blinkT = -1; else sy = Math.abs(Math.cos(bt * Math.PI));
+          }
+          eu.sclera.scale.y = Math.max(0.06, sy);
+        }
+
+        // tentacles: travelling wave down each joint chain
+        for (const tent of u.tentacles) {
+          const tu = tent.userData;
+          const reveal = Math.min(1, age / 1.1);
+          for (let j = 0; j < tu.joints.length; j++) {
+            const jo = tu.joints[j];
+            const ph = t * tu.speed + tu.phase + j * 0.7;
+            jo.rotation.z = Math.sin(ph) * tu.amp * reveal;
+            jo.rotation.x = Math.cos(ph * 0.85) * tu.amp * 0.7 * reveal;
+          }
+        }
+      }
+    }
+
+    function disposeTree(obj) {
+      obj.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) { const m = o.material; (Array.isArray(m) ? m : [m]).forEach(x => x.dispose()); }
+      });
+    }
+
+    function activeCamera() {
+      return renderer.xr.isPresenting ? renderer.xr.getCamera() : camera;
+    }
+
+    // ============================================================
+    //  Aiming — steady the reticle on a spot to sprout a creature.
+    // ============================================================
+    let awaken = 0;            // 0..1 progress
+    let prevQuat = new THREE.Quaternion();
+    let haveTarget = false;    // AR: reticle found a surface; LOOK: always true
+    const _tPos = new THREE.Vector3(), _tQuat = new THREE.Quaternion();
+
+    function updateAwaken(t, dt) {
+      // angular speed of the viewer — hold still to awaken
+      const q = activeCamera().getWorldQuaternion(new THREE.Quaternion());
+      const ang = 2 * Math.acos(Math.min(1, Math.abs(q.dot(prevQuat))));
+      prevQuat.copy(q);
+      const steady = ang < 0.03;                 // radians/frame
+
+      reticleEl.classList.toggle('armed', haveTarget && steady && creatures.length < MAX_CREATURES);
+      if (haveTarget && steady && creatures.length < MAX_CREATURES) {
+        awaken = Math.min(1, awaken + dt / AWAKEN_HOLD);
+        if (awaken >= 1) { awaken = 0; doAwaken(); }
+      } else {
+        awaken = Math.max(0, awaken - dt / (AWAKEN_HOLD * 0.6));
+      }
+      progEl.setAttribute('stroke-dashoffset', RING_C * (1 - awaken));
+    }
+
+    // Work out where "the spot you're aiming at" is in the world, and sprout there.
+    function doAwaken() {
+      if (renderer.xr.isPresenting && reticle3D.visible) {
+        reticle3D.matrix.decompose(_tPos, _tQuat, new THREE.Vector3());
+        spawnAt(_tPos, _tQuat);
+      } else {
+        // LOOK / desktop: place a couple of "metres" ahead along the view ray.
+        const cam = activeCamera();
+        const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.getWorldQuaternion(new THREE.Quaternion()));
+        const pos = cam.getWorldPosition(new THREE.Vector3()).add(dir.multiplyScalar(1.6 + Math.random() * 0.6));
+        spawnAt(pos, null);
+      }
+    }
+
+    // ---------- Camera colour sampling (LOOK mode "it took on the object's colour") ----------
+    const sampleCanvas = document.createElement('canvas');
+    sampleCanvas.width = sampleCanvas.height = 32;
+    const sampleCtx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+    function sampleColor() {
+      // AR passthrough pixels aren't readable, and there may be no video — fall back to the neon palette.
+      if (renderer.xr.isPresenting || !video.videoWidth) {
+        return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+      }
+      try {
+        // sample the centre ~40% of the frame (what the reticle sits on)
+        const vw = video.videoWidth, vh = video.videoHeight, s = Math.min(vw, vh) * 0.4;
+        sampleCtx.drawImage(video, (vw - s) / 2, (vh - s) / 2, s, s, 0, 0, 32, 32);
+        const d = sampleCtx.getImageData(0, 0, 32, 32).data;
+        let r = 0, g = 0, b = 0;
+        for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+        const n = d.length / 4;
+        r /= n; g /= n; b /= n;
+        // boost saturation a touch so muted surfaces still make a vivid critter
+        const col = new THREE.Color(r / 255, g / 255, b / 255);
+        const hsl = {}; col.getHSL(hsl);
+        col.setHSL(hsl.h, Math.min(1, hsl.s * 1.6 + 0.25), Math.min(0.72, Math.max(0.4, hsl.l)));
+        return col.getHex();
+      } catch (e) {
+        return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+      }
+    }
+
+    // ============================================================
+    //  LOOK mode — camera passthrough + gyroscope look
+    // ============================================================
+    let orient = { alpha: 0, beta: 0, gamma: 0, screen: 0, have: false };
+    const zee = new THREE.Vector3(0, 0, 1);
+    const q0 = new THREE.Quaternion();
+    const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // -90° about X (device → world)
+    const euler = new THREE.Euler();
+    function orientToQuaternion(out) {
+      const a = THREE.MathUtils.degToRad(orient.alpha);
+      const b = THREE.MathUtils.degToRad(orient.beta);
+      const g = THREE.MathUtils.degToRad(orient.gamma);
+      const o = THREE.MathUtils.degToRad(orient.screen);
+      euler.set(b, a, -g, 'YXZ');
+      out.setFromEuler(euler);
+      out.multiply(q1);
+      out.multiply(q0.setFromAxisAngle(zee, -o));
+    }
+    function onOrient(e) {
+      if (e.alpha == null) return;
+      orient.alpha = e.alpha; orient.beta = e.beta; orient.gamma = e.gamma;
+      orient.screen = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+      orient.have = true;
+    }
+
+    // Desktop drag-look (no gyroscope)
+    let drag = null, dragYaw = 0, dragPitch = 0;
+    overlay.addEventListener('pointerdown', e => {
+      if (e.target.closest('button, a')) return;   // let the toolbar / links handle their own taps
+      // a tap that doesn't hit a creature also awakens instantly ("tap the table")
+      if (tapCreature(e)) return;
+      drag = { x: e.clientX, y: e.clientY, moved: 0 };
+    });
+    overlay.addEventListener('pointermove', e => {
+      if (!drag || orient.have || renderer.xr.isPresenting) return;
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      drag.moved += Math.abs(dx) + Math.abs(dy);
+      dragYaw   -= dx * 0.005;
+      dragPitch = THREE.MathUtils.clamp(dragPitch - dy * 0.005, -1.2, 1.2);
+      drag.x = e.clientX; drag.y = e.clientY;
+    });
+    overlay.addEventListener('pointerup', e => {
+      if (drag && drag.moved < 8 && !orient.have) doAwaken();  // click = awaken on desktop
+      drag = null;
+    });
+
+    // Raycast a tap onto the creatures so you can poke a specific one.
+    const raycaster = new THREE.Raycaster();
+    function tapCreature(e) {
+      const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+      raycaster.setFromCamera(ndc, activeCamera());
+      const hit = raycaster.intersectObjects(creatures, true)[0];
+      if (hit) {
+        let c = hit.object; while (c && !c.userData.body) c = c.parent;
+        if (c && !c.userData.dying) { c.userData.pokeT = clock.elapsedTime; c.userData.eyes.forEach(ey => ey.userData.blinkT = clock.elapsedTime); sndPoke(); }
+        return true;
+      }
+      return false;
+    }
+
+    // ============================================================
+    //  Runtime start / stop
+    // ============================================================
+    let running = false, rafId = 0;
+
+    function startLoopFallback() {
+      const loop = () => {
+        if (!running || renderer.xr.isPresenting) return;
+        rafId = requestAnimationFrame(loop);
+        const dt = Math.min(0.05, clock.getDelta()), t = clock.elapsedTime;
+        // drive the fallback camera from gyro (or drag)
+        if (orient.have) { orientToQuaternion(camera.quaternion); }
+        else { camera.quaternion.setFromEuler(new THREE.Euler(dragPitch, dragYaw, 0, 'YXZ')); }
+        camera.position.set(0, 0, 0);
+        haveTarget = true;
+        updateAwaken(t, dt);
+        animateCreatures(t, dt);
+        renderer.render(scene, camera);
+      };
+      rafId = requestAnimationFrame(loop);
+    }
+
+    function onXRFrame(t, frame) {
+      const dt = Math.min(0.05, clock.getDelta()), et = clock.elapsedTime;
+      if (frame && hitSource) {
+        const refSpace = renderer.xr.getReferenceSpace();
+        const hits = frame.getHitTestResults(hitSource);
+        if (hits.length) {
+          const pose = hits[0].getPose(refSpace);
+          reticle3D.visible = true;
+          reticle3D.matrix.fromArray(pose.transform.matrix);
+          haveTarget = true;
+        } else {
+          reticle3D.visible = false;
+          haveTarget = false;
+        }
+      }
+      updateAwaken(et, dt);
+      animateCreatures(et, dt);
+      renderer.render(scene, camera);
+    }
+
+    async function startAR() {
+      const session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test'],
+        optionalFeatures: ['dom-overlay', 'local-floor'],
+        domOverlay: { root: overlay },
+      });
+      renderer.xr.enabled = true;
+      renderer.xr.setReferenceSpaceType('local');   // universally available in immersive-ar
+      await renderer.xr.setSession(session);
+
+      const viewerSpace = await session.requestReferenceSpace('viewer');
+      hitSource = await session.requestHitTestSource({ space: viewerSpace });
+
+      reticle3D.visible = false;
+      renderer.setAnimationLoop(onXRFrame);
+      session.addEventListener('end', () => {
+        hitSource = null;
+        renderer.setAnimationLoop(null);
+        renderer.xr.enabled = false;
+        stopGame(true);
+      });
+      beginGame('AR · walk around');
+    }
+
+    function beginGame(modeLabel) {
+      screenEl.innerHTML = '';
+      running = true;
+      hud.style.display = 'flex';
+      tools.style.display = 'flex';
+      reticleEl.style.display = 'block';
+      hudMode.textContent = modeLabel;
+      updateHud();
+      prevQuat.copy(activeCamera().getWorldQuaternion(new THREE.Quaternion()));
+      toast(modeLabel.startsWith('AR') ? 'find a surface, then hold still' : 'hold still on something to wake it', 3000);
+    }
+
+    async function startLook() {
+      // iOS gates the gyroscope behind an in-gesture permission prompt
+      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        try { await DeviceOrientationEvent.requestPermission(); } catch (e) {}
+      }
+      addEventListener('deviceorientation', onOrient);
+      try {
+        video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+      } catch (e) { /* no camera — the nebula backdrop stands in */ }
+      startLoopFallback();
+      beginGame(video.srcObject ? 'LOOK · gyro binoculars' : 'DEMO · drag to look');
+    }
+
+    function stopGame(fromXR) {
+      running = false;
+      cancelAnimationFrame(rafId);
+      hud.style.display = 'none';
+      tools.style.display = 'none';
+      reticleEl.style.display = 'none';
+      // clear creatures
+      [...creatures].forEach(c => { scene.remove(c); disposeTree(c); });
+      creatures.length = 0;
+      scene.children.filter(o => o.userData && o.userData.body).forEach(o => { scene.remove(o); disposeTree(o); });
+      if (!fromXR && renderer.xr.isPresenting) { renderer.xr.getSession().end(); return; }
+      if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+      removeEventListener('deviceorientation', onOrient);
+      showIntro();
+    }
+
+    // ---------- Toolbar ----------
+    document.getElementById('btnPoke').addEventListener('click', e => { e.stopPropagation(); pokeNearest(); });
+    document.getElementById('btnClear').addEventListener('click', e => {
+      e.stopPropagation();
+      [...creatures].forEach(despawn);
+      toast('shooed them all away');
+    });
+    document.getElementById('btnExit').addEventListener('click', e => { e.stopPropagation(); stopGame(false); });
+
+    // ============================================================
+    //  Intro / mode select
+    // ============================================================
+    let xrSupported = false;
+    async function detectXR() {
+      try { xrSupported = !!(navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')); }
+      catch (e) { xrSupported = false; }
+    }
+
+    function showIntro() {
+      const arBtn = xrSupported
+        ? `<button class="btn" id="goAR">👀 ENTER AR<br><span style="font-size:0.6rem;opacity:0.85">walk around your creatures</span></button>
+           <button class="btn ghost" id="goLook">or use binocular mode</button>`
+        : `<button class="btn" id="goLook">🔭 LOOK THROUGH<br>THE BINOCULARS</button>`;
+      screenEl.innerHTML = `<div class="screen">
+        <h1>ALIVE ME</h1>
+        <div class="eyes">👁&nbsp;👁</div>
+        <p>Peer through the binoculars at the world around you. Hold your aim
+        steady on a table, a wall, the floor — and it <b>comes alive</b>: eyes
+        sprout and watch you, tentacles wave, the whole thing wobbles and breathes.</p>
+        ${arBtn}
+        <p class="fineprint">
+          ${xrSupported
+            ? '✨ Your device supports real AR — creatures anchor to actual surfaces and you can walk right around them.'
+            : '📱 Full walk-around AR needs Android Chrome. Here you get gyroscope binoculars: creatures lock to your room in 3D and take on the colour of whatever you point at.'}
+          <br>👆 Hold still to wake one · tap it to poke · POKE / CLEAR / DONE below.
+        </p>
+      </div>`;
+      const goAR = document.getElementById('goAR');
+      const goLook = document.getElementById('goLook');
+      if (goAR) goAR.addEventListener('click', () => { ensureAudio(); startAR().catch(err => { console.warn(err); toast('AR unavailable — using binoculars'); startLook(); }); });
+      if (goLook) goLook.addEventListener('click', () => { ensureAudio(); startLook(); });
+    }
+
+    // ---------- Boot ----------
+    initRenderer();
+    detectXR().then(showIntro);
+  </script>
+
+  <!-- Fail gracefully if the 3D engine can't be fetched (offline / blocked CDN). -->
+  <script>
+    setTimeout(function () {
+      if (!window.__aliveReady) {
+        document.getElementById('screen').innerHTML =
+          '<div class="screen"><h1>ALIVE ME</h1><p>This game needs an internet connection the first time, to load its 3D engine. Please reconnect and reload.</p><a class="btn" href="../../">Back to Flocade</a></div>';
+      }
+    }, 6000);
+  </script>
+</body>
+</html>
