@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d0221">
+  <title>Water Maze — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.9rem;
+      padding: 0.55rem 0.8rem;
+      border-bottom: 2px solid #2b1670;
+    }
+    a.back { color: #00f0ff; font-size: 0.6rem; text-decoration: none; white-space: nowrap; }
+    h1 { font-size: 0.75rem; color: #ff2e88; text-shadow: 0 0 8px rgba(255,46,136,.6); white-space: nowrap; }
+    .hud { display: flex; gap: 0.8rem; font-size: 0.6rem; color: #ffe600; align-items: center; }
+    .hud #waterLabel { color: #00f0ff; }
+    .btns { display: flex; gap: 0.4rem; margin-left: auto; }
+    .btns button {
+      font-family: inherit;
+      font-size: 0.55rem;
+      color: #e8e6f0;
+      background: #1a0b45;
+      border: 2px solid #2b1670;
+      padding: 0.4rem 0.5rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btns button.on { border-color: #00f0ff; color: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,.4); }
+    #stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+    canvas {
+      border: 2px solid #ff2e88;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+      touch-action: none;
+      border-radius: 4px;
+    }
+    #dpad {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(3, 52px);
+      gap: 4px;
+      opacity: 0.9;
+      z-index: 5;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #dpad.hidden { display: none; }
+    #dpad button {
+      font-family: inherit;
+      font-size: 1rem;
+      color: #00f0ff;
+      background: rgba(26, 11, 69, 0.85);
+      border: 2px solid #2b1670;
+      border-radius: 8px;
+      touch-action: none;
+      cursor: pointer;
+    }
+    #dpad button:active, #dpad button.held { background: #2b1670; border-color: #00f0ff; }
+    #dpad .up    { grid-area: 1 / 2; }
+    #dpad .left  { grid-area: 2 / 1; }
+    #dpad .right { grid-area: 2 / 3; }
+    #dpad .down  { grid-area: 3 / 2; }
+    #toast {
+      position: absolute;
+      top: 14%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: #ffe600;
+      text-shadow: 0 0 10px rgba(255,230,0,.7);
+      text-align: center;
+      line-height: 1.8;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+      z-index: 6;
+      padding: 0 1rem;
+      max-width: 100%;
+    }
+    #toast.show { opacity: 1; }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 2, 33, 0.92);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      overflow-y: auto;
+    }
+    #overlay.hidden { display: none; }
+    .panel { text-align: center; line-height: 2; padding: 1rem; max-width: 480px; }
+    .panel .big { font-size: 2.6rem; line-height: 1.4; }
+    .panel h2 { font-size: 1rem; color: #ff2e88; text-shadow: 0 0 10px rgba(255,46,136,.7); margin: 0.6rem 0; }
+    .panel p { font-size: 0.6rem; color: #9b93b8; line-height: 1.9; margin: 0.6rem 0; }
+    .panel p.gold { color: #ffe600; }
+    .panel button {
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #0d0221;
+      background: #00f0ff;
+      border: none;
+      padding: 0.8rem 1.2rem;
+      margin: 0.5rem 0.3rem;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 0 12px rgba(0,240,255,.5);
+    }
+    .panel button.alt { background: #ff2e88; color: #fff; box-shadow: 0 0 12px rgba(255,46,136,.5); }
+    .lvlGrid { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin: 0.8rem 0; }
+    .lvlGrid button {
+      width: 3rem; height: 3rem;
+      padding: 0;
+      font-size: 0.7rem;
+      background: #1a0b45;
+      color: #00f0ff;
+      border: 2px solid #2b1670;
+      box-shadow: none;
+    }
+    .lvlGrid button:disabled { color: #4a3d70; cursor: default; }
+    .lvlGrid button.done { border-color: #ffe600; color: #ffe600; }
+    .hint { font-size: 0.5rem; color: #9b93b8; text-align: center; line-height: 1.9; padding: 0.4rem 0.6rem; }
+    @media (max-height: 520px) { .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <h1>WATER MAZE</h1>
+    <div class="hud">
+      <span id="lvlLabel">L1</span>
+      <span id="waterLabel">💧 0/0</span>
+    </div>
+    <div class="btns">
+      <button id="resetBtn" title="Restart level">↺</button>
+      <button id="menuBtn" title="Level select">🗺</button>
+      <button id="tiltBtn" title="Tilt controls">📱 TILT</button>
+      <button id="padBtn" title="On-screen pad">🕹 PAD</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="dpad" class="hidden">
+      <button class="up" data-d="up">▲</button>
+      <button class="left" data-d="left">◀</button>
+      <button class="right" data-d="right">▶</button>
+      <button class="down" data-d="down">▼</button>
+    </div>
+    <div id="toast"></div>
+    <div id="overlay"><div class="panel" id="panel"></div></div>
+  </div>
+
+  <p class="hint">TIP THE MAZE to pour the water to the frog &middot; tilt your phone / arrow keys / WASD / on-screen pad &middot; R restarts</p>
+
+  <script>
+    'use strict';
+
+    // ---------- Levels ----------
+    // Legend: # wall, . floor, S water spawn, F frog, X toxic goo
+    const LEVELS = [
+      {
+        name: 'FIRST SIP',
+        grid: [
+          '###########',
+          '#....S....#',
+          '#.........#',
+          '####....###',
+          '#.........#',
+          '#.........#',
+          '#...####..#',
+          '#.........#',
+          '#.........#',
+          '#..####...#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'ZIG ZAG',
+        grid: [
+          '###########',
+          '#S........#',
+          '#.......###',
+          '#........##',
+          '######....#',
+          '#.........#',
+          '##....#####',
+          '#.........#',
+          '#....######',
+          '#.........#',
+          '######....#',
+          '#.........#',
+          '##.....####',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THE LONG WAY DOWN',
+        grid: [
+          '###########',
+          '#S....#...#',
+          '#.....#...#',
+          '#..#..#.#.#',
+          '#..#..#.#.#',
+          '#..#....#.#',
+          '#..######.#',
+          '#.........#',
+          '#.####..###',
+          '#....#....#',
+          '#..#.#..#.#',
+          '#..#....#.#',
+          '#..#..#.#.#',
+          '#..F..#...#',
+          '###########',
+        ],
+      },
+      {
+        name: 'TWO PUDDLES',
+        grid: [
+          '###########',
+          '#S...#...S#',
+          '#....#....#',
+          '#.##...##.#',
+          '#.........#',
+          '#####.#####',
+          '#.........#',
+          '#..#####..#',
+          '#..#...#..#',
+          '#..#...#..#',
+          '#....#....#',
+          '###..#..###',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'SPLIT STREAMS',
+        grid: [
+          '###########',
+          '#....#....#',
+          '#.S..#..S.#',
+          '#....#....#',
+          '#.#######.#',
+          '#.#.....#.#',
+          '#.#.....#.#',
+          '#.#..#..#.#',
+          '#....#....#',
+          '####.#.####',
+          '#....#....#',
+          '#.##.#.##.#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THREE SPRINGS',
+        grid: [
+          '#############',
+          '#S....#....S#',
+          '#.....#.....#',
+          '###.#####.###',
+          '#...#...#...#',
+          '#.#.#.S.#.#.#',
+          '#.#.#...#.#.#',
+          '#.#.##.##.#.#',
+          '#.#.......#.#',
+          '#.#########.#',
+          '#.....#.....#',
+          '#####.#.#####',
+          '#...........#',
+          '#.....F.....#',
+          '#############',
+        ],
+      },
+      {
+        name: 'TOXIC TUNNELS',
+        grid: [
+          '###########',
+          '#S...#...S#',
+          '#....#....#',
+          '#.........#',
+          '####.#.####',
+          '#....#....#',
+          '#.X..#..X.#',
+          '#....#....#',
+          '#.##...##.#',
+          '#....X....#',
+          '#.#.###.#.#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THE FROG GAUNTLET',
+        grid: [
+          '#############',
+          '#S....#....S#',
+          '#.....#.....#',
+          '#.#########.#',
+          '#...#...#...#',
+          '#.X.#.S.#.X.#',
+          '#...#...#...#',
+          '#.#.#...#.#.#',
+          '#.#...X...#.#',
+          '#.#.#####.#.#',
+          '#...#...#...#',
+          '##.##...##.##',
+          '#.....X.....#',
+          '#..#.....#..#',
+          '#.....F.....#',
+          '#############',
+        ],
+      },
+    ];
+
+    // ---------- Constants ----------
+    const CELL = 48;            // world units per maze cell
+    const PR = 6;               // particle radius
+    const PPB = 22;             // particles per blob
+    const G = 1500;             // gravity strength (world units / s^2)
+    const MAXV = 720;           // particle speed cap
+    const SUB = 3;              // physics substeps per frame
+    const WIN_FRACTION = 0.8;   // fraction of water the frog needs
+    const GOO_R = CELL * 0.32;
+
+    // ---------- DOM ----------
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const stage = document.getElementById('stage');
+    const overlay = document.getElementById('overlay');
+    const panel = document.getElementById('panel');
+    const toastEl = document.getElementById('toast');
+    const dpadEl = document.getElementById('dpad');
+    const lvlLabel = document.getElementById('lvlLabel');
+    const waterLabel = document.getElementById('waterLabel');
+    const tiltBtn = document.getElementById('tiltBtn');
+    const padBtn = document.getElementById('padBtn');
+
+    // ---------- Save data ----------
+    const SAVE_KEY = 'flocade-water-maze-v1';
+    let save = { unlocked: 1, done: [], pad: null, tilt: false };
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) save = Object.assign(save, JSON.parse(raw));
+    } catch (e) { /* private mode etc. */ }
+    function persist() {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+    }
+
+    // ---------- Game state ----------
+    let state = 'menu';         // menu | playing | won | failed
+    let levelIndex = 0;
+    let gw = 0, gh = 0;
+    let walls = [];
+    let goos = [];
+    let frog = null;
+    let particles = [];
+    let effects = [];
+    let totalWater = 0, delivered = 0, needed = 0;
+    let frogGulp = 0;           // seconds of gulp animation left
+    let failTimer = null;
+    let time = 0;
+    let viewScale = 1;
+
+    // ---------- Input ----------
+    const keyDir = { up: false, down: false, left: false, right: false };
+    const padDir = { up: false, down: false, left: false, right: false };
+    let tiltOn = false;
+    const tilt = { x: 0, y: 0, t: -1e9 };
+    const tiltSupported = 'DeviceOrientationEvent' in window;
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+    let padOn = save.pad === null ? isTouch : !!save.pad;
+
+    const KEYMAP = {
+      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+      w: 'up', s: 'down', a: 'left', d: 'right',
+      W: 'up', S: 'down', A: 'left', D: 'right',
+    };
+    document.addEventListener('keydown', e => {
+      const d = KEYMAP[e.key];
+      if (d) { keyDir[d] = true; e.preventDefault(); }
+      if (e.key === 'r' || e.key === 'R') restartLevel();
+    });
+    document.addEventListener('keyup', e => {
+      const d = KEYMAP[e.key];
+      if (d) keyDir[d] = false;
+    });
+    window.addEventListener('blur', () => {
+      for (const k in keyDir) keyDir[k] = false;
+    });
+
+    // On-screen pad — multi-touch friendly
+    dpadEl.querySelectorAll('button').forEach(btn => {
+      const d = btn.dataset.d;
+      const press = e => { e.preventDefault(); padDir[d] = true; btn.classList.add('held'); initAudio(); };
+      const release = () => { padDir[d] = false; btn.classList.remove('held'); };
+      btn.addEventListener('pointerdown', press);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    });
+
+    function updatePadUI() {
+      dpadEl.classList.toggle('hidden', !padOn || state !== 'playing');
+      padBtn.classList.toggle('on', padOn);
+    }
+    padBtn.addEventListener('click', () => {
+      padOn = !padOn;
+      save.pad = padOn;
+      persist();
+      updatePadUI();
+    });
+
+    // Device tilt
+    window.addEventListener('deviceorientation', e => {
+      if (e.beta === null || e.gamma === null) return;
+      const gx = Math.max(-1, Math.min(1, e.gamma / 40));
+      const gy = Math.max(-1, Math.min(1, e.beta / 40));
+      let ang = 0;
+      if (screen.orientation && typeof screen.orientation.angle === 'number') ang = screen.orientation.angle;
+      else if (typeof window.orientation === 'number') ang = window.orientation;
+      const a = ang * Math.PI / 180;
+      tilt.x = gx * Math.cos(a) + gy * Math.sin(a);
+      tilt.y = -gx * Math.sin(a) + gy * Math.cos(a);
+      tilt.t = performance.now();
+    });
+
+    function enableTilt() {
+      const done = () => {
+        tiltOn = true;
+        save.tilt = true;
+        persist();
+        updateTiltUI();
+        toast('TILT ON — tip your device to pour!');
+      };
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(res => { if (res === 'granted') done(); else toast('Tilt permission denied'); })
+          .catch(() => toast('Tilt not available'));
+      } else {
+        done();
+      }
+    }
+    function updateTiltUI() {
+      tiltBtn.classList.toggle('on', tiltOn);
+      tiltBtn.style.display = tiltSupported ? '' : 'none';
+    }
+    tiltBtn.addEventListener('click', () => {
+      initAudio();
+      if (tiltOn) {
+        tiltOn = false;
+        save.tilt = false;
+        persist();
+        updateTiltUI();
+        toast('TILT OFF');
+      } else {
+        enableTilt();
+      }
+    });
+    // Non-iOS browsers need no permission — restore preference silently.
+    if (save.tilt && tiltSupported &&
+        !(typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function')) {
+      tiltOn = true;
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', () => { initAudio(); restartLevel(); });
+    document.getElementById('menuBtn').addEventListener('click', () => { initAudio(); showMenu(); });
+
+    // The maze is "tipped": gravity follows whichever control is active.
+    function currentGravity() {
+      let x = 0, y = 0;
+      if (keyDir.up || padDir.up) y -= 1;
+      if (keyDir.down || padDir.down) y += 1;
+      if (keyDir.left || padDir.left) x -= 1;
+      if (keyDir.right || padDir.right) x += 1;
+      if (x || y) {
+        const m = Math.hypot(x, y);
+        return { x: x / m, y: y / m };
+      }
+      if (tiltOn && performance.now() - tilt.t < 1500) {
+        let tx = tilt.x, ty = tilt.y;
+        const m = Math.hypot(tx, ty);
+        if (m > 1) { tx /= m; ty /= m; }
+        return { x: tx, y: ty };
+      }
+      return { x: 0, y: 1 };
+    }
+
+    // ---------- Audio ----------
+    let AC = null;
+    function initAudio() {
+      if (!AC) {
+        try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+      }
+      if (AC && AC.state === 'suspended') AC.resume();
+    }
+    document.addEventListener('pointerdown', initAudio, { once: true });
+
+    function tone(freq, dur, type, vol, when, slideTo) {
+      if (!AC || AC.state !== 'running') return;
+      const t0 = AC.currentTime + (when || 0);
+      const osc = AC.createOscillator();
+      const g = AC.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, t0);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(vol || 0.12, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g).connect(AC.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    }
+    let lastGulp = 0;
+    function sfxGulp() {
+      const now = performance.now();
+      if (now - lastGulp < 90) return;
+      lastGulp = now;
+      tone(560, 0.12, 'sine', 0.1, 0, 190);
+    }
+    function sfxFizz() { tone(200, 0.25, 'sawtooth', 0.06, 0, 60); }
+    function sfxWin() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'square', 0.08, i * 0.13)); }
+    function sfxFail() { [300, 220, 150].forEach((f, i) => tone(f, 0.3, 'triangle', 0.1, i * 0.18)); }
+
+    // ---------- Level setup ----------
+    function parseLevel(def) {
+      const rows = def.grid;
+      gh = rows.length;
+      gw = rows[0].length;
+      walls = rows.map(r => [...r].map(c => c === '#'));
+      goos = [];
+      frog = null;
+      const spawns = [];
+      rows.forEach((row, y) => [...row].forEach((c, x) => {
+        if (c === 'S') spawns.push({ x, y });
+        if (c === 'F') frog = { x: (x + 0.5) * CELL, y: (y + 0.5) * CELL };
+        if (c === 'X') goos.push({ x: (x + 0.5) * CELL, y: (y + 0.5) * CELL, ph: (x * 7 + y * 13) % 6 });
+      }));
+      return spawns;
+    }
+
+    function loadLevel(i) {
+      levelIndex = i;
+      const spawns = parseLevel(LEVELS[i]);
+      particles = [];
+      effects = [];
+      for (const s of spawns) {
+        const cx = (s.x + 0.5) * CELL, cy = (s.y + 0.5) * CELL;
+        for (let n = 0; n < PPB; n++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * CELL * 0.42;
+          particles.push({
+            x: cx + Math.cos(a) * r,
+            y: cy + Math.sin(a) * r,
+            vx: 0, vy: 0,
+            dying: 0,
+          });
+        }
+      }
+      totalWater = particles.length;
+      delivered = 0;
+      needed = Math.ceil(totalWater * WIN_FRACTION);
+      frogGulp = 0;
+      if (failTimer) { clearTimeout(failTimer); failTimer = null; }
+      // Let the water settle under plain gravity before the player sees it.
+      for (let n = 0; n < 120; n++) physStep(1 / 60, true);
+      state = 'playing';
+      overlay.classList.add('hidden');
+      fitCanvas();
+      updateHUD();
+      updatePadUI();
+      toast('LEVEL ' + (i + 1) + '<br>' + LEVELS[i].name);
+    }
+
+    function restartLevel() {
+      if (state === 'menu') return;
+      loadLevel(levelIndex);
+    }
+
+    // ---------- Physics ----------
+    function physStep(dt, warmup) {
+      const g = warmup ? { x: 0, y: 1 } : currentGravity();
+      const h = dt / SUB;
+      const alive = particles.filter(p => !p.dying);
+
+      for (let s = 0; s < SUB; s++) {
+        // gravity + drag
+        for (const p of alive) {
+          p.vx += g.x * G * h;
+          p.vy += g.y * G * h;
+          const drag = Math.max(0, 1 - 0.6 * h);
+          p.vx *= drag;
+          p.vy *= drag;
+          const sp = Math.hypot(p.vx, p.vy);
+          if (sp > MAXV) { p.vx *= MAXV / sp; p.vy *= MAXV / sp; }
+        }
+
+        // particle-particle: repulsion when overlapping, mild cohesion nearby
+        const minD = PR * 2, cohD = PR * 3.4;
+        for (let i = 0; i < alive.length; i++) {
+          const a = alive[i];
+          for (let j = i + 1; j < alive.length; j++) {
+            const b = alive[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= cohD * cohD || d2 === 0) continue;
+            const d = Math.sqrt(d2);
+            const nx = dx / d, ny = dy / d;
+            if (d < minD) {
+              const push = (minD - d) * 0.32;
+              a.x -= nx * push; a.y -= ny * push;
+              b.x += nx * push; b.y += ny * push;
+              // damp approach velocity (viscosity)
+              const rel = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
+              if (rel > 0) {
+                const imp = rel * 0.12;
+                a.vx -= nx * imp; a.vy -= ny * imp;
+                b.vx += nx * imp; b.vy += ny * imp;
+              }
+            } else {
+              const pull = 360 * h;
+              a.vx += nx * pull; a.vy += ny * pull;
+              b.vx -= nx * pull; b.vy -= ny * pull;
+            }
+          }
+        }
+
+        // integrate + walls
+        for (const p of alive) {
+          p.x += p.vx * h;
+          p.y += p.vy * h;
+          collideWalls(p, h);
+        }
+      }
+
+      if (warmup) return;
+
+      // frog drinks
+      const drinkR = CELL * 0.5;
+      for (const p of alive) {
+        const dx = p.x - frog.x, dy = p.y - frog.y;
+        if (dx * dx + dy * dy < drinkR * drinkR) {
+          p.dying = -1; // absorbed marker
+          delivered++;
+          frogGulp = 0.3;
+          sfxGulp();
+          effects.push({ type: 'ring', x: p.x, y: p.y, t: 0, life: 0.35, color: '#00f0ff' });
+        }
+      }
+
+      // goo pollutes
+      for (const p of alive) {
+        if (p.dying) continue;
+        for (const goo of goos) {
+          const dx = p.x - goo.x, dy = p.y - goo.y;
+          const rr = GOO_R + PR;
+          if (dx * dx + dy * dy < rr * rr) {
+            p.dying = 0.45; // fizz-out timer
+            sfxFizz();
+            for (let n = 0; n < 4; n++) {
+              effects.push({
+                type: 'fizz',
+                x: p.x + (Math.random() - 0.5) * 8,
+                y: p.y + (Math.random() - 0.5) * 8,
+                vy: -30 - Math.random() * 40,
+                t: 0, life: 0.5 + Math.random() * 0.3,
+              });
+            }
+            break;
+          }
+        }
+      }
+
+      // reap absorbed / finished fizzing
+      for (const p of particles) {
+        if (p.dying > 0) p.dying -= dt;
+      }
+      particles = particles.filter(p => p.dying === 0 || p.dying > 0);
+
+      updateHUD();
+
+      if (delivered >= needed) {
+        winLevel();
+      } else {
+        const possible = delivered + particles.filter(p => !p.dying).length;
+        if (possible < needed && state === 'playing' && !failTimer) {
+          failTimer = setTimeout(() => {
+            failTimer = null;
+            if (state === 'playing') failLevel();
+          }, 700);
+        }
+      }
+    }
+
+    function collideWalls(p, h) {
+      const x0 = Math.max(0, Math.floor((p.x - PR) / CELL));
+      const x1 = Math.min(gw - 1, Math.floor((p.x + PR) / CELL));
+      const y0 = Math.max(0, Math.floor((p.y - PR) / CELL));
+      const y1 = Math.min(gh - 1, Math.floor((p.y + PR) / CELL));
+      for (let cy = y0; cy <= y1; cy++) {
+        for (let cx = x0; cx <= x1; cx++) {
+          if (!walls[cy][cx]) continue;
+          const nx = Math.max(cx * CELL, Math.min(p.x, (cx + 1) * CELL));
+          const ny = Math.max(cy * CELL, Math.min(p.y, (cy + 1) * CELL));
+          let dx = p.x - nx, dy = p.y - ny;
+          let d2 = dx * dx + dy * dy;
+          if (d2 >= PR * PR) continue;
+          let d = Math.sqrt(d2);
+          if (d < 0.0001) {
+            // particle centre inside the wall — push out along the smallest axis
+            const lx = p.x - cx * CELL, rx = (cx + 1) * CELL - p.x;
+            const ty = p.y - cy * CELL, by = (cy + 1) * CELL - p.y;
+            const m = Math.min(lx, rx, ty, by);
+            dx = m === lx ? -1 : m === rx ? 1 : 0;
+            dy = dx === 0 ? (m === ty ? -1 : 1) : 0;
+            d = 0;
+          } else {
+            dx /= d; dy /= d;
+          }
+          p.x += dx * (PR - d);
+          p.y += dy * (PR - d);
+          const vn = p.vx * dx + p.vy * dy;
+          if (vn < 0) {
+            p.vx -= dx * vn * 1.12; // restitution 0.12
+            p.vy -= dy * vn * 1.12;
+            // tangential friction
+            const f = Math.max(0, 1 - 1.5 * h);
+            const tx = -dy, ty2 = dx;
+            const vt = p.vx * tx + p.vy * ty2;
+            p.vx += tx * vt * (f - 1);
+            p.vy += ty2 * vt * (f - 1);
+          }
+        }
+      }
+      // hard clamp inside the outer border
+      p.x = Math.max(CELL + PR, Math.min((gw - 1) * CELL - PR, p.x));
+      p.y = Math.max(CELL + PR, Math.min((gh - 1) * CELL - PR, p.y));
+    }
+
+    // ---------- Win / fail ----------
+    function winLevel() {
+      if (state !== 'playing') return;
+      state = 'won';
+      sfxWin();
+      save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, levelIndex + 2));
+      if (!save.done.includes(levelIndex)) save.done.push(levelIndex);
+      persist();
+      updatePadUI();
+      const last = levelIndex === LEVELS.length - 1;
+      setTimeout(() => {
+        panel.innerHTML =
+          '<div class="big">🐸💦</div>' +
+          '<h2>GLUG GLUG GLUG!</h2>' +
+          (last
+            ? '<p class="gold">You saved every frog in the desert! 🏆</p><p>Thanks for playing!</p>'
+            : '<p>The frog is saved! ' + delivered + ' drops delivered.</p>') +
+          (last
+            ? '<button id="againBtn" class="alt">PLAY AGAIN</button>'
+            : '<button id="nextBtn">NEXT LEVEL ▶</button>') +
+          '<button id="lvlsBtn" class="alt">LEVELS</button>';
+        overlay.classList.remove('hidden');
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.addEventListener('click', () => loadLevel(levelIndex + 1));
+        const againBtn = document.getElementById('againBtn');
+        if (againBtn) againBtn.addEventListener('click', () => loadLevel(0));
+        document.getElementById('lvlsBtn').addEventListener('click', showMenu);
+      }, 550);
+    }
+
+    function failLevel() {
+      state = 'failed';
+      sfxFail();
+      updatePadUI();
+      panel.innerHTML =
+        '<div class="big">☠️💚</div>' +
+        '<h2>POLLUTED!</h2>' +
+        '<p>Too much water touched the toxic goo. The frog needs clean, colourless water!</p>' +
+        '<button id="retryBtn">RETRY ↺</button>' +
+        '<button id="lvlsBtn" class="alt">LEVELS</button>';
+      overlay.classList.remove('hidden');
+      document.getElementById('retryBtn').addEventListener('click', () => loadLevel(levelIndex));
+      document.getElementById('lvlsBtn').addEventListener('click', showMenu);
+    }
+
+    // ---------- Menu ----------
+    function showMenu() {
+      state = 'menu';
+      if (failTimer) { clearTimeout(failTimer); failTimer = null; }
+      updatePadUI();
+      let lvls = '';
+      for (let i = 0; i < LEVELS.length; i++) {
+        const locked = i >= save.unlocked;
+        const done = save.done.includes(i);
+        lvls += '<button data-lvl="' + i + '"' + (locked ? ' disabled' : '') +
+                (done ? ' class="done"' : '') + '>' +
+                (locked ? '🔒' : done ? '★' : (i + 1)) + '</button>';
+      }
+      panel.innerHTML =
+        '<div class="big">☀️🐸</div>' +
+        '<h2>WATER MAZE</h2>' +
+        '<p>A thirsty frog is drying out in the sun! Tip the maze to pour clean water all the way to it. ' +
+        'Join every blob together — the frog needs <span style="color:#00f0ff">almost all</span> of the water — and keep it away from toxic goo!</p>' +
+        '<button id="playBtn">PLAY ▶</button>' +
+        '<div class="lvlGrid">' + lvls + '</div>' +
+        (tiltSupported && isTouch && !tiltOn
+          ? '<button id="tiltGoBtn" class="alt">📱 ENABLE TILT</button><p>or use the on-screen pad</p>'
+          : '<p>tilt phone &middot; arrows / WASD &middot; on-screen pad</p>');
+      overlay.classList.remove('hidden');
+      document.getElementById('playBtn').addEventListener('click', () => {
+        initAudio();
+        loadLevel(Math.min(save.unlocked, LEVELS.length) - 1);
+      });
+      panel.querySelectorAll('[data-lvl]').forEach(b =>
+        b.addEventListener('click', () => { initAudio(); loadLevel(+b.dataset.lvl); }));
+      const tg = document.getElementById('tiltGoBtn');
+      if (tg) tg.addEventListener('click', () => { initAudio(); enableTilt(); });
+    }
+
+    // ---------- HUD / toast ----------
+    function updateHUD() {
+      lvlLabel.textContent = 'L' + (levelIndex + 1);
+      waterLabel.textContent = '💧 ' + delivered + '/' + needed;
+    }
+    let toastTimer = null;
+    function toast(html) {
+      toastEl.innerHTML = html;
+      toastEl.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    // ---------- Rendering ----------
+    function fitCanvas() {
+      if (!gw) return;
+      const availW = stage.clientWidth - 12;
+      const availH = stage.clientHeight - 12;
+      const aspect = gw / gh;
+      let cw = Math.min(availW, availH * aspect);
+      let chh = cw / aspect;
+      canvas.style.width = cw + 'px';
+      canvas.style.height = chh + 'px';
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.max(1, Math.round(cw * dpr));
+      canvas.height = Math.max(1, Math.round(chh * dpr));
+      viewScale = canvas.width / (gw * CELL);
+    }
+    window.addEventListener('resize', fitCanvas);
+
+    function draw() {
+      if (!gw) return;
+      ctx.setTransform(viewScale, 0, 0, viewScale, 0, 0);
+      const W = gw * CELL, H = gh * CELL;
+
+      // floor
+      ctx.fillStyle = '#0d0221';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#160a36';
+      for (let y = 0; y < gh; y++)
+        for (let x = 0; x < gw; x++)
+          if (!walls[y][x]) ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+
+      // sun (decorative — the frog is drying out!)
+      drawSun(W - CELL * 1.4, CELL * 1.4);
+
+      // goo
+      for (const goo of goos) drawGoo(goo);
+
+      // frog
+      drawFrog();
+
+      // water
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (const p of particles) {
+        const dying = p.dying > 0;
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, PR * 2.4);
+        if (dying) {
+          glow.addColorStop(0, 'rgba(80,255,80,0.35)');
+          glow.addColorStop(1, 'rgba(80,255,80,0)');
+        } else {
+          glow.addColorStop(0, 'rgba(0,200,255,0.30)');
+          glow.addColorStop(1, 'rgba(0,200,255,0)');
+        }
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, PR * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      for (const p of particles) {
+        const dying = p.dying > 0;
+        const shrink = dying ? Math.max(0.15, p.dying / 0.45) : 1;
+        const grad = ctx.createRadialGradient(p.x - 2, p.y - 2, 0.5, p.x, p.y, PR * shrink);
+        if (dying) {
+          grad.addColorStop(0, '#b8ffb0');
+          grad.addColorStop(1, '#26c93c');
+        } else {
+          grad.addColorStop(0, '#cdf6ff');
+          grad.addColorStop(1, '#00aaff');
+        }
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, PR * shrink, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // walls on top so water tucks neatly under edges
+      ctx.fillStyle = '#231257';
+      for (let y = 0; y < gh; y++)
+        for (let x = 0; x < gw; x++)
+          if (walls[y][x]) ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
+      // neon edges where wall meets open floor
+      ctx.strokeStyle = 'rgba(0,240,255,0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let y = 0; y < gh; y++) {
+        for (let x = 0; x < gw; x++) {
+          if (!walls[y][x]) continue;
+          const px = x * CELL, py = y * CELL;
+          if (y + 1 < gh && !walls[y + 1][x]) { ctx.moveTo(px, py + CELL); ctx.lineTo(px + CELL, py + CELL); }
+          if (y - 1 >= 0 && !walls[y - 1][x]) { ctx.moveTo(px, py); ctx.lineTo(px + CELL, py); }
+          if (x + 1 < gw && !walls[y][x + 1]) { ctx.moveTo(px + CELL, py); ctx.lineTo(px + CELL, py + CELL); }
+          if (x - 1 >= 0 && !walls[y][x - 1]) { ctx.moveTo(px, py); ctx.lineTo(px, py + CELL); }
+        }
+      }
+      ctx.stroke();
+
+      // effects
+      for (const fx of effects) {
+        const k = fx.t / fx.life;
+        if (fx.type === 'ring') {
+          ctx.strokeStyle = fx.color;
+          ctx.globalAlpha = 1 - k;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(fx.x, fx.y, 4 + k * 18, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        } else if (fx.type === 'fizz') {
+          ctx.fillStyle = 'rgba(120,255,120,' + (1 - k) + ')';
+          ctx.beginPath();
+          ctx.arc(fx.x, fx.y + fx.vy * fx.t, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // gravity indicator arrow (helps players understand the tipping)
+      if (state === 'playing') {
+        const g = currentGravity();
+        const m = Math.hypot(g.x, g.y);
+        if (m > 0.05) {
+          const ax = W - CELL * 0.62, ay = H - CELL * 0.62, len = CELL * 0.34;
+          ctx.save();
+          ctx.translate(ax, ay);
+          ctx.rotate(Math.atan2(g.y, g.x));
+          ctx.strokeStyle = 'rgba(255,230,0,0.85)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-len, 0); ctx.lineTo(len, 0);
+          ctx.moveTo(len - 7, -6); ctx.lineTo(len, 0); ctx.lineTo(len - 7, 6);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawSun(x, y) {
+      const pulse = 1 + Math.sin(time * 2) * 0.05;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.translate(x, y);
+      ctx.rotate(time * 0.15);
+      ctx.strokeStyle = '#ffe600';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        ctx.moveTo(Math.cos(a) * 20 * pulse, Math.sin(a) * 20 * pulse);
+        ctx.lineTo(Math.cos(a) * 30 * pulse, Math.sin(a) * 30 * pulse);
+      }
+      ctx.stroke();
+      const grad = ctx.createRadialGradient(0, 0, 2, 0, 0, 17 * pulse);
+      grad.addColorStop(0, '#fff8b0');
+      grad.addColorStop(1, '#ffb400');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 16 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawFrog() {
+      if (!frog) return;
+      const pant = 1 + Math.sin(time * 6) * 0.04;
+      const gulp = frogGulp > 0 ? 1.18 : 1;
+      ctx.save();
+      ctx.translate(frog.x, frog.y + 2);
+      ctx.scale(pant * gulp, pant * gulp);
+      ctx.font = CELL * 0.82 + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🐸', 0, 0);
+      ctx.restore();
+      if (frogGulp > 0) {
+        ctx.font = CELL * 0.4 + 'px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('💧', frog.x, frog.y - CELL * 0.62);
+      }
+      // thirst ring: fills up as water is delivered
+      const frac = Math.min(1, delivered / needed);
+      ctx.strokeStyle = 'rgba(0,240,255,0.8)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(frog.x, frog.y, CELL * 0.46, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,230,0,0.25)';
+      ctx.beginPath();
+      ctx.arc(frog.x, frog.y, CELL * 0.46, -Math.PI / 2 + frac * Math.PI * 2, Math.PI * 1.5);
+      ctx.stroke();
+    }
+
+    function drawGoo(goo) {
+      const wob = Math.sin(time * 3 + goo.ph);
+      const r = GOO_R * (1 + wob * 0.08);
+      const grad = ctx.createRadialGradient(goo.x, goo.y, 1, goo.x, goo.y, r * 1.15);
+      grad.addColorStop(0, '#8dff5a');
+      grad.addColorStop(0.6, '#2fae12');
+      grad.addColorStop(1, 'rgba(30,120,10,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(goo.x, goo.y, r * 1.15, 0, Math.PI * 2);
+      ctx.fill();
+      // bubbles
+      for (let i = 0; i < 3; i++) {
+        const bt = (time * 0.7 + i * 0.33 + goo.ph) % 1;
+        ctx.fillStyle = 'rgba(200,255,160,' + (0.5 * (1 - bt)) + ')';
+        ctx.beginPath();
+        ctx.arc(goo.x + Math.sin(i * 2.4 + goo.ph) * r * 0.5, goo.y - bt * r * 1.1, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.font = GOO_R * 0.9 + 'px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.globalAlpha = 0.85;
+      ctx.fillText('☠️', goo.x, goo.y);
+      ctx.globalAlpha = 1;
+    }
+
+    // ---------- Main loop ----------
+    let lastT = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.05, (now - lastT) / 1000);
+      lastT = now;
+      time += dt;
+      if (frogGulp > 0) frogGulp -= dt;
+
+      if (state === 'playing') physStep(dt, false);
+
+      for (const fx of effects) fx.t += dt;
+      effects = effects.filter(fx => fx.t < fx.life);
+
+      draw();
+      requestAnimationFrame(frame);
+    }
+
+    // ---------- Boot ----------
+    parseLevel(LEVELS[0]); // so the canvas has a size behind the menu
+    fitCanvas();
+    updateTiltUI();
+    updatePadUI();
+    showMenu();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

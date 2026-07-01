@@ -90,6 +90,12 @@
     "description": "Top-down racing through the gut! Pick a germ, dodge the immune system, and burst out the far end first."
   },
   {
+    "slug": "water-maze",
+    "title": "Water Maze",
+    "icon": "💧",
+    "description": "Tip the maze to pour water to a thirsty frog! Tilt your phone, join up the blobs, and dodge the toxic goo."
+  },
+  {
     "slug": "i-ate-an-author",
     "title": "I Ate an Author",
     "icon": "✍️",
