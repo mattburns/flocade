@@ -82,5 +82,11 @@
     "title": "Germ Racers",
     "icon": "🦠",
     "description": "Top-down racing through the gut! Pick a germ, dodge the immune system, and burst out the far end first."
+  },
+  {
+    "slug": "i-ate-an-author",
+    "title": "I Ate an Author",
+    "icon": "✍️",
+    "description": "A creative studio — write stories, draw comics, design your own fonts, paint, and save it all to your gallery."
   }
 ]
