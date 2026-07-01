@@ -76,5 +76,11 @@
     "title": "Speed Tables",
     "icon": "🧮",
     "description": "Times tables sprint! Score as many 12×12 answers as you can in 60 seconds."
+  },
+  {
+    "slug": "i-ate-an-author",
+    "title": "I Ate an Author",
+    "icon": "✍️",
+    "description": "A creative studio — write stories, draw comics, design your own fonts, paint, and save it all to your gallery."
   }
 ]
