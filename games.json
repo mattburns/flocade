@@ -82,5 +82,17 @@
     "title": "Alive Me",
     "icon": "👁",
     "description": "AR binoculars! Hold your aim on a table or wall and watch it sprout 3D eyes and tentacles that wobble, blink and come alive."
+  },
+  {
+    "slug": "germ-racers",
+    "title": "Germ Racers",
+    "icon": "🦠",
+    "description": "Top-down racing through the gut! Pick a germ, dodge the immune system, and burst out the far end first."
+  },
+  {
+    "slug": "i-ate-an-author",
+    "title": "I Ate an Author",
+    "icon": "✍️",
+    "description": "A creative studio — write stories, draw comics, design your own fonts, paint, and save it all to your gallery."
   }
 ]
