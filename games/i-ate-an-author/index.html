@@ -146,6 +146,7 @@
       border-radius: 7px;
       padding: 0.5rem;
       cursor: pointer;
+      max-width: 140px;
     }
 
     /* ---- Write ---- */
@@ -160,6 +161,7 @@
       padding: 0.5rem;
       border-bottom: none;
     }
+    .tb-sep { width: 2px; align-self: stretch; background: var(--line); margin: 0 0.25rem; border-radius: 2px; }
     .fbtn {
       font-family: var(--arcade);
       font-size: 0.6rem;
@@ -170,11 +172,11 @@
       min-width: 34px;
       padding: 0.5rem 0.55rem;
       cursor: pointer;
+      line-height: 1;
     }
     .fbtn:hover { border-color: var(--cyan); }
-    .fbtn b { font-family: Georgia, serif; }
-    .fbtn i { font-family: Georgia, serif; }
-    .fbtn u { font-family: Georgia, serif; }
+    .fbtn b, .fbtn i, .fbtn u { font-family: Georgia, serif; }
+    .fbtn svg { display: block; }
     input.color-btn { width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
     .write-paper {
       background: var(--paper);
@@ -367,8 +369,8 @@
     .badge.comic { background: var(--cyan); }
     .badge.font { background: #b06bff; }
     .badge.drawing { background: var(--pink); }
-    .work-btns { display: flex; gap: 0.4rem; }
-    .work-btns .btn { flex: 1; font-size: 0.5rem; padding: 0.55rem 0.4rem; }
+    .work-btns { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .work-btns .btn { flex: 1; font-size: 0.5rem; padding: 0.55rem 0.4rem; min-width: 40px; }
     .empty-state { text-align: center; color: var(--dim); font-family: var(--arcade); font-size: 0.7rem; line-height: 2; padding: 3rem 1rem; }
 
     /* ---- Overlay ---- */
@@ -384,8 +386,8 @@
       display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
       max-height: 100%; max-width: 100%;
     }
-    .overlay-title { font-family: var(--arcade); font-size: 0.6rem; color: var(--yellow); }
-    .overlay-actions { display: flex; gap: 0.6rem; margin-top: 0.4rem; }
+    .overlay-title { font-family: var(--arcade); font-size: 0.6rem; color: var(--yellow); text-align: center; }
+    .overlay-actions { display: flex; gap: 0.6rem; margin-top: 0.4rem; flex-wrap: wrap; justify-content: center; }
     .glyph-guide {
       position: absolute; inset: 0; z-index: 0;
       display: flex; align-items: center; justify-content: center;
@@ -415,6 +417,7 @@
       background: var(--yellow); color: var(--bg); font-family: var(--arcade); font-size: 0.6rem;
       padding: 0.8rem 1.1rem; border-radius: 9px; opacity: 0; pointer-events: none;
       transition: opacity 0.25s ease, transform 0.25s ease; z-index: 80; box-shadow: 0 0 20px rgba(255,230,0,0.5);
+      max-width: 90vw; text-align: center;
     }
     #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
@@ -448,9 +451,12 @@
         <button class="fbtn" data-cmd="justifyLeft" title="Align left"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="1" y1="6" x2="10" y2="6"/><line x1="1" y1="10" x2="13" y2="10"/></svg></button>
         <button class="fbtn" data-cmd="justifyCenter" title="Centre"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="4" y1="6" x2="12" y2="6"/><line x1="2" y1="10" x2="14" y2="10"/></svg></button>
         <button class="fbtn" data-cmd="justifyRight" title="Align right"><svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="2" x2="15" y2="2"/><line x1="6" y1="6" x2="15" y2="6"/><line x1="3" y1="10" x2="15" y2="10"/></svg></button>
+        <span class="tb-sep"></span>
+        <select class="pick" id="write-font" title="See your writing in a font you designed"><option value="">My font…</option></select>
+        <button class="fbtn" id="view-in-font" title="View your story in your own font">👁</button>
       </div>
       <div class="write-paper" id="editor" contenteditable="true" spellcheck="true" data-ph="Once upon a time…"></div>
-      <p class="hint">Tip: select some text first, then change its font, size, colour or style.</p>
+      <p class="hint">Tip: select some text first, then change its font, size, colour or style. Made a font in the Design tab? Pick it in the “My font…” box and tap 👁 to see your story written in it.</p>
       <div class="row">
         <button class="btn" id="save-story">💾 Save to Gallery</button>
         <button class="btn ghost" id="new-story">📄 New</button>
@@ -478,8 +484,11 @@
       <div class="font-preview" id="font-preview"></div>
       <div class="row" style="margin-top:0.8rem;">
         <button class="btn" id="save-font">💾 Save font</button>
-        <button class="btn ghost" id="clear-font">🗑 Clear all letters</button>
+        <button class="btn ghost" id="export-font">⤴ Export file</button>
+        <button class="btn ghost" id="import-font">⤓ Import file</button>
+        <button class="btn ghost" id="clear-font">🗑 Clear all</button>
       </div>
+      <input type="file" id="font-file" accept=".json,.flocadefont,application/json" hidden>
     </section>
 
     <!-- DRAW -->
@@ -510,7 +519,6 @@
     'use strict';
 
     // ---------- constants ----------
-    const STORE_KEY = 'iateanauthor-works';
     const TOOLS = {
       pencil: { label: '✏️', name: 'Pencil' },
       brush:  { label: '🖌️', name: 'Brush' },
@@ -557,7 +565,7 @@
       t.textContent = msg;
       t.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+      toast._t = setTimeout(() => t.classList.remove('show'), 2200);
     }
     function hexToRgb(hex) {
       hex = hex.replace('#', '');
@@ -565,29 +573,139 @@
       const n = parseInt(hex, 16);
       return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
     }
+    function safeName(t) {
+      return (String(t || '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase()) || 'untitled';
+    }
 
-    // ---------- storage ----------
-    function loadWorks() {
-      try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
-      catch (e) { return []; }
+    // =====================================================
+    //  STORAGE — IndexedDB, with a localStorage fallback and
+    //  a one-time migration of any pre-existing localStorage data.
+    // =====================================================
+    const LS_WORKS_KEY = 'iateanauthor-works';           // legacy works store
+    const LS_DRAFT_PREFIX = 'iaea-draft-';               // legacy + fallback draft keys
+    const DRAFT_KEYS = { write: 'write', comic: 'comic', draw: 'draw', font: 'font' };
+    let useIDB = false;
+
+    const DB = (function () {
+      const NAME = 'iateanauthor', VERSION = 1;
+      let dbp = null;
+      function open() {
+        if (dbp) return dbp;
+        dbp = new Promise((resolve, reject) => {
+          let req;
+          try { req = indexedDB.open(NAME, VERSION); }
+          catch (e) { reject(e); return; }
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains('works')) db.createObjectStore('works', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', { keyPath: 'key' });
+          };
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+        return dbp;
+      }
+      function run(store, mode, fn) {
+        return open().then((db) => new Promise((resolve, reject) => {
+          const t = db.transaction(store, mode);
+          const req = fn(t.objectStore(store));
+          t.oncomplete = () => resolve(req ? req.result : undefined);
+          t.onerror = () => reject(t.error);
+          t.onabort = () => reject(t.error || new Error('transaction aborted'));
+        }));
+      }
+      return {
+        open,
+        getAll: () => run('works', 'readonly', (s) => s.getAll()),
+        put: (w) => run('works', 'readwrite', (s) => s.put(w)),
+        del: (id) => run('works', 'readwrite', (s) => s.delete(id)),
+        draftGet: (key) => run('drafts', 'readonly', (s) => s.get(key)).then((r) => (r ? r.value : null)),
+        draftSet: (key, value) => run('drafts', 'readwrite', (s) => s.put({ key, value })),
+      };
+    })();
+
+    // localStorage fallback (also the original behaviour if IndexedDB is unavailable)
+    function lsWorks() {
+      try { return JSON.parse(localStorage.getItem(LS_WORKS_KEY) || '[]'); } catch (e) { return []; }
     }
-    function saveWorks(w) {
-      try { localStorage.setItem(STORE_KEY, JSON.stringify(w)); return true; }
-      catch (e) { alert('Out of storage space! Delete some creations from the Gallery to make room.'); return false; }
+    function lsSaveWorks(arr) {
+      try { localStorage.setItem(LS_WORKS_KEY, JSON.stringify(arr)); }
+      catch (e) { const err = new Error('quota'); err.name = 'QuotaExceededError'; throw err; }
     }
-    function addWork(work) {
-      const w = loadWorks();
+    function lsPutWork(w) {
+      const arr = lsWorks();
+      const i = arr.findIndex((x) => x.id === w.id);
+      if (i >= 0) arr[i] = w; else arr.push(w);
+      lsSaveWorks(arr);
+    }
+
+    const Store = {
+      async getWorks() {
+        if (useIDB) { try { return await DB.getAll(); } catch (e) { /* fall through */ } }
+        return lsWorks();
+      },
+      async putWork(w) {
+        if (useIDB) return DB.put(w);        // rejects on quota -> caught by addWork
+        lsPutWork(w);
+      },
+      async delWork(id) {
+        if (useIDB) { try { return await DB.del(id); } catch (e) { return; } }
+        lsSaveWorks(lsWorks().filter((x) => x.id !== id));
+      },
+      async draftGet(k) {
+        if (useIDB) { try { return await DB.draftGet(k); } catch (e) { /* fall through */ } }
+        try { return JSON.parse(localStorage.getItem(LS_DRAFT_PREFIX + k) || 'null'); } catch (e) { return null; }
+      },
+      async draftSet(k, v) {
+        if (useIDB) { try { await DB.draftSet(k, v); } catch (e) { /* ignore draft errors */ } return; }
+        try { localStorage.setItem(LS_DRAFT_PREFIX + k, JSON.stringify(v)); } catch (e) { /* ignore */ }
+      },
+    };
+
+    // Copy any legacy localStorage data into IndexedDB (merge by id, then free the old space).
+    async function migrateFromLocalStorage() {
+      if (!useIDB) return;
+      let raw = null;
+      try { raw = localStorage.getItem(LS_WORKS_KEY); } catch (e) { return; }
+      const legacyDraftKeys = Object.keys(DRAFT_KEYS).map((k) => LS_DRAFT_PREFIX + k);
+      const hasDrafts = legacyDraftKeys.some((k) => { try { return localStorage.getItem(k) != null; } catch (e) { return false; } });
+      if (!raw && !hasDrafts) return;
+      try {
+        let arr = [];
+        if (raw) { try { arr = JSON.parse(raw) || []; } catch (e) { arr = []; } }
+        const existing = await DB.getAll();
+        const ids = new Set(existing.map((w) => w.id));
+        let expected = 0;
+        for (const w of arr) {
+          if (w && w.id) { expected++; if (!ids.has(w.id)) await DB.put(w); }
+        }
+        for (const k in DRAFT_KEYS) {
+          const dv = localStorage.getItem(LS_DRAFT_PREFIX + k);
+          if (dv != null) { try { await DB.draftSet(k, JSON.parse(dv)); } catch (e) { /* skip bad draft */ } }
+        }
+        // Only clear the old storage once we've confirmed the works are safely in IndexedDB.
+        const after = await DB.getAll();
+        if (after.length >= expected) {
+          try { localStorage.removeItem(LS_WORKS_KEY); } catch (e) {}
+          for (const k in DRAFT_KEYS) { try { localStorage.removeItem(LS_DRAFT_PREFIX + k); } catch (e) {} }
+        }
+      } catch (e) {
+        console.warn('IndexedDB migration skipped:', e);
+      }
+    }
+
+    async function addWork(work) {
       work.id = 'w' + Date.now() + Math.random().toString(36).slice(2, 6);
       work.created = Date.now();
-      w.push(work);
-      if (!saveWorks(w)) return false;
-      return true;
-    }
-    function draftSet(key, val) {
-      try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* ignore draft quota */ }
-    }
-    function draftGet(key) {
-      try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
+      try {
+        await Store.putWork(work);
+        return true;
+      } catch (e) {
+        const full = e && e.name === 'QuotaExceededError';
+        alert(full ? 'Out of storage space! Delete some creations from the Gallery to make room.'
+                   : 'Sorry — could not save (storage error).');
+        return false;
+      }
     }
 
     // ---------- image utilities ----------
@@ -610,8 +728,11 @@
       };
       img.src = dataURL;
     }
-    function downloadDataURL(name, dataURL) {
-      const a = el('a', { href: dataURL, download: name });
+    function loadImg(src) {
+      return new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
+    }
+    function downloadURL(name, url) {
+      const a = el('a', { href: url, download: name });
       document.body.appendChild(a); a.click(); a.remove();
     }
 
@@ -840,7 +961,6 @@
         )
       );
       showOverlay(box);
-      // load after the canvas is on the page so dimensions are settled
       loadImageTo(painter.ctx, o.initial);
     }
 
@@ -848,7 +968,8 @@
     //  WRITE
     // =====================================================
     const editor = $('editor');
-    (function setupWrite() {
+    function saveWriteDraft() { Store.draftSet(DRAFT_KEYS.write, { title: $('story-title').value, html: editor.innerHTML }); }
+    function setupWrite() {
       const ff = $('font-family'), fs = $('font-size');
       FONTS.forEach((f) => ff.append(el('option', { value: f.css }, f.label)));
       SIZES.forEach((s) => fs.append(el('option', { value: String(s) }, s + 'px')));
@@ -857,7 +978,7 @@
       try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
 
       const exec = (cmd, val) => { editor.focus(); document.execCommand(cmd, false, val || null); saveWriteDraft(); };
-      document.querySelectorAll('.doc-toolbar .fbtn').forEach((b) =>
+      document.querySelectorAll('.doc-toolbar .fbtn[data-cmd]').forEach((b) =>
         b.addEventListener('click', () => exec(b.dataset.cmd)));
       $('ink-color').addEventListener('input', (e) => exec('foreColor', e.target.value));
       ff.addEventListener('change', (e) => exec('fontName', e.target.value));
@@ -873,45 +994,109 @@
       }
 
       let draftT;
-      editor.addEventListener('input', () => { clearTimeout(draftT); draftT = setTimeout(saveWriteDraft, 700); });
-      $('story-title').addEventListener('input', () => { clearTimeout(draftT); draftT = setTimeout(saveWriteDraft, 700); });
+      const onEdit = () => { clearTimeout(draftT); draftT = setTimeout(saveWriteDraft, 700); };
+      editor.addEventListener('input', onEdit);
+      $('story-title').addEventListener('input', onEdit);
 
-      $('save-story').addEventListener('click', () => {
+      $('view-in-font').addEventListener('click', openFontView);
+
+      $('save-story').addEventListener('click', async () => {
         if (!editor.textContent.trim()) { toast('Write something first!'); return; }
         const title = ($('story-title').value.trim()) || 'Untitled Story';
-        if (addWork({ type: 'story', title, data: { html: editor.innerHTML } })) {
-          toast('Story saved! 📖');
-        }
+        if (await addWork({ type: 'story', title, data: { html: editor.innerHTML } })) toast('Story saved! 📖');
       });
       $('new-story').addEventListener('click', () => {
         if (editor.textContent.trim() && !confirm('Start a new story? Unsaved changes will be lost.')) return;
         editor.innerHTML = ''; $('story-title').value = '';
         saveWriteDraft();
       });
-
-      const d = draftGet('iaea-draft-write');
+    }
+    async function hydrateWrite() {
+      const d = await Store.draftGet(DRAFT_KEYS.write);
       if (d) { $('story-title').value = d.title || ''; editor.innerHTML = d.html || ''; }
-    })();
-    function saveWriteDraft() {
-      draftSet('iaea-draft-write', { title: $('story-title').value, html: editor.innerHTML });
+    }
+
+    // render the editor's text using a drawn font, then show/download it
+    function glyphFor(glyphs, ch) {
+      return glyphs[ch] || glyphs[ch.toUpperCase()] || glyphs[ch.toLowerCase()] || null;
+    }
+    async function buildFontImage(text, glyphs) {
+      const H = 80, SP = 30, GAP = 6, LINE = H + 30, PAD = 36, MAXW = 900;
+      const cache = {};
+      const uniq = new Set();
+      for (const ch of text) { if (ch !== '\n' && ch !== ' ' && glyphFor(glyphs, ch)) uniq.add(ch); }
+      await Promise.all([...uniq].map(async (ch) => { cache[ch] = await loadImg(glyphFor(glyphs, ch)); }));
+
+      const lines = [];
+      let line = [], x = 0;
+      const pushLine = () => { lines.push({ items: line, width: x }); line = []; x = 0; };
+      for (const ch of text) {
+        if (ch === '\n') { pushLine(); continue; }
+        if (ch === ' ') { if (x + SP > MAXW && line.length) pushLine(); line.push({ type: 'space', w: SP }); x += SP; continue; }
+        const g = glyphFor(glyphs, ch);
+        const im = g ? cache[ch] : null;
+        const w = (im && im.naturalWidth) ? Math.round(H * im.naturalWidth / im.naturalHeight) : Math.round(H * 0.55);
+        if (x + w > MAXW && line.length) pushLine();
+        line.push(im ? { type: 'glyph', im, w } : { type: 'fallback', ch, w });
+        x += w + GAP;
+      }
+      if (line.length) pushLine();
+      if (!lines.length) lines.push({ items: [], width: 0 });
+
+      const contentW = Math.max(1, ...lines.map((l) => l.width));
+      const cv = el('canvas');
+      cv.width = Math.min(MAXW, contentW) + PAD * 2;
+      cv.height = lines.length * LINE + PAD * 2;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fdf6e3'; c.fillRect(0, 0, cv.width, cv.height);
+      c.textBaseline = 'alphabetic';
+      let y = PAD;
+      for (const l of lines) {
+        let cx = PAD;
+        for (const it of l.items) {
+          if (it.type === 'space') { cx += it.w; continue; }
+          if (it.type === 'glyph') { c.drawImage(it.im, cx, y, it.w, H); cx += it.w + GAP; continue; }
+          c.fillStyle = '#b3a577';
+          c.font = 'italic ' + Math.round(H * 0.78) + 'px Georgia, serif';
+          c.fillText(it.ch, cx, y + H * 0.86);
+          cx += it.w + GAP;
+        }
+        y += LINE;
+      }
+      return cv;
+    }
+    async function openFontView() {
+      const id = $('write-font').value;
+      if (!id) { toast('Pick one of your fonts first — make one in the Design tab!'); return; }
+      const font = savedFonts.find((f) => f.id === id);
+      if (!font) { toast('That font is gone — try another.'); return; }
+      const text = editor.innerText || '';
+      if (!text.trim()) { toast('Write something first!'); return; }
+      const cv = await buildFontImage(text, font.data.glyphs);
+      const dataUrl = cv.toDataURL('image/png');
+      const box = el('div', { class: 'viewer-box' },
+        el('button', { class: 'close-x', type: 'button', onclick: closeOverlay }, '✕'),
+        el('div', { class: 'overlay-title' }, 'Your story in "' + font.title + '"'),
+        el('div', { class: 'viewer-drawing' }, el('img', { src: dataUrl, alt: 'story rendered in font' })),
+        el('div', { class: 'overlay-actions' },
+          el('button', { class: 'btn', type: 'button', onclick: () => downloadURL(safeName(font.title) + '-story.png', dataUrl) }, '⬇ Download image'))
+      );
+      showOverlay(box);
     }
 
     // =====================================================
     //  COMIC
     // =====================================================
-    let comicCells = [];
+    let comicCells = [null];
     const comicStrip = $('comic-strip');
-    (function setupComic() {
-      const d = draftGet('iaea-draft-comic');
-      comicCells = (d && Array.isArray(d.cells) && d.cells.length) ? d.cells : [null];
-      if (d && d.title) $('comic-title').value = d.title;
+    function saveComicDraft() { Store.draftSet(DRAFT_KEYS.comic, { title: $('comic-title').value, cells: comicCells }); }
+    function setupComic() {
       renderComic();
-
-      $('save-comic').addEventListener('click', () => {
+      $('save-comic').addEventListener('click', async () => {
         const cells = comicCells.filter(Boolean);
         if (!cells.length) { toast('Draw at least one panel!'); return; }
         const title = ($('comic-title').value.trim()) || 'Untitled Comic';
-        if (addWork({ type: 'comic', title, data: { cells } })) toast('Comic saved! 💥');
+        if (await addWork({ type: 'comic', title, data: { cells } })) toast('Comic saved! 💥');
       });
       $('new-comic').addEventListener('click', () => {
         if (comicCells.some(Boolean) && !confirm('Start a new comic strip? Unsaved panels will be lost.')) return;
@@ -919,9 +1104,14 @@
         $('comic-title').value = '';
         renderComic(); saveComicDraft();
       });
-    })();
-    function saveComicDraft() {
-      draftSet('iaea-draft-comic', { title: $('comic-title').value, cells: comicCells });
+    }
+    async function hydrateComic() {
+      const d = await Store.draftGet(DRAFT_KEYS.comic);
+      if (d && Array.isArray(d.cells) && d.cells.length) {
+        comicCells = d.cells;
+        if (d.title) $('comic-title').value = d.title;
+        renderComic();
+      }
     }
     function editPanel(i) {
       openPaintOverlay({
@@ -978,21 +1168,16 @@
       { name: 'Numbers & punctuation', chars: '0123456789.,!?'.split('') },
     ];
     let currentFont = { name: '', glyphs: {} };
-    (function setupDesign() {
-      const d = draftGet('iaea-draft-font');
-      if (d && d.glyphs) currentFont = { name: d.name || '', glyphs: d.glyphs || {} };
-      $('font-name').value = currentFont.name;
-
+    function saveFontDraft() { Store.draftSet(DRAFT_KEYS.font, { name: currentFont.name, glyphs: currentFont.glyphs }); }
+    function setupDesign() {
       const sections = $('glyph-sections');
       GLYPH_SECTIONS.forEach((sec) => {
         sections.append(el('div', { class: 'glyph-section-title' }, sec.name));
         const grid = el('div', { class: 'glyph-grid' });
         sec.chars.forEach((ch) => {
-          const tile = el('button', { class: 'glyph-tile', type: 'button', 'data-ch': ch,
-            onclick: () => editGlyph(ch) },
+          grid.append(el('button', { class: 'glyph-tile', type: 'button', 'data-ch': ch, onclick: () => editGlyph(ch) },
             el('span', { class: 'tag' }, ch),
-            el('span', { class: 'ghost' }, ch));
-          grid.append(tile);
+            el('span', { class: 'ghost' }, ch)));
         });
         sections.append(grid);
       });
@@ -1000,11 +1185,13 @@
       $('fp-input').addEventListener('input', renderFontPreview);
       $('font-name').addEventListener('input', () => { currentFont.name = $('font-name').value; saveFontDraft(); });
 
-      $('save-font').addEventListener('click', () => {
-        const n = Object.keys(currentFont.glyphs).length;
-        if (!n) { toast('Draw at least one letter!'); return; }
+      $('save-font').addEventListener('click', async () => {
+        if (!Object.keys(currentFont.glyphs).length) { toast('Draw at least one letter!'); return; }
         const name = ($('font-name').value.trim()) || 'Untitled Font';
-        if (addWork({ type: 'font', title: name, data: { glyphs: currentFont.glyphs } })) toast('Font saved! 🔤');
+        if (await addWork({ type: 'font', title: name, data: { glyphs: currentFont.glyphs } })) {
+          toast('Font saved! 🔤');
+          refreshFontPickers();
+        }
       });
       $('clear-font').addEventListener('click', () => {
         if (!Object.keys(currentFont.glyphs).length) return;
@@ -1013,11 +1200,23 @@
         refreshGlyphs(); renderFontPreview(); saveFontDraft();
       });
 
+      $('export-font').addEventListener('click', () => {
+        if (!Object.keys(currentFont.glyphs).length) { toast('Draw or import some letters first!'); return; }
+        exportFontFile($('font-name').value.trim() || 'Untitled Font', currentFont.glyphs, currentFont.created);
+      });
+      $('import-font').addEventListener('click', () => $('font-file').click());
+      $('font-file').addEventListener('change', (e) => { const f = e.target.files[0]; if (f) importFontFile(f); e.target.value = ''; });
+
       refreshGlyphs();
       renderFontPreview();
-    })();
-    function saveFontDraft() {
-      draftSet('iaea-draft-font', { name: currentFont.name, glyphs: currentFont.glyphs });
+    }
+    async function hydrateDesign() {
+      const d = await Store.draftGet(DRAFT_KEYS.font);
+      if (d && d.glyphs) {
+        currentFont = { name: d.name || '', glyphs: d.glyphs || {} };
+        $('font-name').value = currentFont.name;
+        refreshGlyphs(); renderFontPreview();
+      }
     }
     function editGlyph(ch) {
       openPaintOverlay({
@@ -1049,48 +1248,77 @@
       if (!text) { host.append(el('span', { style: { color: '#bbb', fontFamily: 'Georgia' } }, 'type above…')); return; }
       for (const ch of text) {
         if (ch === ' ') { host.append(el('span', { class: 'fp-space' })); continue; }
-        const g = currentFont.glyphs[ch] || currentFont.glyphs[ch.toUpperCase()] || currentFont.glyphs[ch.toLowerCase()];
+        const g = glyphFor(currentFont.glyphs, ch);
         if (g) host.append(el('img', { class: 'fp-glyph', src: g, alt: ch }));
         else host.append(el('span', { class: 'fp-miss' }, ch));
       }
     }
 
+    // ---------- font files ----------
+    function exportFontFile(name, glyphs, created) {
+      const payload = { flocadeFont: 1, name: name, created: created || Date.now(), glyphs: glyphs };
+      const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      downloadURL(safeName(name) + '.flocadefont.json', url);
+      setTimeout(() => URL.revokeObjectURL(url), 8000);
+      toast('Font exported! 📤');
+    }
+    function importFontFile(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let obj;
+        try { obj = JSON.parse(reader.result); } catch (e) { alert('Could not read that file — it is not valid JSON.'); return; }
+        const raw = obj && (obj.glyphs || (obj.data && obj.data.glyphs));
+        if (!raw || typeof raw !== 'object') { alert("That doesn't look like a Flocade font file."); return; }
+        const clean = {};
+        for (const k in raw) { if (typeof raw[k] === 'string' && raw[k].slice(0, 5) === 'data:') clean[k] = raw[k]; }
+        if (!Object.keys(clean).length) { alert("That font file has no drawn letters."); return; }
+        currentFont = { name: obj.name || obj.title || 'Imported Font', glyphs: clean };
+        $('font-name').value = currentFont.name;
+        refreshGlyphs(); renderFontPreview(); saveFontDraft();
+        activateTab('design');
+        toast('Font imported — tap “Save font” to keep it!');
+      };
+      reader.readAsText(file);
+    }
+
     // =====================================================
     //  DRAW
     // =====================================================
-    let drawPainter;
-    (function setupDraw() {
+    let drawPainter, drawDirty = false;
+    function setupDraw() {
       drawPainter = makePainter($('draw-canvas'));
       drawPainter.color = '#111111';
       renderPaintTools($('draw-tools'), drawPainter);
 
-      let dirty = false, draftT;
+      let draftT;
       drawPainter.onChange(() => {
-        dirty = true;
+        drawDirty = true;
         clearTimeout(draftT);
         draftT = setTimeout(() => {
-          draftSet('iaea-draft-draw', exportImage($('draw-canvas'), { bg: null, type: 'image/png' }));
+          Store.draftSet(DRAFT_KEYS.draw, exportImage($('draw-canvas'), { bg: null, type: 'image/png' }));
         }, 1200);
       });
 
-      const d = draftGet('iaea-draft-draw');
-      if (d) { loadImageTo(drawPainter.ctx, d); dirty = true; }
-
-      $('save-draw').addEventListener('click', () => {
-        if (!dirty) { toast('Draw something first!'); return; }
+      $('save-draw').addEventListener('click', async () => {
+        if (!drawDirty) { toast('Draw something first!'); return; }
         const title = ($('draw-title').value.trim()) || 'Untitled Drawing';
         const url = exportImage($('draw-canvas'), { bg: '#ffffff', type: 'image/jpeg', quality: 0.85 });
-        if (addWork({ type: 'drawing', title, data: { img: url } })) toast('Drawing saved! 🎨');
+        if (await addWork({ type: 'drawing', title, data: { img: url } })) toast('Drawing saved! 🎨');
       });
-    })();
+    }
+    async function hydrateDraw() {
+      const d = await Store.draftGet(DRAFT_KEYS.draw);
+      if (d) { loadImageTo(drawPainter.ctx, d); drawDirty = true; }
+    }
 
     // =====================================================
     //  GALLERY
     // =====================================================
     const grid = $('work-grid');
     const TYPE_LABEL = { story: 'STORY', comic: 'COMIC', font: 'FONT', drawing: 'DRAWING' };
-    function renderGallery() {
-      const works = loadWorks().slice().reverse();
+    async function renderGallery() {
+      const works = (await Store.getWorks()).slice().sort((a, b) => (b.created || 0) - (a.created || 0));
       grid.innerHTML = '';
       if (!works.length) {
         grid.append(el('p', { class: 'empty-state' }, 'YOUR GALLERY IS EMPTY', el('br'), 'go create something!'));
@@ -1110,7 +1338,7 @@
         const keys = Object.keys(w.data.glyphs);
         const sample = ['A', 'B', 'C'].filter((k) => w.data.glyphs[k]);
         (sample.length ? sample : keys.slice(0, 4)).forEach((k) => thumb.append(el('img', { src: w.data.glyphs[k] })));
-      } else { // story
+      } else {
         const text = htmlToText(w.data.html).slice(0, 220);
         thumb = el('div', { class: 'work-thumb' }, el('div', { class: 'story-thumb' }, text || '(empty)'));
       }
@@ -1118,13 +1346,13 @@
       const btns = el('div', { class: 'work-btns' },
         el('button', { class: 'btn', type: 'button', onclick: () => openViewer(w) }, 'View'),
         (w.type === 'drawing' || w.type === 'comic')
-          ? el('button', { class: 'btn yellow', type: 'button', onclick: () => downloadWork(w) }, '⬇')
+          ? el('button', { class: 'btn yellow', type: 'button', title: 'Download image', onclick: () => downloadWork(w) }, '⬇')
           : null,
-        el('button', { class: 'btn ghost', type: 'button', onclick: () => {
-          if (confirm('Delete "' + w.title + '"?')) {
-            saveWorks(loadWorks().filter((x) => x.id !== w.id));
-            renderGallery();
-          }
+        (w.type === 'font')
+          ? el('button', { class: 'btn yellow', type: 'button', title: 'Export font file', onclick: () => exportFontFile(w.title, w.data.glyphs, w.created) }, '⤴')
+          : null,
+        el('button', { class: 'btn ghost', type: 'button', title: 'Delete', onclick: async () => {
+          if (confirm('Delete "' + w.title + '"?')) { await Store.delWork(w.id); await refreshFontPickers(); renderGallery(); }
         } }, '🗑')
       );
       return el('div', { class: 'work-card' },
@@ -1140,7 +1368,6 @@
       const d = el('div', { html: html || '' });
       return (d.textContent || '').replace(/\s+/g, ' ').trim();
     }
-
     function openViewer(w) {
       let body;
       if (w.type === 'story') {
@@ -1150,7 +1377,7 @@
       } else if (w.type === 'comic') {
         body = el('div', { class: 'viewer-comic' });
         (w.data.cells || []).forEach((c) => body.append(el('img', { src: c })));
-      } else { // font
+      } else {
         body = el('div', {});
         const grid2 = el('div', { class: 'glyph-grid' });
         Object.keys(w.data.glyphs).forEach((ch) => {
@@ -1164,7 +1391,7 @@
           prev.innerHTML = '';
           for (const ch of input.value) {
             if (ch === ' ') { prev.append(el('span', { class: 'fp-space' })); continue; }
-            const g = w.data.glyphs[ch] || w.data.glyphs[ch.toUpperCase()] || w.data.glyphs[ch.toLowerCase()];
+            const g = glyphFor(w.data.glyphs, ch);
             if (g) prev.append(el('img', { class: 'fp-glyph', src: g }));
             else prev.append(el('span', { class: 'fp-miss' }, ch));
           }
@@ -1180,12 +1407,11 @@
       );
       showOverlay(box);
     }
-
     function downloadWork(w) {
-      const safe = w.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-      if (w.type === 'drawing') { downloadDataURL(safe + '.jpg', w.data.img); return; }
-      // comic: stitch panels into one image
+      const safe = safeName(w.title);
+      if (w.type === 'drawing') { downloadURL(safe + '.jpg', w.data.img); return; }
       const cells = w.data.cells || [];
+      if (!cells.length) return;
       const imgs = cells.map((src) => { const im = new Image(); im.src = src; return im; });
       let loaded = 0;
       const finish = () => {
@@ -1197,26 +1423,45 @@
         c.fillStyle = '#0d0221'; c.fillRect(0, 0, cv.width, cv.height);
         let x = gap;
         imgs.forEach((im, i) => { c.drawImage(im, x, gap, widths[i], ph); x += widths[i] + gap; });
-        downloadDataURL(safe + '.png', cv.toDataURL('image/png'));
+        downloadURL(safe + '.png', cv.toDataURL('image/png'));
       };
-      if (!imgs.length) return;
       imgs.forEach((im) => {
         if (im.complete) { if (++loaded === imgs.length) finish(); }
         else im.onload = im.onerror = () => { if (++loaded === imgs.length) finish(); };
       });
     }
 
+    // ---------- custom-font pickers (Write tab) ----------
+    let savedFonts = [];
+    async function refreshFontPickers() {
+      const works = await Store.getWorks();
+      savedFonts = works.filter((w) => w.type === 'font').sort((a, b) => (b.created || 0) - (a.created || 0));
+      const sel = $('write-font');
+      const cur = sel.value;
+      sel.innerHTML = '';
+      sel.append(el('option', { value: '' }, savedFonts.length ? 'My font…' : 'No fonts yet'));
+      savedFonts.forEach((f) => sel.append(el('option', { value: f.id }, f.title)));
+      if (savedFonts.some((f) => f.id === cur)) sel.value = cur;
+    }
+
     // =====================================================
-    //  TABS
+    //  TABS + INIT
     // =====================================================
-    document.getElementById('tabs').addEventListener('click', (e) => {
-      const btn = e.target.closest('.tab');
-      if (!btn) return;
-      const name = btn.dataset.tab;
-      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === btn));
+    function activateTab(name) {
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
       document.querySelectorAll('.panel').forEach((p) => p.classList.toggle('active', p.id === 'panel-' + name));
       if (name === 'gallery') renderGallery();
-    });
+    }
+    function wireTabs() {
+      $('tabs').addEventListener('click', (e) => { const b = e.target.closest('.tab'); if (b) activateTab(b.dataset.tab); });
+    }
+
+    (async function init() {
+      try { await DB.open(); useIDB = true; } catch (e) { useIDB = false; }
+      await migrateFromLocalStorage();
+      setupWrite(); setupComic(); setupDesign(); setupDraw(); wireTabs();
+      await Promise.all([hydrateWrite(), hydrateComic(), hydrateDesign(), hydrateDraw(), refreshFontPickers()]);
+    })();
   })();
   </script>
 </body>
