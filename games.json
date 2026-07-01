@@ -76,5 +76,11 @@
     "title": "Speed Tables",
     "icon": "🧮",
     "description": "Times tables sprint! Score as many 12×12 answers as you can in 60 seconds."
+  },
+  {
+    "slug": "germ-racers",
+    "title": "Germ Racers",
+    "icon": "🦠",
+    "description": "Top-down racing through the gut! Pick a germ, dodge the immune system, and burst out the far end first."
   }
 ]
