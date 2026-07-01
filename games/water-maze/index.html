@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d0221">
+  <title>Water Maze — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.5rem 0.9rem;
+      padding: 0.55rem 0.8rem;
+      border-bottom: 2px solid #2b1670;
+      z-index: 2;
+    }
+    a.back { color: #00f0ff; font-size: 0.6rem; text-decoration: none; white-space: nowrap; }
+    h1 { font-size: 0.75rem; color: #ff2e88; text-shadow: 0 0 8px rgba(255,46,136,.6); white-space: nowrap; }
+    .hud { display: flex; gap: 0.8rem; font-size: 0.6rem; color: #ffe600; align-items: center; }
+    .hud #waterLabel { color: #00f0ff; }
+    .btns { display: flex; gap: 0.4rem; margin-left: auto; }
+    .btns button {
+      font-family: inherit;
+      font-size: 0.55rem;
+      color: #e8e6f0;
+      background: #1a0b45;
+      border: 2px solid #2b1670;
+      padding: 0.4rem 0.5rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .btns button.on { border-color: #00f0ff; color: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,.4); }
+    #stage {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+    #game {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: grab;
+    }
+    #game:active { cursor: grabbing; }
+    #dpad {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(3, 52px);
+      gap: 4px;
+      opacity: 0.9;
+      z-index: 5;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #dpad.hidden { display: none; }
+    #dpad button {
+      font-family: inherit;
+      font-size: 1rem;
+      color: #00f0ff;
+      background: rgba(13, 2, 33, 0.6);
+      border: 2px solid rgba(0, 240, 255, 0.35);
+      border-radius: 8px;
+      touch-action: none;
+      cursor: pointer;
+    }
+    #dpad button:active, #dpad button.held { background: rgba(0, 240, 255, 0.25); border-color: #00f0ff; }
+    #dpad .up    { grid-area: 1 / 2; }
+    #dpad .left  { grid-area: 2 / 1; }
+    #dpad .right { grid-area: 2 / 3; }
+    #dpad .down  { grid-area: 3 / 2; }
+    #toast {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      color: #ffe600;
+      text-shadow: 0 2px 6px rgba(0,0,0,.8), 0 0 10px rgba(255,230,0,.5);
+      text-align: center;
+      line-height: 1.8;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.4s;
+      z-index: 6;
+      padding: 0 1rem;
+      max-width: 100%;
+    }
+    #toast.show { opacity: 1; }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 2, 33, 0.82);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      overflow-y: auto;
+    }
+    #overlay.hidden { display: none; }
+    .panel { text-align: center; line-height: 2; padding: 1rem; max-width: 480px; }
+    .panel .big { font-size: 2.6rem; line-height: 1.4; }
+    .panel h2 { font-size: 1rem; color: #ff2e88; text-shadow: 0 0 10px rgba(255,46,136,.7); margin: 0.6rem 0; }
+    .panel p { font-size: 0.6rem; color: #cfc8e8; line-height: 1.9; margin: 0.6rem 0; }
+    .panel p.gold { color: #ffe600; }
+    .panel button {
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #0d0221;
+      background: #00f0ff;
+      border: none;
+      padding: 0.8rem 1.2rem;
+      margin: 0.5rem 0.3rem;
+      cursor: pointer;
+      border-radius: 4px;
+      box-shadow: 0 0 12px rgba(0,240,255,.5);
+    }
+    .panel button.alt { background: #ff2e88; color: #fff; box-shadow: 0 0 12px rgba(255,46,136,.5); }
+    .lvlGrid { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; margin: 0.8rem 0; }
+    .lvlGrid button {
+      width: 3rem; height: 3rem;
+      padding: 0;
+      font-size: 0.7rem;
+      background: #1a0b45;
+      color: #00f0ff;
+      border: 2px solid #2b1670;
+      box-shadow: none;
+    }
+    .lvlGrid button:disabled { color: #4a3d70; cursor: default; }
+    .lvlGrid button.done { border-color: #ffe600; color: #ffe600; }
+    .hint { font-size: 0.5rem; color: #9b93b8; text-align: center; line-height: 1.9; padding: 0.4rem 0.6rem; }
+    @media (max-height: 520px) { .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../">&larr; FLOCADE</a>
+    <h1>WATER MAZE</h1>
+    <div class="hud">
+      <span id="lvlLabel">L1</span>
+      <span id="waterLabel">💧 0/0</span>
+    </div>
+    <div class="btns">
+      <button id="resetBtn" title="Restart level">↺</button>
+      <button id="menuBtn" title="Level select">🗺</button>
+      <button id="tiltBtn" title="Tilt controls">📱 TILT</button>
+      <button id="padBtn" title="On-screen pad">🕹 PAD</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="dpad" class="hidden">
+      <button class="up" data-d="up">▲</button>
+      <button class="left" data-d="left">◀</button>
+      <button class="right" data-d="right">▶</button>
+      <button class="down" data-d="down">▼</button>
+    </div>
+    <div id="toast"></div>
+    <div id="overlay"><div class="panel" id="panel"></div></div>
+  </div>
+
+  <p class="hint">TIP THE MAZE in all directions &middot; tilt your phone / drag the board / arrows &amp; WASD / pad &middot; R restarts</p>
+
+  <script type="importmap">{ "imports": { "three": "./three.module.min.js" } }</script>
+  <script type="module">
+    import * as THREE from 'three';
+
+    // ---------- Levels ----------
+    // Legend: # wall, . floor, S water spawn, F frog, X toxic goo
+    const LEVELS = [
+      {
+        name: 'FIRST SIP',
+        grid: [
+          '###########',
+          '#....S....#',
+          '#.........#',
+          '####....###',
+          '#.........#',
+          '#.........#',
+          '#...####..#',
+          '#.........#',
+          '#.........#',
+          '#..####...#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'ZIG ZAG',
+        grid: [
+          '###########',
+          '#S........#',
+          '#.......###',
+          '#........##',
+          '######....#',
+          '#.........#',
+          '##....#####',
+          '#.........#',
+          '#....######',
+          '#.........#',
+          '######....#',
+          '#.........#',
+          '##.....####',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THE LONG WAY DOWN',
+        grid: [
+          '###########',
+          '#S...#....#',
+          '#....#....#',
+          '###.###.###',
+          '#....#....#',
+          '#....#....#',
+          '#.####..###',
+          '#....#....#',
+          '##...#..#.#',
+          '#..#...##.#',
+          '#..#.#....#',
+          '#.##...####',
+          '#....#....#',
+          '#....#.F..#',
+          '###########',
+        ],
+      },
+      {
+        name: 'TWO PUDDLES',
+        grid: [
+          '###########',
+          '#S...#...S#',
+          '#....#....#',
+          '#.##...##.#',
+          '#.........#',
+          '#####.#####',
+          '#.........#',
+          '#..#####..#',
+          '#..#...#..#',
+          '#..#...#..#',
+          '#....#....#',
+          '###..#..###',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'SPLIT STREAMS',
+        grid: [
+          '###########',
+          '#....#....#',
+          '#.S..#..S.#',
+          '#....#....#',
+          '#.#######.#',
+          '#.#.....#.#',
+          '#.#.....#.#',
+          '#.#..#..#.#',
+          '#....#....#',
+          '####.#.####',
+          '#....#....#',
+          '#.##.#.##.#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THREE SPRINGS',
+        grid: [
+          '#############',
+          '#S....#....S#',
+          '#.....#.....#',
+          '###.#####.###',
+          '#...#...#...#',
+          '#.#.#.S.#.#.#',
+          '#.#.#...#.#.#',
+          '#.#.##.##.#.#',
+          '#.#.......#.#',
+          '#.#########.#',
+          '#.....#.....#',
+          '#####.#.#####',
+          '#...........#',
+          '#.....F.....#',
+          '#############',
+        ],
+      },
+      {
+        name: 'TOXIC TUNNELS',
+        grid: [
+          '###########',
+          '#S...#...S#',
+          '#....#....#',
+          '#.........#',
+          '####.#.####',
+          '#....#....#',
+          '#.X..#..X.#',
+          '#....#....#',
+          '#.##...##.#',
+          '#....X....#',
+          '#.#.###.#.#',
+          '#.........#',
+          '#....F....#',
+          '###########',
+        ],
+      },
+      {
+        name: 'THE FROG GAUNTLET',
+        grid: [
+          '#############',
+          '#S....#....S#',
+          '#.....#.....#',
+          '#.#########.#',
+          '#...#...#...#',
+          '#.X.#.S.#.X.#',
+          '#...#...#...#',
+          '#.#.#...#.#.#',
+          '#.#...X...#.#',
+          '#.#.#####.#.#',
+          '#...#...#...#',
+          '##.##...##.##',
+          '#.....X.....#',
+          '#..#.....#..#',
+          '#.....F.....#',
+          '#############',
+        ],
+      },
+    ];
+
+    // ---------- Constants ----------
+    const CELL = 48;             // world units per maze cell
+    const PR = 5.5;              // fluid particle radius
+    const PPB = 34;              // particles per blob
+    const G = 4200;              // gravity (world units / s^2), scaled by board tilt
+    const MAXTILT = 0.27;        // radians of board tilt at full input (~15°)
+    const TILT_SPEED = 7;        // how fast the board answers the controls
+    const MAXV = 900;
+    const SUB = 3;               // physics substeps
+    const WIN_FRACTION = 0.7;
+    const GOO_R = 15.5;
+    const WALL_H = 24;
+    const WATER_STEP = 8;        // heightfield resolution
+    const WATER_R = 15;          // heightfield splat radius
+    const WATER_MAXH = 13;
+    const WATER_SINK = 4;        // resting surface sits this far under the floor
+
+    // ---------- DOM ----------
+    const canvas = document.getElementById('game');
+    const stage = document.getElementById('stage');
+    const overlay = document.getElementById('overlay');
+    const panel = document.getElementById('panel');
+    const toastEl = document.getElementById('toast');
+    const dpadEl = document.getElementById('dpad');
+    const lvlLabel = document.getElementById('lvlLabel');
+    const waterLabel = document.getElementById('waterLabel');
+    const tiltBtn = document.getElementById('tiltBtn');
+    const padBtn = document.getElementById('padBtn');
+
+    // ---------- Save data ----------
+    const SAVE_KEY = 'flocade-water-maze-v1';
+    let save = { unlocked: 1, done: [], pad: null, tilt: false };
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (raw) save = Object.assign(save, JSON.parse(raw));
+    } catch (e) {}
+    function persist() {
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+    }
+
+    // ---------- Game state ----------
+    let state = 'menu';          // menu | playing | won | failed
+    let levelIndex = 0;
+    let gw = 0, gh = 0;          // maze size in cells
+    let walls = [];
+    let goos = [];               // {x, z, mesh, bubbles, ph}
+    let frogPos = null;          // {x, z}
+    let particles = [];
+    let totalWater = 0, delivered = 0, needed = 0;
+    let frogGulp = 0;
+    let failTimer = null;
+    let time = 0;
+
+    // ---------- Input ----------
+    const keyDir = { up: false, down: false, left: false, right: false };
+    const padDir = { up: false, down: false, left: false, right: false };
+    let tiltOn = false;
+    const tiltSensor = { x: 0, y: 0, t: -1e9 };
+    const tiltSupported = 'DeviceOrientationEvent' in window;
+    const isTouch = window.matchMedia('(pointer: coarse)').matches;
+    let padOn = save.pad === null ? isTouch : !!save.pad;
+    let drag = { active: false, sx: 0, sy: 0, x: 0, y: 0 };
+
+    const KEYMAP = {
+      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+      w: 'up', s: 'down', a: 'left', d: 'right',
+      W: 'up', S: 'down', A: 'left', D: 'right',
+    };
+    document.addEventListener('keydown', e => {
+      const d = KEYMAP[e.key];
+      if (d) { keyDir[d] = true; e.preventDefault(); }
+      if (e.key === 'r' || e.key === 'R') restartLevel();
+    });
+    document.addEventListener('keyup', e => {
+      const d = KEYMAP[e.key];
+      if (d) keyDir[d] = false;
+    });
+    window.addEventListener('blur', () => {
+      for (const k in keyDir) keyDir[k] = false;
+    });
+
+    dpadEl.querySelectorAll('button').forEach(btn => {
+      const d = btn.dataset.d;
+      const press = e => { e.preventDefault(); padDir[d] = true; btn.classList.add('held'); initAudio(); };
+      const release = () => { padDir[d] = false; btn.classList.remove('held'); };
+      btn.addEventListener('pointerdown', press);
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointercancel', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+    });
+
+    function updatePadUI() {
+      dpadEl.classList.toggle('hidden', !padOn || state !== 'playing');
+      padBtn.classList.toggle('on', padOn);
+    }
+    padBtn.addEventListener('click', () => {
+      padOn = !padOn;
+      save.pad = padOn;
+      persist();
+      updatePadUI();
+    });
+
+    // drag the board to tip it
+    canvas.addEventListener('pointerdown', e => {
+      initAudio();
+      if (state !== 'playing') return;
+      drag.active = true;
+      drag.sx = e.clientX; drag.sy = e.clientY;
+      drag.x = 0; drag.y = 0;
+      canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (!drag.active) return;
+      drag.x = Math.max(-1, Math.min(1, (e.clientX - drag.sx) / 130));
+      drag.y = Math.max(-1, Math.min(1, (e.clientY - drag.sy) / 130));
+    });
+    const endDrag = () => { drag.active = false; drag.x = 0; drag.y = 0; };
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+
+    // device tilt — holding the phone flat is a level board
+    window.addEventListener('deviceorientation', e => {
+      if (e.beta === null || e.gamma === null) return;
+      const gx = Math.max(-1, Math.min(1, e.gamma / 30));
+      const gy = Math.max(-1, Math.min(1, e.beta / 30));
+      let ang = 0;
+      if (screen.orientation && typeof screen.orientation.angle === 'number') ang = screen.orientation.angle;
+      else if (typeof window.orientation === 'number') ang = window.orientation;
+      const a = ang * Math.PI / 180;
+      tiltSensor.x = gx * Math.cos(a) + gy * Math.sin(a);
+      tiltSensor.y = -gx * Math.sin(a) + gy * Math.cos(a);
+      tiltSensor.t = performance.now();
+    });
+
+    function enableTilt() {
+      const done = () => {
+        tiltOn = true;
+        save.tilt = true;
+        persist();
+        updateTiltUI();
+        toast('TILT ON — hold your phone flat,<br>then tip it to pour!');
+      };
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+          .then(res => { if (res === 'granted') done(); else toast('Tilt permission denied'); })
+          .catch(() => toast('Tilt not available'));
+      } else {
+        done();
+      }
+    }
+    function updateTiltUI() {
+      tiltBtn.classList.toggle('on', tiltOn);
+      tiltBtn.style.display = tiltSupported ? '' : 'none';
+    }
+    tiltBtn.addEventListener('click', () => {
+      initAudio();
+      if (tiltOn) {
+        tiltOn = false;
+        save.tilt = false;
+        persist();
+        updateTiltUI();
+        toast('TILT OFF');
+      } else {
+        enableTilt();
+      }
+    });
+    if (save.tilt && tiltSupported &&
+        !(typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function')) {
+      tiltOn = true;
+    }
+
+    document.getElementById('resetBtn').addEventListener('click', () => { initAudio(); restartLevel(); });
+    document.getElementById('menuBtn').addEventListener('click', () => { initAudio(); showMenu(); });
+
+    // Target board tilt, a unit vector at most. x → screen right, y → screen down.
+    function currentControl() {
+      let x = 0, y = 0;
+      if (keyDir.up || padDir.up) y -= 1;
+      if (keyDir.down || padDir.down) y += 1;
+      if (keyDir.left || padDir.left) x -= 1;
+      if (keyDir.right || padDir.right) x += 1;
+      if (x || y) {
+        const m = Math.hypot(x, y);
+        return { x: x / m, y: y / m };
+      }
+      if (drag.active) return { x: drag.x, y: drag.y };
+      if (tiltOn && performance.now() - tiltSensor.t < 1500) {
+        let tx = tiltSensor.x, ty = tiltSensor.y;
+        const m = Math.hypot(tx, ty);
+        if (m > 1) { tx /= m; ty /= m; }
+        return { x: tx, y: ty };
+      }
+      return { x: 0, y: 0 };
+    }
+
+    // ---------- Audio ----------
+    let AC = null, noiseBuf = null;
+    function initAudio() {
+      if (!AC) {
+        try {
+          AC = new (window.AudioContext || window.webkitAudioContext)();
+          noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.3, AC.sampleRate);
+          const d = noiseBuf.getChannelData(0);
+          for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        } catch (e) {}
+      }
+      if (AC && AC.state === 'suspended') AC.resume();
+    }
+    document.addEventListener('pointerdown', initAudio, { once: true });
+
+    function tone(freq, dur, type, vol, when, slideTo) {
+      if (!AC || AC.state !== 'running') return;
+      const t0 = AC.currentTime + (when || 0);
+      const osc = AC.createOscillator();
+      const g = AC.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, t0);
+      if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(vol || 0.12, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g).connect(AC.destination);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    }
+    let lastSplashSfx = 0;
+    function sfxSplash(vol) {
+      if (!AC || AC.state !== 'running' || !noiseBuf) return;
+      const now = performance.now();
+      if (now - lastSplashSfx < 120) return;
+      lastSplashSfx = now;
+      const t0 = AC.currentTime;
+      const src = AC.createBufferSource();
+      src.buffer = noiseBuf;
+      const bp = AC.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1400, t0);
+      bp.frequency.exponentialRampToValueAtTime(500, t0 + 0.18);
+      bp.Q.value = 0.8;
+      const g = AC.createGain();
+      g.gain.setValueAtTime(Math.min(0.18, vol), t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      src.connect(bp).connect(g).connect(AC.destination);
+      src.start(t0);
+      src.stop(t0 + 0.22);
+    }
+    let lastGulp = 0;
+    function sfxGulp() {
+      const now = performance.now();
+      if (now - lastGulp < 90) return;
+      lastGulp = now;
+      tone(560, 0.12, 'sine', 0.1, 0, 190);
+    }
+    function sfxFizz() { tone(200, 0.25, 'sawtooth', 0.06, 0, 60); }
+    function sfxWin() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'square', 0.08, i * 0.13)); }
+    function sfxFail() { [300, 220, 150].forEach((f, i) => tone(f, 0.3, 'triangle', 0.1, i * 0.18)); }
+
+    // ---------- Procedural textures ----------
+    function canvasTexture(size, draw, repeatX, repeatY) {
+      const c = document.createElement('canvas');
+      c.width = c.height = size;
+      draw(c.getContext('2d'), size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      if (repeatX) tex.repeat.set(repeatX, repeatY || repeatX);
+      tex.anisotropy = 8;
+      return tex;
+    }
+    function drawWood(ctx, s, base, dark) {
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, s, s);
+      // plank seams
+      ctx.strokeStyle = 'rgba(40,20,8,0.35)';
+      ctx.lineWidth = 2;
+      for (let y = 0; y <= s; y += s / 4) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke();
+      }
+      // grain
+      for (let i = 0; i < 160; i++) {
+        const y0 = Math.random() * s;
+        const amp = 1 + Math.random() * 3;
+        const alpha = 0.04 + Math.random() * 0.09;
+        ctx.strokeStyle = 'rgba(' + dark + ',' + alpha + ')';
+        ctx.lineWidth = 0.5 + Math.random() * 1.6;
+        ctx.beginPath();
+        for (let x = 0; x <= s; x += 8) {
+          const y = y0 + Math.sin(x * 0.02 + i) * amp + Math.sin(x * 0.11 + i * 3) * amp * 0.4;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      // knots
+      for (let i = 0; i < 5; i++) {
+        const x = Math.random() * s, y = Math.random() * s;
+        for (let r = 8; r > 1; r -= 2) {
+          ctx.strokeStyle = 'rgba(' + dark + ',' + (0.10 + (8 - r) * 0.02) + ')';
+          ctx.beginPath();
+          ctx.ellipse(x, y, r * 1.6, r, 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+    function drawSky(ctx, s) {
+      // equirect: top half sky, bottom half desert haze
+      const g = ctx.createLinearGradient(0, 0, 0, s);
+      g.addColorStop(0.0, '#1e4f9e');
+      g.addColorStop(0.30, '#5f9fdc');
+      g.addColorStop(0.48, '#cfe4ee');
+      g.addColorStop(0.52, '#f2d9a8');
+      g.addColorStop(0.7, '#cfa06b');
+      g.addColorStop(1.0, '#9a7449');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+      // the drying sun
+      const sx = s * 0.7, sy = s * 0.26;
+      const glow = ctx.createRadialGradient(sx, sy, 2, sx, sy, s * 0.2);
+      glow.addColorStop(0, 'rgba(255,255,240,1)');
+      glow.addColorStop(0.12, 'rgba(255,244,180,0.95)');
+      glow.addColorStop(0.4, 'rgba(255,220,130,0.35)');
+      glow.addColorStop(1, 'rgba(255,210,120,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, s, s);
+      // a few soft clouds
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 12; i++) {
+        const x = Math.random() * s, y = s * (0.2 + Math.random() * 0.2);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 30 + Math.random() * 60, 6 + Math.random() * 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    function drawSand(ctx, s) {
+      ctx.fillStyle = '#c99e63';
+      ctx.fillRect(0, 0, s, s);
+      for (let i = 0; i < 4000; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(90,60,30,0.08)' : 'rgba(255,240,200,0.08)';
+        ctx.fillRect(Math.random() * s, Math.random() * s, 1.5, 1.5);
+      }
+      // ripples
+      ctx.strokeStyle = 'rgba(120,85,45,0.12)';
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 30; i++) {
+        const y0 = Math.random() * s;
+        ctx.beginPath();
+        for (let x = 0; x <= s; x += 16) {
+          const y = y0 + Math.sin(x * 0.03 + i * 2) * 6;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // ---------- Three.js setup ----------
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    } catch (e) {
+      document.getElementById('panel').innerHTML =
+        '<h2>NO WEBGL</h2><p>This game needs WebGL / 3D graphics, which your browser blocked or does not support.</p>';
+      throw e;
+    }
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    const skyTex = canvasTexture(1024, drawSky);
+    skyTex.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = skyTex;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(skyTex).texture;
+
+    const camera = new THREE.PerspectiveCamera(50, 1, 10, 6000);
+
+    // lights
+    const sunLight = new THREE.DirectionalLight(0xfff1d6, 3.2);
+    sunLight.position.set(320, 520, -300);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.bias = -0.0004;
+    scene.add(sunLight);
+    scene.add(new THREE.HemisphereLight(0xcfe3ff, 0xc9a06b, 0.55));
+
+    // visible sun
+    const sunMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(38, 24, 24),
+      new THREE.MeshBasicMaterial({ color: 0xfff6c0, toneMapped: false })
+    );
+    sunMesh.position.copy(sunLight.position).multiplyScalar(2.2);
+    scene.add(sunMesh);
+
+    // desert far below the floating board
+    const sandTex = canvasTexture(512, drawSand, 18, 18);
+    const desert = new THREE.Mesh(
+      new THREE.PlaneGeometry(9000, 9000),
+      new THREE.MeshStandardMaterial({ map: sandTex, roughness: 1 })
+    );
+    desert.rotation.x = -Math.PI / 2;
+    desert.position.y = -260;
+    scene.add(desert);
+
+    // the tilting board
+    const boardTilt = new THREE.Group();
+    scene.add(boardTilt);
+    let content = null;          // per-level children, offset to centre the maze
+
+    // ---------- Shared materials ----------
+    const floorTex = canvasTexture(512, (c, s) => drawWood(c, s, '#b98d5a', '60,35,15'), 3, 3);
+    const wallTex = canvasTexture(512, (c, s) => drawWood(c, s, '#7d5636', '35,18,8'), 1, 1);
+    const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.75, metalness: 0 });
+    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.65, metalness: 0 });
+    const rimMat = new THREE.MeshStandardMaterial({ map: wallTex, color: 0xcfa87a, roughness: 0.6 });
+
+    const waterMat = new THREE.MeshPhysicalMaterial({
+      transmission: 1,
+      roughness: 0.05,
+      metalness: 0,
+      ior: 1.33,
+      thickness: 12,
+      attenuationColor: new THREE.Color(0xe4f6fb),
+      attenuationDistance: 90,
+      clearcoat: 1,
+      clearcoatRoughness: 0.06,
+      envMapIntensity: 1.35,
+      specularIntensity: 1,
+    });
+
+    const gooMat = new THREE.MeshPhysicalMaterial({
+      color: 0x2fae12,
+      roughness: 0.18,
+      clearcoat: 1,
+      clearcoatRoughness: 0.15,
+      transmission: 0.35,
+      thickness: 8,
+      emissive: 0x0a3502,
+      emissiveIntensity: 0.7,
+    });
+    const gooStainMat = new THREE.MeshStandardMaterial({
+      color: 0x1e3a10, roughness: 1, transparent: true, opacity: 0.55,
+    });
+
+    const frogBodyMat = new THREE.MeshPhysicalMaterial({
+      color: 0x3f9c46, roughness: 0.4, clearcoat: 0.65, clearcoatRoughness: 0.3,
+    });
+    const frogBellyMat = new THREE.MeshStandardMaterial({ color: 0xcbe3a0, roughness: 0.6 });
+    const eyeWhiteMat = new THREE.MeshStandardMaterial({ color: 0xfff8e0, roughness: 0.25 });
+    const eyePupilMat = new THREE.MeshStandardMaterial({ color: 0x1a1a12, roughness: 0.15 });
+    const dishMat = new THREE.MeshPhysicalMaterial({
+      color: 0x39708c, roughness: 0.2, clearcoat: 0.8, clearcoatRoughness: 0.2,
+    });
+    const dropMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, roughness: 0.08, metalness: 0,
+      transparent: true, opacity: 0.6, envMapIntensity: 1.6,
+    });
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xdff6ff, transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+    });
+
+    // ---------- Level construction ----------
+    let waterMesh = null, waterGeom = null;
+    let fCols = 0, fRows = 0, field = null, fieldTarget = null, fieldTmp = null;
+    let frogGroup = null, frogBaseY = 0;
+    let dropMesh = null;
+    const drops = [];
+    const DROP_MAX = 240;
+    const rings = [];
+
+    function disposeContent() {
+      if (!content) return;
+      content.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      boardTilt.remove(content);
+      content = null;
+    }
+
+    function buildLevel(def) {
+      disposeContent();
+      const rows = def.grid;
+      gh = rows.length;
+      gw = rows[0].length;
+      walls = rows.map(r => [...r].map(c => c === '#'));
+      goos = [];
+      frogPos = null;
+      const spawns = [];
+      const W = gw * CELL, H = gh * CELL;
+
+      content = new THREE.Group();
+      content.position.set(-W / 2, 0, -H / 2);
+      boardTilt.add(content);
+
+      // floor slab (top surface at y = 0)
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(W, 14, H), floorMat);
+      floor.position.set(W / 2, -7, H / 2);
+      floor.receiveShadow = true;
+      content.add(floor);
+
+      // walls — greedy-merge horizontal runs into boxes, instanced
+      const runs = [];
+      for (let y = 0; y < gh; y++) {
+        let x = 0;
+        while (x < gw) {
+          if (!walls[y][x]) { x++; continue; }
+          let x2 = x;
+          while (x2 + 1 < gw && walls[y][x2 + 1]) x2++;
+          runs.push({ x, y, len: x2 - x + 1 });
+          x = x2 + 1;
+        }
+      }
+      const wallInst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), wallMat, runs.length);
+      const m4 = new THREE.Matrix4();
+      runs.forEach((r, i) => {
+        m4.makeScale(r.len * CELL, WALL_H, CELL);
+        m4.setPosition((r.x + r.len / 2) * CELL, WALL_H / 2, (r.y + 0.5) * CELL);
+        wallInst.setMatrixAt(i, m4);
+      });
+      wallInst.castShadow = true;
+      wallInst.receiveShadow = true;
+      content.add(wallInst);
+
+      // rounded rim on the outer border so it reads as a hand-held box
+      const rimT = 6;
+      const rimGeo = new THREE.BoxGeometry(1, 1, 1);
+      [
+        [W / 2, -rimT / 2, W + rimT * 2, rimT],
+        [W / 2, H + rimT / 2, W + rimT * 2, rimT],
+        [-rimT / 2, H / 2, rimT, H],
+        [W + rimT / 2, H / 2, rimT, H],
+      ].forEach(([cx, cz, sx, sz]) => {
+        const rim = new THREE.Mesh(rimGeo, rimMat);
+        rim.scale.set(sx, WALL_H + 6, sz);
+        rim.position.set(cx, (WALL_H + 6) / 2 - 3, cz);
+        rim.castShadow = true;
+        content.add(rim);
+      });
+
+      // parse cells
+      rows.forEach((row, y) => [...row].forEach((c, x) => {
+        const wx = (x + 0.5) * CELL, wz = (y + 0.5) * CELL;
+        if (c === 'S') spawns.push({ x: wx, z: wz });
+        if (c === 'F') frogPos = { x: wx, z: wz };
+        if (c === 'X') {
+          const stain = new THREE.Mesh(new THREE.CircleGeometry(GOO_R * 1.45, 24), gooStainMat);
+          stain.rotation.x = -Math.PI / 2;
+          stain.position.set(wx, 0.3, wz);
+          content.add(stain);
+          const blob = new THREE.Mesh(new THREE.SphereGeometry(GOO_R, 24, 18), gooMat);
+          blob.scale.set(1, 0.48, 1);
+          blob.position.set(wx, 2, wz);
+          blob.castShadow = true;
+          content.add(blob);
+          const bubbles = [];
+          for (let b = 0; b < 3; b++) {
+            const bub = new THREE.Mesh(new THREE.SphereGeometry(1.7, 8, 6), gooMat);
+            content.add(bub);
+            bubbles.push(bub);
+          }
+          goos.push({ x: wx, z: wz, mesh: blob, bubbles, ph: (x * 7 + y * 13) % 6 });
+        }
+      }));
+
+      // the frog and its drinking dish
+      const dish = new THREE.Mesh(new THREE.CylinderGeometry(21, 17, 5, 28), dishMat);
+      dish.position.set(frogPos.x, 2.5, frogPos.z);
+      dish.receiveShadow = true;
+      content.add(dish);
+      const dishWater = new THREE.Mesh(new THREE.CircleGeometry(18, 24), waterMat);
+      dishWater.rotation.x = -Math.PI / 2;
+      dishWater.position.set(frogPos.x, 4.6, frogPos.z);
+      content.add(dishWater);
+
+      // frog sits just behind its dish, facing the middle of the board
+      const away = new THREE.Vector3(frogPos.x - W / 2, 0, frogPos.z - H / 2);
+      if (away.lengthSq() < 1) away.set(0, 0, 1);
+      away.normalize();
+      frogGroup = makeFrog();
+      frogGroup.scale.setScalar(1.35);
+      frogGroup.position.set(frogPos.x + away.x * 24, 3, frogPos.z + away.z * 24);
+      frogBaseY = 3;
+      frogGroup.lookAt(new THREE.Vector3(W / 2, 3, H / 2));
+      content.add(frogGroup);
+
+      // water heightfield mesh
+      fCols = Math.floor(W / WATER_STEP) + 1;
+      fRows = Math.floor(H / WATER_STEP) + 1;
+      field = new Float32Array(fCols * fRows);
+      fieldTarget = new Float32Array(fCols * fRows);
+      fieldTmp = new Float32Array(fCols * fRows);
+      waterGeom = new THREE.BufferGeometry();
+      const pos = new Float32Array(fCols * fRows * 3);
+      for (let r = 0; r < fRows; r++) {
+        for (let c = 0; c < fCols; c++) {
+          const i = (r * fCols + c) * 3;
+          pos[i] = c * WATER_STEP;
+          pos[i + 1] = -WATER_SINK;
+          pos[i + 2] = r * WATER_STEP;
+        }
+      }
+      const idx = new Uint32Array((fCols - 1) * (fRows - 1) * 6);
+      let k = 0;
+      for (let r = 0; r < fRows - 1; r++) {
+        for (let c = 0; c < fCols - 1; c++) {
+          const a = r * fCols + c, b = a + 1, cc = a + fCols, dd = cc + 1;
+          idx[k++] = a; idx[k++] = cc; idx[k++] = b;
+          idx[k++] = b; idx[k++] = cc; idx[k++] = dd;
+        }
+      }
+      waterGeom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      waterGeom.setIndex(new THREE.BufferAttribute(idx, 1));
+      waterGeom.computeVertexNormals();
+      waterMesh = new THREE.Mesh(waterGeom, waterMat);
+      content.add(waterMesh);
+
+      // splash droplets
+      dropMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(2.1, 8, 6), dropMat, DROP_MAX);
+      dropMesh.count = DROP_MAX;
+      dropMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+      for (let i = 0; i < DROP_MAX; i++) {
+        dropMesh.setMatrixAt(i, zero);
+        dropMesh.setColorAt(i, new THREE.Color(0xdff6ff));
+      }
+      content.add(dropMesh);
+      drops.length = 0;
+
+      // shadow camera fits the board
+      const ext = Math.max(W, H) * 0.78;
+      sunLight.shadow.camera.left = -ext;
+      sunLight.shadow.camera.right = ext;
+      sunLight.shadow.camera.top = ext;
+      sunLight.shadow.camera.bottom = -ext;
+      sunLight.shadow.camera.far = 2000;
+      sunLight.shadow.camera.updateProjectionMatrix();
+
+      return spawns;
+    }
+
+    function makeFrog() {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.SphereGeometry(13, 24, 18), frogBodyMat);
+      body.scale.set(1.1, 0.78, 1.25);
+      body.position.y = 9;
+      body.castShadow = true;
+      g.add(body);
+      const belly = new THREE.Mesh(new THREE.SphereGeometry(10, 18, 14), frogBellyMat);
+      belly.scale.set(0.95, 0.6, 1);
+      belly.position.set(0, 6.5, 3.5);
+      g.add(belly);
+      for (const s of [-1, 1]) {
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(4.6, 16, 12), frogBodyMat);
+        bulb.position.set(s * 6.2, 18.5, 6.5);
+        bulb.castShadow = true;
+        g.add(bulb);
+        const white = new THREE.Mesh(new THREE.SphereGeometry(3, 12, 10), eyeWhiteMat);
+        white.position.set(s * 6.2, 19.6, 8);
+        g.add(white);
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(1.5, 10, 8), eyePupilMat);
+        pupil.position.set(s * 6.2, 19.8, 10);
+        g.add(pupil);
+        // haunches
+        const leg = new THREE.Mesh(new THREE.SphereGeometry(6, 14, 10), frogBodyMat);
+        leg.scale.set(1, 0.65, 1.5);
+        leg.position.set(s * 12, 4.5, -3);
+        leg.castShadow = true;
+        g.add(leg);
+        // front feet
+        const foot = new THREE.Mesh(new THREE.SphereGeometry(2.6, 10, 8), frogBodyMat);
+        foot.scale.set(1.2, 0.5, 1.4);
+        foot.position.set(s * 6, 1.5, 9);
+        g.add(foot);
+      }
+      // the face is built toward +z, which lookAt points at the target
+      const wrap = new THREE.Group();
+      wrap.add(g);
+      return wrap;
+    }
+
+    // ---------- Camera ----------
+    function fitView() {
+      const w = stage.clientWidth, h = stage.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      if (gw) {
+        const W = gw * CELL, H = gh * CELL;
+        const fov = camera.fov * Math.PI / 180;
+        const margin = 1.24;
+        const dV = (H / 2 * margin) / Math.tan(fov / 2);
+        const dH = (W / 2 * margin) / (Math.tan(fov / 2) * camera.aspect);
+        const d = Math.max(dV, dH, 300);
+        const pitch = 1.13; // ~65° above horizon: top-down with a hint of depth
+        camera.position.set(0, d * Math.sin(pitch), d * Math.cos(pitch));
+        camera.lookAt(0, 0, 0);
+      }
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', fitView);
+
+    // ---------- Water sim ----------
+    const boardQuatInv = new THREE.Quaternion();
+    const gravityVec = new THREE.Vector3();
+
+    function planeGravity() {
+      boardQuatInv.copy(boardTilt.quaternion).invert();
+      gravityVec.set(0, -1, 0).applyQuaternion(boardQuatInv);
+      return { x: gravityVec.x * G, z: gravityVec.z * G };
+    }
+
+    function physStep(dt, warmup) {
+      const g = warmup ? { x: 0, z: 0 } : planeGravity();
+      const h = dt / SUB;
+      const alive = particles.filter(p => !p.dying);
+
+      for (let s = 0; s < SUB; s++) {
+        for (const p of alive) {
+          p.vx += g.x * h;
+          p.vz += g.z * h;
+          const drag2 = Math.max(0, 1 - 0.55 * h);
+          p.vx *= drag2;
+          p.vz *= drag2;
+          const sp = Math.hypot(p.vx, p.vz);
+          if (sp > MAXV) { p.vx *= MAXV / sp; p.vz *= MAXV / sp; }
+        }
+
+        const minD = PR * 2, cohD = PR * 3.4;
+        for (let i = 0; i < alive.length; i++) {
+          const a = alive[i];
+          for (let j = i + 1; j < alive.length; j++) {
+            const b = alive[j];
+            const dx = b.x - a.x, dz = b.z - a.z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 >= cohD * cohD || d2 === 0) continue;
+            const d = Math.sqrt(d2);
+            const nx = dx / d, nz = dz / d;
+            if (d < minD) {
+              const push = (minD - d) * 0.3;
+              a.x -= nx * push; a.z -= nz * push;
+              b.x += nx * push; b.z += nz * push;
+              const rel = (a.vx - b.vx) * nx + (a.vz - b.vz) * nz;
+              if (rel > 0) {
+                const imp = rel * 0.13;
+                a.vx -= nx * imp; a.vz -= nz * imp;
+                b.vx += nx * imp; b.vz += nz * imp;
+              }
+            } else {
+              const pull = 430 * h;
+              a.vx += nx * pull; a.vz += nz * pull;
+              b.vx -= nx * pull; b.vz -= nz * pull;
+            }
+          }
+        }
+
+        for (const p of alive) {
+          p.x += p.vx * h;
+          p.z += p.vz * h;
+          collideWalls(p, h, warmup);
+        }
+      }
+
+      if (warmup) return;
+
+      // frog drinks
+      const drinkR = CELL * 0.55;
+      for (const p of alive) {
+        const dx = p.x - frogPos.x, dz = p.z - frogPos.z;
+        if (dx * dx + dz * dz < drinkR * drinkR) {
+          p.dying = -1;
+          delivered++;
+          frogGulp = 0.35;
+          sfxGulp();
+          spawnRing(frogPos.x, frogPos.z);
+          for (let n = 0; n < 2; n++) spawnDrop(p.x, 6, p.z, (Math.random() - 0.5) * 60, 120 + Math.random() * 80, (Math.random() - 0.5) * 60, 0xdff6ff);
+        }
+      }
+
+      // goo pollutes
+      for (const p of alive) {
+        if (p.dying) continue;
+        for (const goo of goos) {
+          const dx = p.x - goo.x, dz = p.z - goo.z;
+          const rr = GOO_R * 0.75 + PR; // a little forgiving: brushing the edge is survivable
+          if (dx * dx + dz * dz < rr * rr) {
+            p.dying = 0.01; // reaped next frame; the burst below is the visual
+            sfxFizz();
+            for (let n = 0; n < 5; n++) {
+              spawnDrop(
+                p.x + (Math.random() - 0.5) * 6, 5, p.z + (Math.random() - 0.5) * 6,
+                (Math.random() - 0.5) * 90, 90 + Math.random() * 120, (Math.random() - 0.5) * 90,
+                0x49d92e
+              );
+            }
+            break;
+          }
+        }
+      }
+
+      for (const p of particles) {
+        if (p.dying > 0) p.dying -= dt;
+      }
+      particles = particles.filter(p => p.dying === 0 || p.dying > 0);
+
+      updateHUD();
+
+      if (delivered >= needed) {
+        winLevel();
+      } else {
+        const possible = delivered + particles.filter(p => !p.dying).length;
+        if (possible < needed && state === 'playing' && !failTimer) {
+          failTimer = setTimeout(() => {
+            failTimer = null;
+            if (state === 'playing') failLevel();
+          }, 700);
+        }
+      }
+    }
+
+    function collideWalls(p, h, warmup) {
+      const x0 = Math.max(0, Math.floor((p.x - PR) / CELL));
+      const x1 = Math.min(gw - 1, Math.floor((p.x + PR) / CELL));
+      const z0 = Math.max(0, Math.floor((p.z - PR) / CELL));
+      const z1 = Math.min(gh - 1, Math.floor((p.z + PR) / CELL));
+      for (let cz = z0; cz <= z1; cz++) {
+        for (let cx = x0; cx <= x1; cx++) {
+          if (!walls[cz][cx]) continue;
+          const nx0 = Math.max(cx * CELL, Math.min(p.x, (cx + 1) * CELL));
+          const nz0 = Math.max(cz * CELL, Math.min(p.z, (cz + 1) * CELL));
+          let dx = p.x - nx0, dz = p.z - nz0;
+          let d2 = dx * dx + dz * dz;
+          if (d2 >= PR * PR) continue;
+          let d = Math.sqrt(d2);
+          if (d < 0.0001) {
+            const lx = p.x - cx * CELL, rx = (cx + 1) * CELL - p.x;
+            const tz = p.z - cz * CELL, bz = (cz + 1) * CELL - p.z;
+            const m = Math.min(lx, rx, tz, bz);
+            dx = m === lx ? -1 : m === rx ? 1 : 0;
+            dz = dx === 0 ? (m === tz ? -1 : 1) : 0;
+            d = 0;
+          } else {
+            dx /= d; dz /= d;
+          }
+          p.x += dx * (PR - d);
+          p.z += dz * (PR - d);
+          const vn = p.vx * dx + p.vz * dz;
+          if (vn < 0) {
+            // splash on hard impacts
+            if (!warmup && -vn > 280 && (!p.splashCd || p.splashCd <= 0)) {
+              p.splashCd = 0.25;
+              const n = 2 + (Math.random() * 2 | 0);
+              for (let i = 0; i < n; i++) {
+                spawnDrop(
+                  p.x + dx * 3, 5, p.z + dz * 3,
+                  dx * (40 + Math.random() * 90) + (Math.random() - 0.5) * 70,
+                  100 + Math.random() * 170,
+                  dz * (40 + Math.random() * 90) + (Math.random() - 0.5) * 70,
+                  0xdff6ff
+                );
+              }
+              sfxSplash(-vn / 2600);
+            }
+            p.vx -= dx * vn * 1.35; // restitution 0.35 — lively slosh
+            p.vz -= dz * vn * 1.35;
+            const f = Math.max(0, 1 - 1.5 * h);
+            const tx = -dz, tz2 = dx;
+            const vt = p.vx * tx + p.vz * tz2;
+            p.vx += tx * vt * (f - 1);
+            p.vz += tz2 * vt * (f - 1);
+          }
+        }
+      }
+      p.x = Math.max(CELL + PR, Math.min((gw - 1) * CELL - PR, p.x));
+      p.z = Math.max(CELL + PR, Math.min((gh - 1) * CELL - PR, p.z));
+    }
+
+    // fast-moving crests shed a little spray
+    function shedSpray(dt) {
+      for (const p of particles) {
+        if (p.dying) continue;
+        if (p.splashCd > 0) p.splashCd -= dt;
+        const sp = Math.hypot(p.vx, p.vz);
+        if (sp > 560 && Math.random() < dt * 1.6) {
+          spawnDrop(p.x, 7, p.z, p.vx * 0.25 + (Math.random() - 0.5) * 40, 90 + Math.random() * 110, p.vz * 0.25 + (Math.random() - 0.5) * 40, 0xdff6ff);
+        }
+      }
+    }
+
+    // ---------- Water surface ----------
+    const R2 = WATER_R * WATER_R;
+    const splatReach = Math.ceil(WATER_R / WATER_STEP);
+    function updateWaterMesh(dt) {
+      if (!waterGeom) return;
+      fieldTarget.fill(0);
+      for (const p of particles) {
+        if (p.dying) continue;
+        const c0 = Math.round(p.x / WATER_STEP);
+        const r0 = Math.round(p.z / WATER_STEP);
+        for (let dr = -splatReach; dr <= splatReach; dr++) {
+          const r = r0 + dr;
+          if (r < 0 || r >= fRows) continue;
+          for (let dc = -splatReach; dc <= splatReach; dc++) {
+            const c = c0 + dc;
+            if (c < 0 || c >= fCols) continue;
+            const dx = c * WATER_STEP - p.x;
+            const dz = r * WATER_STEP - p.z;
+            const q = 1 - (dx * dx + dz * dz) / R2;
+            if (q > 0) fieldTarget[r * fCols + c] += 7 * q * q;
+          }
+        }
+      }
+      // one 3x3 blur pass smooths the surface
+      for (let r = 0; r < fRows; r++) {
+        for (let c = 0; c < fCols; c++) {
+          const i = r * fCols + c;
+          const l = c > 0 ? fieldTarget[i - 1] : fieldTarget[i];
+          const rt = c < fCols - 1 ? fieldTarget[i + 1] : fieldTarget[i];
+          fieldTmp[i] = (l + 2 * fieldTarget[i] + rt) * 0.25;
+        }
+      }
+      for (let r = 0; r < fRows; r++) {
+        for (let c = 0; c < fCols; c++) {
+          const i = r * fCols + c;
+          const u = r > 0 ? fieldTmp[i - fCols] : fieldTmp[i];
+          const dn = r < fRows - 1 ? fieldTmp[i + fCols] : fieldTmp[i];
+          fieldTarget[i] = (u + 2 * fieldTmp[i] + dn) * 0.25;
+        }
+      }
+      // temporal smoothing keeps the surface calm between frames
+      const k = Math.min(1, 14 * dt);
+      const pos = waterGeom.attributes.position.array;
+      for (let i = 0; i < field.length; i++) {
+        field[i] += (fieldTarget[i] - field[i]) * k;
+        pos[i * 3 + 1] = -WATER_SINK + Math.min(field[i], WATER_MAXH);
+      }
+      waterGeom.attributes.position.needsUpdate = true;
+      waterGeom.computeVertexNormals();
+    }
+
+    // ---------- Droplets & rings ----------
+    const _m4 = new THREE.Matrix4();
+    const _col = new THREE.Color();
+    function spawnDrop(x, y, z, vx, vy, vz, color) {
+      if (drops.length >= DROP_MAX) drops.shift();
+      drops.push({ x, y, z, vx, vy, vz, color, life: 1.6 });
+    }
+    function updateDrops(dt) {
+      if (!dropMesh) return;
+      for (const d of drops) {
+        d.vy -= 1400 * dt;
+        d.x += d.vx * dt;
+        d.y += d.vy * dt;
+        d.z += d.vz * dt;
+        d.life -= dt;
+        if (d.y < 1 && d.vy < 0) d.life = 0;
+      }
+      for (let i = drops.length - 1; i >= 0; i--) {
+        if (drops[i].life <= 0) drops.splice(i, 1);
+      }
+      for (let i = 0; i < DROP_MAX; i++) {
+        if (i < drops.length) {
+          const d = drops[i];
+          _m4.makeScale(1, 1, 1);
+          _m4.setPosition(d.x, d.y, d.z);
+          dropMesh.setMatrixAt(i, _m4);
+          dropMesh.setColorAt(i, _col.set(d.color));
+        } else {
+          _m4.makeScale(0, 0, 0);
+          dropMesh.setMatrixAt(i, _m4);
+        }
+      }
+      dropMesh.instanceMatrix.needsUpdate = true;
+      if (dropMesh.instanceColor) dropMesh.instanceColor.needsUpdate = true;
+    }
+    function spawnRing(x, z) {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(4, 6, 24), ringMat.clone());
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(x, 5.2, z);
+      content.add(ring);
+      rings.push({ mesh: ring, t: 0 });
+    }
+    function updateRings(dt) {
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i];
+        r.t += dt;
+        const k = r.t / 0.5;
+        r.mesh.scale.setScalar(1 + k * 3);
+        r.mesh.material.opacity = 0.7 * (1 - k);
+        if (k >= 1) {
+          content.remove(r.mesh);
+          r.mesh.geometry.dispose();
+          r.mesh.material.dispose();
+          rings.splice(i, 1);
+        }
+      }
+    }
+
+    // ---------- Game flow ----------
+    function loadLevel(i) {
+      levelIndex = i;
+      const spawns = buildLevel(LEVELS[i]);
+      particles = [];
+      for (const s of spawns) {
+        for (let n = 0; n < PPB; n++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.sqrt(Math.random()) * CELL * 0.55;
+          particles.push({
+            x: s.x + Math.cos(a) * r,
+            z: s.z + Math.sin(a) * r,
+            vx: 0, vz: 0,
+            dying: 0, splashCd: 0,
+          });
+        }
+      }
+      totalWater = particles.length;
+      delivered = 0;
+      needed = Math.ceil(totalWater * WIN_FRACTION);
+      frogGulp = 0;
+      drops.length = 0;
+      if (failTimer) { clearTimeout(failTimer); failTimer = null; }
+      boardTilt.rotation.set(0, 0, 0);
+      curTilt.x = 0; curTilt.y = 0;
+      for (let n = 0; n < 60; n++) physStep(1 / 60, true);
+      field.fill(0);
+      updateWaterMesh(1); // snap the surface to the settled blobs
+      state = 'playing';
+      overlay.classList.add('hidden');
+      fitView();
+      updateHUD();
+      updatePadUI();
+      toast('LEVEL ' + (i + 1) + '<br>' + LEVELS[i].name);
+    }
+
+    function restartLevel() {
+      if (state === 'menu') return;
+      loadLevel(levelIndex);
+    }
+
+    function winLevel() {
+      if (state !== 'playing') return;
+      state = 'won';
+      sfxWin();
+      save.unlocked = Math.max(save.unlocked, Math.min(LEVELS.length, levelIndex + 2));
+      if (!save.done.includes(levelIndex)) save.done.push(levelIndex);
+      persist();
+      updatePadUI();
+      const last = levelIndex === LEVELS.length - 1;
+      setTimeout(() => {
+        panel.innerHTML =
+          '<div class="big">🐸💦</div>' +
+          '<h2>GLUG GLUG GLUG!</h2>' +
+          (last
+            ? '<p class="gold">You saved every frog in the desert! 🏆</p><p>Thanks for playing!</p>'
+            : '<p>The frog is saved! ' + delivered + ' drops delivered.</p>') +
+          (last
+            ? '<button id="againBtn" class="alt">PLAY AGAIN</button>'
+            : '<button id="nextBtn">NEXT LEVEL ▶</button>') +
+          '<button id="lvlsBtn" class="alt">LEVELS</button>';
+        overlay.classList.remove('hidden');
+        const nextBtn = document.getElementById('nextBtn');
+        if (nextBtn) nextBtn.addEventListener('click', () => loadLevel(levelIndex + 1));
+        const againBtn = document.getElementById('againBtn');
+        if (againBtn) againBtn.addEventListener('click', () => loadLevel(0));
+        document.getElementById('lvlsBtn').addEventListener('click', showMenu);
+      }, 550);
+    }
+
+    function failLevel() {
+      state = 'failed';
+      sfxFail();
+      updatePadUI();
+      panel.innerHTML =
+        '<div class="big">☠️💚</div>' +
+        '<h2>POLLUTED!</h2>' +
+        '<p>Too much water touched the toxic goo. The frog needs clean, colourless water!</p>' +
+        '<button id="retryBtn">RETRY ↺</button>' +
+        '<button id="lvlsBtn" class="alt">LEVELS</button>';
+      overlay.classList.remove('hidden');
+      document.getElementById('retryBtn').addEventListener('click', () => loadLevel(levelIndex));
+      document.getElementById('lvlsBtn').addEventListener('click', showMenu);
+    }
+
+    function showMenu() {
+      state = 'menu';
+      if (failTimer) { clearTimeout(failTimer); failTimer = null; }
+      updatePadUI();
+      let lvls = '';
+      for (let i = 0; i < LEVELS.length; i++) {
+        const locked = i >= save.unlocked;
+        const done = save.done.includes(i);
+        lvls += '<button data-lvl="' + i + '"' + (locked ? ' disabled' : '') +
+                (done ? ' class="done"' : '') + '>' +
+                (locked ? '🔒' : done ? '★' : (i + 1)) + '</button>';
+      }
+      panel.innerHTML =
+        '<div class="big">☀️🐸</div>' +
+        '<h2>WATER MAZE</h2>' +
+        '<p>A thirsty frog is drying out in the desert sun! Tip the maze in any direction and slosh the water home. ' +
+        'Join every blob together — the frog needs <span style="color:#00f0ff">almost all</span> of it — and keep it clear of the toxic goo!</p>' +
+        '<button id="playBtn">PLAY ▶</button>' +
+        '<div class="lvlGrid">' + lvls + '</div>' +
+        (tiltSupported && isTouch && !tiltOn
+          ? '<button id="tiltGoBtn" class="alt">📱 ENABLE TILT</button><p>or drag the board / use the pad</p>'
+          : '<p>tilt phone &middot; drag the board &middot; arrows / WASD &middot; pad</p>');
+      overlay.classList.remove('hidden');
+      document.getElementById('playBtn').addEventListener('click', () => {
+        initAudio();
+        loadLevel(Math.min(save.unlocked, LEVELS.length) - 1);
+      });
+      panel.querySelectorAll('[data-lvl]').forEach(b =>
+        b.addEventListener('click', () => { initAudio(); loadLevel(+b.dataset.lvl); }));
+      const tg = document.getElementById('tiltGoBtn');
+      if (tg) tg.addEventListener('click', () => { initAudio(); enableTilt(); });
+    }
+
+    function updateHUD() {
+      lvlLabel.textContent = 'L' + (levelIndex + 1);
+      waterLabel.textContent = '💧 ' + delivered + '/' + needed;
+    }
+    let toastTimer = null;
+    function toast(html) {
+      toastEl.innerHTML = html;
+      toastEl.classList.add('show');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+    }
+
+    // ---------- Animation ----------
+    const curTilt = { x: 0, y: 0 };
+    let lastT = performance.now();
+    let simAcc = 0;
+    const SIM_STEP = 1 / 60;
+
+    function frame() {
+      const now = performance.now();
+      const dt = Math.min(0.1, (now - lastT) / 1000);
+      lastT = now;
+      time += dt;
+      if (frogGulp > 0) frogGulp -= dt;
+
+      // board answers the controls with a little inertia
+      const ct = state === 'playing' ? currentControl() : { x: 0, y: 0 };
+      const lerp = Math.min(1, TILT_SPEED * dt);
+      curTilt.x += (ct.x - curTilt.x) * lerp;
+      curTilt.y += (ct.y - curTilt.y) * lerp;
+      boardTilt.rotation.x = curTilt.y * MAXTILT;
+      boardTilt.rotation.z = -curTilt.x * MAXTILT;
+
+      if (state === 'playing') {
+        // fixed-timestep physics so game speed is independent of frame rate
+        simAcc = Math.min(simAcc + dt, SIM_STEP * 6);
+        while (simAcc >= SIM_STEP && state === 'playing') {
+          physStep(SIM_STEP, false);
+          shedSpray(SIM_STEP);
+          simAcc -= SIM_STEP;
+        }
+      }
+      updateWaterMesh(dt);
+      updateDrops(dt);
+      updateRings(dt);
+
+      // frog pants in the heat, and gulps
+      if (frogGroup) {
+        const fs = 1.35;
+        const pant = 1 + Math.sin(time * 5) * 0.03;
+        const gulp = frogGulp > 0 ? 1.12 : 1;
+        frogGroup.scale.set(fs * pant * gulp, fs * (2 - pant) * gulp, fs * pant * gulp);
+        frogGroup.position.y = frogBaseY + (frogGulp > 0 ? 2 : 0);
+      }
+
+      // goo wobbles and bubbles
+      for (const goo of goos) {
+        const wob = Math.sin(time * 3 + goo.ph);
+        goo.mesh.scale.set(1 + wob * 0.06, 0.48 - wob * 0.04, 1 - wob * 0.06);
+        goo.bubbles.forEach((bub, i) => {
+          const bt = (time * 0.6 + i * 0.33 + goo.ph) % 1;
+          bub.position.set(
+            goo.x + Math.sin(i * 2.4 + goo.ph) * GOO_R * 0.5,
+            2 + bt * 14,
+            goo.z + Math.cos(i * 1.7 + goo.ph) * GOO_R * 0.5
+          );
+          bub.scale.setScalar(Math.max(0.01, 1 - bt));
+        });
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // ---------- Boot ----------
+    buildLevel(LEVELS[0]); // pretty backdrop behind the menu
+    fitView();
+    updateTiltUI();
+    updatePadUI();
+    showMenu();
+    renderer.setAnimationLoop(frame);
+
+    // debug/test hooks (harmless in production)
+    window.WM = {
+      get state() { return state; },
+      get particles() { return particles; },
+      get delivered() { return delivered; },
+      get needed() { return needed; },
+      get gw() { return gw; },
+      get gh() { return gh; },
+      get walls() { return walls; },
+      get drops() { return drops; },
+      get frog() { return frogPos; },
+      CELL,
+      loadLevel,
+      currentControl,
+    };
+  </script>
+</body>
+</html>
