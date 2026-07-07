@@ -108,6 +108,12 @@
     "description": "Plant, water and grow fruit and veg through day and night, then hand-feed it to your hungry pig. Chomp chomp!"
   },
   {
+    "slug": "asmr",
+    "title": "ASMR",
+    "icon": "🎧",
+    "description": "Sensory play in 3D! Squish slime, slide kinetic sand, crack wax, pop a poppet, crunch frozen flowers, snap magnets, prod a jelly and clack a tiny keyboard."
+  },
+  {
     "slug": "decorate",
     "title": "Decorate",
     "icon": "🎀",
