@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decorate — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+    }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(ellipse at 50% -20%, #2b0a5e 0%, transparent 60%);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    a.back { color: var(--cyan); font-family: 'Press Start 2P', monospace; font-size: 0.7rem; text-decoration: none; align-self: flex-start; }
+    h1 { font-family: 'Press Start 2P', monospace; font-size: 1.3rem; color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); margin: 1rem 0 0.25rem; text-align: center; }
+    .subtitle { color: var(--dim); font-size: 0.9rem; margin-bottom: 1rem; text-align: center; }
+
+    #game { width: 100%; max-width: 620px; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+    .panel {
+      background: var(--card);
+      border: 2px solid var(--pink);
+      border-radius: 16px;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.25);
+      width: 100%;
+      padding: 1.25rem;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .panel.active { display: flex; }
+    .prompt { font-family: 'Press Start 2P', monospace; font-size: 0.75rem; color: var(--cyan); text-align: center; line-height: 1.8; }
+    .hint { color: var(--dim); font-size: 0.85rem; text-align: center; }
+
+    .btn {
+      background: var(--pink);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      padding: 0.9rem 1.3rem;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.15); }
+    .btn:disabled { opacity: 0.35; cursor: default; filter: none; }
+    .btn.alt { background: transparent; border: 2px solid var(--cyan); color: var(--cyan); }
+    .btn.small { font-size: 0.55rem; padding: 0.6rem 0.8rem; }
+    .row { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; width: 100%; }
+    .row.spread { justify-content: space-between; }
+
+    /* Step 1: clothing cards */
+    .clothes-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .cloth-card {
+      background: var(--bg);
+      border: 2px solid #3a2a6b;
+      border-radius: 14px;
+      padding: 0.75rem 0.5rem 0.6rem;
+      width: 104px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+    .cloth-card:hover { transform: translateY(-3px); border-color: var(--cyan); }
+    .cloth-card canvas { width: 80px; height: 80px; }
+    .cloth-card span { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: var(--text); text-align: center; line-height: 1.5; }
+
+    /* Step 2: colours */
+    .color-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .swatch {
+      width: 64px; height: 64px;
+      border-radius: 14px;
+      border: 3px solid #3a2a6b;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      transition: transform 0.1s;
+      position: relative;
+    }
+    .swatch:hover { transform: scale(1.08); }
+    .swatch.selected { border-color: var(--yellow); box-shadow: 0 0 14px var(--yellow); }
+    .swatch.selected::after { content: '✓'; position: absolute; top: 2px; right: 6px; color: white; font-weight: bold; text-shadow: 0 1px 3px rgba(0,0,0,0.7); }
+    .swatch b { font-family: 'Press Start 2P', monospace; font-size: 0.42rem; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.8); margin-bottom: 5px; }
+    #colorPreviewWrap { display: flex; justify-content: center; }
+    #colorPreview { width: 170px; height: 170px; }
+
+    /* Step 3: stickers */
+    #editorCanvas {
+      width: 100%;
+      max-width: 420px;
+      touch-action: none;
+      background: linear-gradient(180deg, #2b0a5e, #1a0b3d);
+      border: 2px solid var(--cyan);
+      border-radius: 14px;
+      cursor: crosshair;
+    }
+    .sticker-tray {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      justify-content: center;
+      max-height: 132px;
+      overflow-y: auto;
+      background: var(--bg);
+      border: 2px solid #3a2a6b;
+      border-radius: 12px;
+      padding: 0.5rem;
+      width: 100%;
+    }
+    .sticker-btn {
+      font-size: 1.5rem;
+      width: 44px; height: 44px;
+      background: transparent;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .sticker-btn:hover { background: #241052; }
+    .sticker-btn.selected { border-color: var(--yellow); background: #241052; box-shadow: 0 0 10px rgba(255, 230, 0, 0.5); }
+    .size-btn { min-width: 44px; }
+    .size-btn.selected { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+
+    /* Step 4 */
+    #finalCanvas {
+      width: 100%;
+      max-width: 320px;
+      background: linear-gradient(180deg, #2b0a5e, #1a0b3d);
+      border: 2px solid var(--cyan);
+      border-radius: 14px;
+    }
+    .tada { font-family: 'Press Start 2P', monospace; font-size: 1rem; color: var(--yellow); text-shadow: 2px 2px 0 var(--pink); animation: bounce 0.9s infinite alternate; }
+    @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+
+    footer { color: var(--dim); font-size: 0.75rem; margin-top: 1.5rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <h1>DECORATE</h1>
+  <p class="subtitle">Design your own clothes — pick, colour, stick!</p>
+
+  <div id="game">
+
+    <!-- STEP 1: pick clothing -->
+    <section class="panel active" id="step1">
+      <p class="prompt">PICK YOUR CLOTHING</p>
+      <div class="clothes-grid" id="clothesGrid"></div>
+    </section>
+
+    <!-- STEP 2: pick colour -->
+    <section class="panel" id="step2">
+      <p class="prompt">PICK A COLOUR</p>
+      <div id="colorPreviewWrap"><canvas id="colorPreview" width="340" height="340"></canvas></div>
+      <div class="color-grid" id="colorGrid"></div>
+      <div class="row spread">
+        <button class="btn alt small" id="backTo1">&larr; BACK</button>
+        <button class="btn" id="toStep3" disabled>NEXT &rarr;</button>
+      </div>
+    </section>
+
+    <!-- STEP 3: stickers -->
+    <section class="panel" id="step3">
+      <p class="prompt">DECORATE WITH STICKERS</p>
+      <p class="hint">Pick a sticker, then tap the clothing to stick it on!</p>
+      <div class="sticker-tray" id="stickerTray"></div>
+      <div class="row">
+        <span class="hint" style="align-self:center">Size:</span>
+        <button class="btn alt small size-btn" data-size="14">S</button>
+        <button class="btn alt small size-btn selected" data-size="24">M</button>
+        <button class="btn alt small size-btn" data-size="38">L</button>
+        <button class="btn alt small" id="undoBtn">UNDO</button>
+        <button class="btn alt small" id="clearBtn">CLEAR</button>
+      </div>
+      <canvas id="editorCanvas" width="840" height="840"></canvas>
+      <div class="row spread">
+        <button class="btn alt small" id="backTo2">&larr; BACK</button>
+        <button class="btn" id="toStep4">FINISH ✔</button>
+      </div>
+    </section>
+
+    <!-- STEP 4: ta-da! -->
+    <section class="panel" id="step4">
+      <p class="tada">TA-DA!</p>
+      <p class="hint" id="finalCaption"></p>
+      <canvas id="finalCanvas" width="640" height="920"></canvas>
+      <div class="row">
+        <button class="btn alt small" id="backTo3">&larr; KEEP EDITING</button>
+        <button class="btn" id="saveBtn">💾 SAVE</button>
+        <button class="btn alt small" id="restartBtn">NEW DESIGN</button>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>Made with ❤ for Flocade</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Garment definitions (all in a 200x200 local space) ----------
+
+  function tshirtPath() {
+    const p = new Path2D();
+    p.moveTo(72, 42);
+    p.quadraticCurveTo(100, 62, 128, 42);   // neckline
+    p.lineTo(152, 46);
+    p.lineTo(190, 74);                       // right sleeve out
+    p.lineTo(174, 104);
+    p.lineTo(146, 88);                       // underarm
+    p.lineTo(146, 184);
+    p.quadraticCurveTo(100, 190, 54, 184);   // hem
+    p.lineTo(54, 88);
+    p.lineTo(26, 104);
+    p.lineTo(10, 74);                        // left sleeve out
+    p.lineTo(48, 46);
+    p.closePath();
+    return p;
+  }
+  function tshirtExtras(ctx) {
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(72, 42);
+    ctx.quadraticCurveTo(100, 62, 128, 42);
+    ctx.stroke();
+  }
+
+  function hoodiePath() {
+    const p = new Path2D();
+    // hood (behind the neckline)
+    p.moveTo(64, 46);
+    p.quadraticCurveTo(58, 12, 100, 12);
+    p.quadraticCurveTo(142, 12, 136, 46);
+    p.quadraticCurveTo(100, 62, 64, 46);
+    // body + long sleeves
+    p.moveTo(64, 48);
+    p.quadraticCurveTo(100, 64, 136, 48);
+    p.lineTo(156, 54);
+    p.quadraticCurveTo(184, 72, 184, 120);
+    p.lineTo(182, 174);
+    p.lineTo(154, 172);
+    p.lineTo(152, 100);
+    p.lineTo(150, 188);
+    p.quadraticCurveTo(100, 194, 50, 188);
+    p.lineTo(48, 100);
+    p.lineTo(46, 172);
+    p.lineTo(18, 174);
+    p.lineTo(16, 120);
+    p.quadraticCurveTo(16, 72, 44, 54);
+    p.closePath();
+    return p;
+  }
+  function hoodieExtras(ctx) {
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    // pocket
+    ctx.beginPath();
+    ctx.moveTo(72, 150);
+    ctx.lineTo(80, 128);
+    ctx.lineTo(120, 128);
+    ctx.lineTo(128, 150);
+    ctx.lineTo(128, 182);
+    ctx.lineTo(72, 182);
+    ctx.closePath();
+    ctx.stroke();
+    // hood opening
+    ctx.beginPath();
+    ctx.moveTo(64, 48);
+    ctx.quadraticCurveTo(100, 66, 136, 48);
+    ctx.stroke();
+    // drawstrings
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(90, 58); ctx.lineTo(88, 82); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(110, 58); ctx.lineTo(112, 82); ctx.stroke();
+  }
+
+  function skirtPath() {
+    const p = new Path2D();
+    p.moveTo(62, 40);
+    p.lineTo(138, 40);
+    p.quadraticCurveTo(150, 100, 168, 156);
+    // wavy hem
+    p.quadraticCurveTo(154, 168, 140, 158);
+    p.quadraticCurveTo(127, 168, 113, 158);
+    p.quadraticCurveTo(100, 168, 87, 158);
+    p.quadraticCurveTo(73, 168, 60, 158);
+    p.quadraticCurveTo(46, 168, 32, 156);
+    p.quadraticCurveTo(50, 100, 62, 40);
+    p.closePath();
+    return p;
+  }
+  function skirtExtras(ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(60, 40, 80, 12);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    for (const x of [78, 100, 122]) {
+      ctx.beginPath();
+      ctx.moveTo(x, 56);
+      ctx.lineTo(x < 100 ? x - 14 : (x > 100 ? x + 14 : x), 152);
+      ctx.stroke();
+    }
+  }
+
+  function shortsPath() {
+    const p = new Path2D();
+    p.moveTo(48, 40);
+    p.lineTo(152, 40);
+    p.lineTo(164, 142);
+    p.lineTo(112, 148);
+    p.quadraticCurveTo(100, 112, 88, 148);
+    p.lineTo(36, 142);
+    p.closePath();
+    return p;
+  }
+  function shortsExtras(ctx) {
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(46, 40, 108, 12);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath(); ctx.moveTo(100, 52); ctx.lineTo(100, 118); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(40, 132); ctx.lineTo(110, 138); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(160, 132); ctx.lineTo(90, 138); ctx.stroke();
+  }
+
+  function headbandPath() {
+    const p = new Path2D();
+    const cx = 100, cy = 218, R = 120, r = 80;
+    const a1 = -145 * Math.PI / 180, a2 = -35 * Math.PI / 180;
+    p.arc(cx, cy, R, a1, a2, false);
+    p.arc(cx, cy, r, a2, a1, true);
+    p.closePath();
+    return p;
+  }
+  function headbandExtras(ctx) {
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(100, 218, 100, -140 * Math.PI / 180, -40 * Math.PI / 180);
+    ctx.stroke();
+  }
+
+  const GARMENTS = {
+    tshirt:   { name: 'T-Shirt',  path: tshirtPath(),   extras: tshirtExtras,   bbox: [10, 12, 190, 190], isTop: true },
+    skirt:    { name: 'Skirt',    path: skirtPath(),    extras: skirtExtras,    bbox: [32, 34, 168, 168], isTop: false },
+    hoodie:   { name: 'Hoodie',   path: hoodiePath(),   extras: hoodieExtras,   bbox: [16, 12, 184, 194], isTop: true },
+    shorts:   { name: 'Shorts',   path: shortsPath(),   extras: shortsExtras,   bbox: [36, 34, 164, 154], isTop: false },
+    headband: { name: 'Headband', path: headbandPath(), extras: headbandExtras, bbox: [2, 96, 198, 176], isTop: false },
+  };
+
+  const COLORS = [
+    { key: 'blue',    name: 'BLUE',    fill: '#2f7bff' },
+    { key: 'yellow',  name: 'YELLOW',  fill: '#ffd93d' },
+    { key: 'green',   name: 'GREEN',   fill: '#3ddc6a' },
+    { key: 'purple',  name: 'PURPLE',  fill: '#a05cff' },
+    { key: 'red',     name: 'RED',     fill: '#ff3b3b' },
+    { key: 'pink',    name: 'PINK',    fill: '#ff7ac8' },
+    { key: 'rainbow', name: 'RAINBOW', fill: 'rainbow' },
+    { key: 'orange',  name: 'ORANGE',  fill: '#ff9430' },
+  ];
+  const RAINBOW_STOPS = ['#ff3b3b', '#ff9430', '#ffd93d', '#3ddc6a', '#2f7bff', '#a05cff'];
+
+  const STICKERS = [
+    '❤️', '🌈', '⭐', '😊', '🍄',
+    '✨', '💖', '🦄', '🦋', '🌸', '🌻', '🌼', '🍓', '🍒', '🍉',
+    '🍍', '🍭', '🍩', '🧁', '🍦', '🍕', '⚡', '🔥', '❄️', '🌙',
+    '☀️', '☁️', '💎', '👑', '🎀', '🎵', '🎮', '⚽', '🏀', '🚀',
+    '🪐', '🐱', '🐶', '🐼', '🐸', '🐢', '🐬', '🦖', '🐙', '🌵',
+    '🫧', '💫', '😎', '🤩', '👾', '🍀', '🌟', '💜', '💙', '🥳',
+  ];
+
+  // ---------- State ----------
+  const state = {
+    garment: 'tshirt',
+    color: null,
+    stickers: [],          // { x, y, emoji, size } in garment local coords
+    selectedSticker: STICKERS[0],
+    stickerSize: 24,
+  };
+
+  // ---------- Drawing helpers ----------
+
+  function garmentFillStyle(ctx, g) {
+    const c = COLORS.find(c => c.key === state.color);
+    if (!c) return '#e8e6f0';
+    if (c.fill !== 'rainbow') return c.fill;
+    const [x0, y0, x1, y1] = GARMENTS[g].bbox;
+    const grad = ctx.createLinearGradient(x0, y0, x0, y1);
+    RAINBOW_STOPS.forEach((col, i) => grad.addColorStop(i / (RAINBOW_STOPS.length - 1), col));
+    return grad;
+  }
+
+  // Draws garment + stickers with ctx already transformed into local space.
+  function drawGarmentLocal(ctx, g, withStickers) {
+    const G = GARMENTS[g];
+    ctx.fillStyle = garmentFillStyle(ctx, g);
+    ctx.fill(G.path);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.stroke(G.path);
+    ctx.save();
+    G.extras(ctx);
+    ctx.restore();
+    if (withStickers) {
+      ctx.save();
+      ctx.clip(G.path);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const s of state.stickers) {
+        ctx.font = s.size + 'px "Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif';
+        ctx.fillText(s.emoji, s.x, s.y);
+      }
+      ctx.restore();
+    }
+  }
+
+  // Fit garment bbox into a w×h box with padding; returns {scale, tx, ty}.
+  function fitTransform(g, w, h, pad) {
+    const [x0, y0, x1, y1] = GARMENTS[g].bbox;
+    const bw = x1 - x0, bh = y1 - y0;
+    const scale = Math.min((w - 2 * pad) / bw, (h - 2 * pad) / bh);
+    return {
+      scale,
+      tx: (w - bw * scale) / 2 - x0 * scale,
+      ty: (h - bh * scale) / 2 - y0 * scale,
+    };
+  }
+
+  // ---------- Step navigation ----------
+  const steps = ['step1', 'step2', 'step3', 'step4'].map(id => document.getElementById(id));
+  function show(n) {
+    steps.forEach((s, i) => s.classList.toggle('active', i === n - 1));
+    if (n === 2) drawColorPreview();
+    if (n === 3) drawEditor();
+    if (n === 4) drawFinal();
+  }
+
+  // ---------- Step 1: clothing cards ----------
+  const clothesGrid = document.getElementById('clothesGrid');
+  for (const key of ['tshirt', 'skirt', 'hoodie', 'shorts', 'headband']) {
+    const card = document.createElement('div');
+    card.className = 'cloth-card';
+    const cv = document.createElement('canvas');
+    cv.width = 160; cv.height = 160;
+    const label = document.createElement('span');
+    label.textContent = GARMENTS[key].name.toUpperCase();
+    card.appendChild(cv);
+    card.appendChild(label);
+    clothesGrid.appendChild(card);
+
+    const ctx = cv.getContext('2d');
+    const { scale, tx, ty } = fitTransform(key, 160, 160, 14);
+    ctx.setTransform(scale, 0, 0, scale, tx, ty);
+    ctx.fillStyle = '#e8e6f0';
+    ctx.fill(GARMENTS[key].path);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.stroke(GARMENTS[key].path);
+    GARMENTS[key].extras(ctx);
+
+    card.addEventListener('click', () => {
+      if (state.garment !== key) state.stickers = [];
+      state.garment = key;
+      show(2);
+    });
+  }
+
+  // ---------- Step 2: colours ----------
+  const colorGrid = document.getElementById('colorGrid');
+  const nextBtn = document.getElementById('toStep3');
+  for (const c of COLORS) {
+    const sw = document.createElement('div');
+    sw.className = 'swatch';
+    sw.dataset.key = c.key;
+    if (c.fill === 'rainbow') {
+      sw.style.background = 'linear-gradient(135deg, ' + RAINBOW_STOPS.join(', ') + ')';
+    } else {
+      sw.style.background = c.fill;
+    }
+    const b = document.createElement('b');
+    b.textContent = c.name;
+    sw.appendChild(b);
+    sw.addEventListener('click', () => {
+      state.color = c.key;
+      document.querySelectorAll('.swatch').forEach(el => el.classList.toggle('selected', el.dataset.key === c.key));
+      nextBtn.disabled = false;
+      drawColorPreview();
+    });
+    colorGrid.appendChild(sw);
+  }
+
+  const previewCanvas = document.getElementById('colorPreview');
+  function drawColorPreview() {
+    const ctx = previewCanvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+    const { scale, tx, ty } = fitTransform(state.garment, previewCanvas.width, previewCanvas.height, 24);
+    ctx.setTransform(scale, 0, 0, scale, tx, ty);
+    drawGarmentLocal(ctx, state.garment, false);
+  }
+
+  document.getElementById('backTo1').addEventListener('click', () => show(1));
+  nextBtn.addEventListener('click', () => show(3));
+
+  // ---------- Step 3: sticker editor ----------
+  const tray = document.getElementById('stickerTray');
+  for (const emoji of STICKERS) {
+    const b = document.createElement('button');
+    b.className = 'sticker-btn' + (emoji === state.selectedSticker ? ' selected' : '');
+    b.textContent = emoji;
+    b.addEventListener('click', () => {
+      state.selectedSticker = emoji;
+      document.querySelectorAll('.sticker-btn').forEach(el => el.classList.toggle('selected', el.textContent === emoji));
+    });
+    tray.appendChild(b);
+  }
+
+  document.querySelectorAll('.size-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.stickerSize = Number(btn.dataset.size);
+      document.querySelectorAll('.size-btn').forEach(el => el.classList.toggle('selected', el === btn));
+    });
+  });
+
+  const editor = document.getElementById('editorCanvas');
+  const ECTX = editor.getContext('2d');
+
+  function editorTransform() {
+    return fitTransform(state.garment, editor.width, editor.height, 60);
+  }
+
+  function drawEditor() {
+    ECTX.setTransform(1, 0, 0, 1, 0, 0);
+    ECTX.clearRect(0, 0, editor.width, editor.height);
+    const { scale, tx, ty } = editorTransform();
+    ECTX.setTransform(scale, 0, 0, scale, tx, ty);
+    drawGarmentLocal(ECTX, state.garment, true);
+  }
+
+  editor.addEventListener('pointerdown', (e) => {
+    const rect = editor.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (editor.width / rect.width);
+    const cy = (e.clientY - rect.top) * (editor.height / rect.height);
+    const { scale, tx, ty } = editorTransform();
+    const lx = (cx - tx) / scale;
+    const ly = (cy - ty) / scale;
+    ECTX.setTransform(1, 0, 0, 1, 0, 0);
+    if (!ECTX.isPointInPath(GARMENTS[state.garment].path, lx, ly)) return;
+    state.stickers.push({ x: lx, y: ly, emoji: state.selectedSticker, size: state.stickerSize });
+    drawEditor();
+  });
+
+  document.getElementById('undoBtn').addEventListener('click', () => { state.stickers.pop(); drawEditor(); });
+  document.getElementById('clearBtn').addEventListener('click', () => { state.stickers = []; drawEditor(); });
+  document.getElementById('backTo2').addEventListener('click', () => show(2));
+  document.getElementById('toStep4').addEventListener('click', () => show(4));
+
+  // ---------- Step 4: person wearing it ----------
+  const finalCanvas = document.getElementById('finalCanvas');
+
+  // Where each garment sits on the person (person space is 320x460).
+  const WORN = {
+    tshirt:   { scale: 0.96,  tx: 64,   ty: 104 },
+    hoodie:   { scale: 0.873, tx: 72.7, ty: 102 },
+    skirt:    { scale: 0.8,   tx: 80,   ty: 233 },
+    shorts:   { scale: 0.64,  tx: 96,   ty: 239 },
+    headband: { scale: 0.48,  tx: 112,  ty: 22 },
+  };
+
+  const SKIN = '#ffcf9f';
+  const HAIR = '#6b4423';
+
+  function drawWornGarment(ctx) {
+    const t = WORN[state.garment];
+    ctx.save();
+    ctx.transform(t.scale, 0, 0, t.scale, t.tx, t.ty);
+    drawGarmentLocal(ctx, state.garment, true);
+    ctx.restore();
+  }
+
+  // Draws the person (320x460 space) wearing the decorated garment.
+  function drawPerson(ctx) {
+    const g = state.garment;
+    const wearsTop = (g === 'tshirt' || g === 'hoodie');
+    const wearsBottom = (g === 'skirt' || g === 'shorts');
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+
+    // legs
+    ctx.fillStyle = SKIN;
+    ctx.fillRect(136, 270, 20, 118);
+    ctx.fillRect(164, 270, 20, 118);
+    // shoes
+    ctx.fillStyle = '#ff2e88';
+    roundRect(ctx, 128, 386, 34, 16, 7); ctx.fill(); ctx.stroke();
+    roundRect(ctx, 158, 386, 34, 16, 7); ctx.fill(); ctx.stroke();
+
+    // arms
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillStyle = SKIN;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(118, 158); ctx.lineTo(92, 258); ctx.lineTo(110, 264); ctx.lineTo(132, 172);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(202, 158); ctx.lineTo(228, 258); ctx.lineTo(210, 264); ctx.lineTo(188, 172);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // hands
+    ctx.beginPath(); ctx.arc(100, 264, 10, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(220, 264, 10, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // neck
+    ctx.fillStyle = SKIN;
+    ctx.fillRect(148, 126, 24, 26);
+
+    // torso base: white tee (with little sleeves) if not wearing a decorated top
+    if (wearsTop) {
+      ctx.fillStyle = SKIN;
+      ctx.beginPath();
+      ctx.moveTo(112, 150); ctx.lineTo(208, 150);
+      ctx.lineTo(202, 272); ctx.lineTo(118, 272);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#f2f2f7';
+      ctx.beginPath();
+      ctx.moveTo(122, 150);
+      ctx.lineTo(198, 150);
+      ctx.quadraticCurveTo(212, 152, 218, 194);  // right sleeve
+      ctx.lineTo(198, 200);
+      ctx.lineTo(196, 176);
+      ctx.lineTo(200, 272);
+      ctx.lineTo(120, 272);
+      ctx.lineTo(124, 176);
+      ctx.lineTo(122, 200);
+      ctx.lineTo(102, 194);
+      ctx.quadraticCurveTo(108, 152, 122, 150);  // left sleeve
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      // neckline
+      ctx.beginPath();
+      ctx.moveTo(146, 150);
+      ctx.quadraticCurveTo(160, 162, 174, 150);
+      ctx.stroke();
+    }
+
+    // base bottoms: plain shorts if not wearing decorated bottoms
+    if (!wearsBottom) {
+      ctx.fillStyle = '#8a8fa8';
+      ctx.beginPath();
+      ctx.moveTo(120, 264);
+      ctx.lineTo(200, 264);
+      ctx.lineTo(204, 320);
+      ctx.lineTo(164, 322);
+      ctx.quadraticCurveTo(160, 300, 156, 322);
+      ctx.lineTo(116, 320);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    }
+
+    // the decorated garment (bottoms & tops sit over the base clothes)
+    if (g !== 'headband') drawWornGarment(ctx);
+
+    // head
+    ctx.fillStyle = SKIN;
+    ctx.beginPath(); ctx.arc(160, 92, 44, 0, 7); ctx.fill(); ctx.stroke();
+    // pigtail bunches
+    ctx.fillStyle = HAIR;
+    ctx.beginPath(); ctx.arc(112, 116, 14, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(208, 116, 14, 0, 7); ctx.fill();
+    // hair: top of head with a wavy fringe
+    ctx.beginPath();
+    ctx.arc(160, 92, 46, Math.PI, 0, false);
+    ctx.quadraticCurveTo(202, 64, 182, 66);
+    ctx.quadraticCurveTo(162, 78, 138, 66);
+    ctx.quadraticCurveTo(118, 64, 114, 92);
+    ctx.closePath();
+    ctx.fill();
+    // face
+    ctx.fillStyle = '#2b1a0e';
+    ctx.beginPath(); ctx.arc(145, 94, 4.5, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(175, 94, 4.5, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#2b1a0e';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath(); ctx.arc(160, 102, 14, 0.35, Math.PI - 0.35); ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 105, 140, 0.45)';
+    ctx.beginPath(); ctx.arc(134, 108, 7, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(186, 108, 7, 0, 7); ctx.fill();
+
+    // headband sits over the hair
+    if (g === 'headband') drawWornGarment(ctx);
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawFinal() {
+    const ctx = finalCanvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, finalCanvas.width, finalCanvas.height);
+    // background for the saved picture
+    const bg = ctx.createLinearGradient(0, 0, 0, finalCanvas.height);
+    bg.addColorStop(0, '#2b0a5e');
+    bg.addColorStop(1, '#1a0b3d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+    // sparkles
+    ctx.font = '28px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const sparkles = [[40, 60], [280, 90], [50, 380], [270, 340], [160, 30], [30, 200], [290, 210]];
+    for (const [x, y] of sparkles) ctx.fillText('✨', x * 2, y * 2);
+    // person (person space 320x460, canvas 640x920)
+    ctx.setTransform(2, 0, 0, 2, 0, 0);
+    drawPerson(ctx);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    const c = COLORS.find(c => c.key === state.color);
+    const article = state.garment === 'shorts' ? 'Some' : 'One';
+    document.getElementById('finalCaption').textContent =
+      article + ' ' + (c ? c.name.toLowerCase() : '') + ' ' + GARMENTS[state.garment].name.toLowerCase() +
+      ' with ' + state.stickers.length + ' sticker' + (state.stickers.length === 1 ? '' : 's') + '!';
+  }
+
+  document.getElementById('backTo3').addEventListener('click', () => show(3));
+
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    finalCanvas.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'decorate-' + state.garment + '-' + (state.color || 'plain') + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }, 'image/png');
+  });
+
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    state.stickers = [];
+    state.color = null;
+    nextBtn.disabled = true;
+    document.querySelectorAll('.swatch').forEach(el => el.classList.remove('selected'));
+    show(1);
+  });
+})();
+</script>
+</body>
+</html>

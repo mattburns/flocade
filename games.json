@@ -100,5 +100,11 @@
     "title": "I Ate an Author",
     "icon": "✍️",
     "description": "A creative studio — write stories, draw comics, design your own fonts, paint, and save it all to your gallery."
+  },
+  {
+    "slug": "decorate",
+    "title": "Decorate",
+    "icon": "🎀",
+    "description": "Design your own fashion! Pick a t-shirt, hoodie, skirt, shorts or headband, colour it, cover it in stickers, and see it worn."
   }
 ]
