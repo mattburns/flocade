@@ -102,6 +102,12 @@
     "description": "A creative studio — write stories, draw comics, design your own fonts, paint, and save it all to your gallery."
   },
   {
+    "slug": "growing-chewing-pigs",
+    "title": "Growing, Chewing, Pigs",
+    "icon": "🐷",
+    "description": "Plant, water and grow fruit and veg through day and night, then hand-feed it to your hungry pig. Chomp chomp!"
+  },
+  {
     "slug": "decorate",
     "title": "Decorate",
     "icon": "🎀",
