@@ -114,6 +114,12 @@
     "description": "Sensory play in 3D! Squish slime, slide kinetic sand, crack wax, pop a poppet, crunch frozen flowers, snap magnets, prod a jelly and clack a tiny keyboard."
   },
   {
+    "slug": "tap-em-all",
+    "title": "Tap 'em all",
+    "icon": "🟪",
+    "description": "Tap every square before 3 seconds run out — each level adds one more. Tricky mode spins the screen, extreme mode makes them scurry!"
+  },
+  {
     "slug": "decorate",
     "title": "Decorate",
     "icon": "🎀",
