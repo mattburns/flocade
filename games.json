@@ -124,5 +124,11 @@
     "title": "Decorate",
     "icon": "🎀",
     "description": "Design your own fashion! Pick a t-shirt, hoodie, skirt, shorts or headband, colour it, cover it in stickers, and see it worn."
+  },
+  {
+    "slug": "fruit-match",
+    "title": "Fruit Match",
+    "icon": "🍉",
+    "description": "Drop cute fruits and match pairs to grow them — blueberry to watermelon! Make two watermelons touch to win. No rush!"
   }
 ]
