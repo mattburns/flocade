@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Fruit Match — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+      padding: 0.8rem;
+      overflow: hidden;
+    }
+    a.back { color: #00f0ff; font-size: 0.7rem; text-decoration: none; }
+    .hud {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      font-size: 0.6rem;
+      color: #9b93b8;
+    }
+    .hud b { color: #ffe600; display: block; margin-top: 0.35rem; font-size: 0.8rem; }
+    .hud .label { text-align: center; }
+    #nextWrap { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+    #next { width: 40px; height: 40px; }
+    .stage { position: relative; }
+    #game {
+      border: 2px solid #ff2e88;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+      display: block;
+      touch-action: none;
+      cursor: pointer;
+    }
+    #chain { display: block; max-width: 100%; }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 2, 33, 0.86);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      text-align: center;
+      padding: 1rem;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 { color: #ff2e88; font-size: 1.1rem; line-height: 1.6; text-shadow: 0 0 12px rgba(255,46,136,0.7); }
+    .overlay h2.win { color: #ffe600; text-shadow: 0 0 12px rgba(255,230,0,0.7); }
+    .overlay p { font-size: 0.55rem; color: #cfc9e0; line-height: 2; max-width: 320px; }
+    .overlay .big { font-size: 2rem; }
+    .overlay button {
+      font-family: inherit;
+      font-size: 0.7rem;
+      color: #0d0221;
+      background: #00f0ff;
+      border: none;
+      padding: 0.9rem 1.4rem;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
+    }
+    .overlay button:active { transform: scale(0.96); }
+    .hint { font-size: 0.55rem; color: #9b93b8; text-align: center; line-height: 1.9; }
+    @media (max-height: 750px) {
+      .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+
+  <div class="hud">
+    <div class="label">SCORE<b id="score">0</b></div>
+    <div class="label">BEST<b id="best">0</b></div>
+    <div id="nextWrap"><span>NEXT</span><canvas id="next" width="80" height="80"></canvas></div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+    <div class="overlay" id="startOverlay">
+      <h2>FRUIT MATCH</h2>
+      <p>Slide the fruit left and right, then tap to drop it. Match two of the same fruit and they grow into the next one!</p>
+      <p>Make two WATERMELONS touch to win. No rush &mdash; take your time!</p>
+      <button id="startBtn">PLAY</button>
+    </div>
+    <div class="overlay hidden" id="endOverlay">
+      <h2 id="endTitle">BOARD FULL!</h2>
+      <div class="big" id="endEmoji">🫐</div>
+      <p id="endMsg"></p>
+      <button id="againBtn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <canvas id="chain"></canvas>
+  <p class="hint">Slide: drag / mouse / &larr;&rarr; &middot; Drop: tap / click / space</p>
+
+  <script>
+    // ---------- world ----------
+    const W = 420, H = 580;          // world units
+    const LINE_Y = 92;               // danger line
+    const DROP_Y = 50;               // where the held fruit hovers
+    const GRAV = 1250;
+
+    const TIERS = [
+      { name: 'BLUEBERRY',  r: 14, color: '#5a7bf0' },
+      { name: 'RASPBERRY',  r: 19, color: '#e0356e' },
+      { name: 'STRAWBERRY', r: 25, color: '#ff3b30' },
+      { name: 'ORANGE',     r: 33, color: '#ff9500' },
+      { name: 'APPLE',      r: 42, color: '#e5473b' },
+      { name: 'LEMON',      r: 52, color: '#ffe14d' },
+      { name: 'MELON',      r: 65, color: '#b6d96b' },
+      { name: 'WATERMELON', r: 80, color: '#3cb54a' },
+    ];
+    const POINTS = TIERS.map((_, t) => ((t + 1) * (t + 2)) / 2);
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const chainCanvas = document.getElementById('chain');
+    const chainCtx = chainCanvas.getContext('2d');
+    const nextCanvas = document.getElementById('next');
+    const nextCtx = nextCanvas.getContext('2d');
+
+    // ---------- state ----------
+    let state = 'start';             // start | play | over | win
+    let fruits = [];
+    let particles = [];
+    let held = null;                 // { tier, x }
+    let nextTier = 0;
+    let respawnTimer = 0;
+    let score = 0;
+    let best = +(localStorage.getItem('fruit-match-best') || 0);
+    let discovered = new Set([0]);
+    let winPair = null;
+    let shake = 0;
+
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    bestEl.textContent = best;
+
+    function boardMaxTier() {
+      let m = 0;
+      for (const f of fruits) if (!f.dead && f.tier > m) m = f.tier;
+      return m;
+    }
+
+    // Next fruit can be anything up to the biggest fruit on the board,
+    // weighted so small fruits stay common.
+    function pickTier() {
+      const maxT = boardMaxTier();
+      let total = 0;
+      const weights = [];
+      for (let t = 0; t <= maxT; t++) { weights[t] = Math.pow(0.55, t); total += weights[t]; }
+      let roll = Math.random() * total;
+      for (let t = 0; t <= maxT; t++) { roll -= weights[t]; if (roll <= 0) return t; }
+      return 0;
+    }
+
+    function makeFruit(tier, x, y) {
+      const r = TIERS[tier].r;
+      return { tier, r, m: r * r, x, y, vx: 0, vy: 0, a: 0, va: 0, touched: false, over: 0, dead: false };
+    }
+
+    function reset() {
+      fruits = [];
+      particles = [];
+      score = 0;
+      discovered = new Set([0]);
+      winPair = null;
+      held = { tier: 0, x: W / 2 };
+      nextTier = 0;
+      respawnTimer = 0;
+      scoreEl.textContent = '0';
+      state = 'play';
+    }
+
+    // ---------- audio ----------
+    let AC = null;
+    function audio() {
+      if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (AC && AC.state === 'suspended') AC.resume();
+      return AC;
+    }
+    function tone(freq, dur, type, vol, slide) {
+      const ac = audio();
+      if (!ac) return;
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, ac.currentTime);
+      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), ac.currentTime + dur);
+      g.gain.setValueAtTime(vol || 0.04, ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+      o.connect(g).connect(ac.destination);
+      o.start();
+      o.stop(ac.currentTime + dur);
+    }
+    const sndDrop = () => tone(150, 0.09, 'triangle', 0.05, -60);
+    const sndPop = t => { tone(280 + t * 70, 0.12, 'square', 0.045, 120); tone(420 + t * 70, 0.18, 'triangle', 0.04, 200); };
+    const sndWin = () => [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => tone(f, 0.35, 'square', 0.05), i * 130));
+    const sndLose = () => [330, 262, 196].forEach((f, i) => setTimeout(() => tone(f, 0.3, 'sawtooth', 0.04), i * 180));
+
+    // ---------- particles ----------
+    function burst(x, y, color, n, power) {
+      for (let i = 0; i < n; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const sp = (0.3 + Math.random() * 0.7) * power;
+        particles.push({
+          x, y, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - power * 0.3,
+          color, size: 2 + Math.random() * 4, life: 0.6 + Math.random() * 0.5, t: 0,
+        });
+      }
+    }
+    function confetti() {
+      const colors = ['#ff2e88', '#00f0ff', '#ffe600', '#3cb54a', '#ff9500'];
+      for (let i = 0; i < 130; i++) {
+        particles.push({
+          x: Math.random() * W, y: -10 - Math.random() * H * 0.5,
+          vx: (Math.random() - 0.5) * 120, vy: 60 + Math.random() * 140,
+          color: colors[i % colors.length], size: 3 + Math.random() * 5,
+          life: 2.5 + Math.random() * 2, t: 0,
+        });
+      }
+    }
+
+    // ---------- physics ----------
+    function step(h) {
+      for (const f of fruits) {
+        if (f.dead) continue;
+        f.vy += GRAV * h;
+        f.x += f.vx * h;
+        f.y += f.vy * h;
+        f.a += f.va * h;
+        f.va *= 0.998;
+
+        // walls
+        if (f.x < f.r) { f.x = f.r; f.vx = Math.abs(f.vx) * 0.25; f.touched = true; }
+        if (f.x > W - f.r) { f.x = W - f.r; f.vx = -Math.abs(f.vx) * 0.25; f.touched = true; }
+        // floor
+        if (f.y > H - f.r) {
+          f.y = H - f.r;
+          if (f.vy > 0) f.vy = -f.vy * 0.16;
+          if (Math.abs(f.vy) < 25) f.vy = 0;
+          f.vx *= 1 - Math.min(1, 2.6 * h);       // rolling friction
+          f.va = f.vx / f.r;                       // roll, don't skid
+          f.touched = true;
+        }
+      }
+
+      const merges = [];
+      for (let iter = 0; iter < 3; iter++) {
+        for (let i = 0; i < fruits.length; i++) {
+          const A = fruits[i];
+          if (A.dead) continue;
+          for (let j = i + 1; j < fruits.length; j++) {
+            const B = fruits[j];
+            if (B.dead) continue;
+            const dx = B.x - A.x, dy = B.y - A.y;
+            const minD = A.r + B.r;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= minD * minD) continue;
+
+            A.touched = B.touched = true;
+
+            if (A.tier === B.tier) {
+              if (A.tier === TIERS.length - 1) { winPair = [A, B]; continue; }
+              if (iter === 0) merges.push([A, B]);
+            }
+
+            const d = Math.max(Math.sqrt(d2), 0.01);
+            const nx = dx / d, ny = dy / d;
+            const imA = 1 / A.m, imB = 1 / B.m, imT = imA + imB;
+
+            // push apart (heavier fruit budges less -> small fruit tumbles off)
+            const overlap = (minD - d) * 0.8;
+            A.x -= nx * overlap * (imA / imT); A.y -= ny * overlap * (imA / imT);
+            B.x += nx * overlap * (imB / imT); B.y += ny * overlap * (imB / imT);
+
+            // bounce impulse
+            const rvx = B.vx - A.vx, rvy = B.vy - A.vy;
+            const vn = rvx * nx + rvy * ny;
+            if (vn < 0) {
+              const jn = -(1 + 0.12) * vn / imT;
+              A.vx -= jn * imA * nx; A.vy -= jn * imA * ny;
+              B.vx += jn * imB * nx; B.vy += jn * imB * ny;
+
+              // friction + a bit of spin so fruit tumbles
+              const tx = -ny, ty = nx;
+              const vt = rvx * tx + rvy * ty;
+              const jt = Math.max(-Math.abs(jn) * 0.25, Math.min(Math.abs(jn) * 0.25, -vt * 0.35 / imT));
+              A.vx -= jt * imA * tx; A.vy -= jt * imA * ty;
+              B.vx += jt * imB * tx; B.vy += jt * imB * ty;
+              A.va += (vt / A.r) * 0.10;
+              B.va += (vt / B.r) * 0.10;
+            }
+          }
+        }
+      }
+
+      for (const [A, B] of merges) {
+        if (A.dead || B.dead) continue;
+        A.dead = B.dead = true;
+        const t = A.tier + 1;
+        const nf = makeFruit(t, (A.x + B.x) / 2, (A.y + B.y) / 2);
+        nf.vx = (A.vx + B.vx) * 0.3;
+        nf.vy = (A.vy + B.vy) * 0.3 - 70;
+        nf.va = (Math.random() - 0.5) * 3;
+        nf.touched = true;
+        // keep the new, bigger fruit inside the box
+        nf.x = Math.max(nf.r, Math.min(W - nf.r, nf.x));
+        nf.y = Math.min(H - nf.r, nf.y);
+        fruits.push(nf);
+        discovered.add(t);
+        score += POINTS[t];
+        scoreEl.textContent = score;
+        burst(nf.x, nf.y, TIERS[t].color, 14, 220);
+        shake = Math.min(6, 1.5 + t);
+        sndPop(t);
+      }
+      if (merges.length) fruits = fruits.filter(f => !f.dead);
+    }
+
+    function update(dt) {
+      if (state !== 'play') { updateParticles(dt); return; }
+
+      const sub = Math.max(1, Math.ceil(dt / (1 / 120)));
+      const h = dt / sub;
+      for (let s = 0; s < sub && state === 'play'; s++) {
+        step(h);
+        if (winPair) { win(); break; }
+      }
+
+      // respawn held fruit a moment after dropping
+      if (!held && state === 'play') {
+        respawnTimer -= dt;
+        if (respawnTimer <= 0) {
+          held = { tier: nextTier, x: clampHeldX(lastAimX, nextTier) };
+          nextTier = pickTier();
+          discovered.add(held.tier);
+        }
+      }
+
+      // board-full check: only fruit that has landed and is sitting still counts
+      let danger = false;
+      for (const f of fruits) {
+        if (f.touched && f.y - f.r < LINE_Y && Math.abs(f.vy) < 40) {
+          f.over += dt;
+          if (f.over > 0.4) danger = true;
+          if (f.over > 2.2) { gameOver(); break; }
+        } else f.over = 0;
+      }
+      dangerFlash = danger;
+
+      updateParticles(dt);
+      shake = Math.max(0, shake - dt * 20);
+    }
+
+    function updateParticles(dt) {
+      for (const p of particles) {
+        p.t += dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += 300 * dt;
+      }
+      particles = particles.filter(p => p.t < p.life && p.y < H + 20);
+    }
+
+    function endGame(winTitle) {
+      if (score > best) { best = score; localStorage.setItem('fruit-match-best', best); bestEl.textContent = best; }
+      document.getElementById('endTitle').textContent = winTitle ? 'YOU WIN!' : 'BOARD FULL!';
+      document.getElementById('endTitle').classList.toggle('win', !!winTitle);
+      document.getElementById('endEmoji').textContent = winTitle ? '🍉🍉' : '🫐';
+      document.getElementById('endMsg').textContent = winTitle
+        ? 'Two watermelons touched! Score: ' + score
+        : 'The fruit piled too high! Score: ' + score;
+      document.getElementById('endOverlay').classList.remove('hidden');
+    }
+    function win() { state = 'win'; held = null; confetti(); sndWin(); endGame(true); }
+    function gameOver() { state = 'over'; held = null; sndLose(); endGame(false); }
+
+    // ---------- input ----------
+    let lastAimX = W / 2;
+    let dangerFlash = false;
+
+    function clampHeldX(x, tier) {
+      const r = TIERS[tier].r;
+      return Math.max(r + 2, Math.min(W - r - 2, x));
+    }
+    function worldX(clientX) {
+      const rect = canvas.getBoundingClientRect();
+      return (clientX - rect.left) * (W / rect.width);
+    }
+    function aim(clientX) {
+      lastAimX = worldX(clientX);
+      if (held) held.x = clampHeldX(lastAimX, held.tier);
+    }
+    function drop() {
+      if (state !== 'play' || !held) return;
+      const f = makeFruit(held.tier, held.x, DROP_Y);
+      fruits.push(f);
+      held = null;
+      respawnTimer = 0.7;
+      sndDrop();
+    }
+
+    let pointerDown = false, downX = 0, downY = 0, moved = false;
+    canvas.addEventListener('pointerdown', e => {
+      audio();
+      pointerDown = true; moved = false;
+      downX = e.clientX; downY = e.clientY;
+      aim(e.clientX);
+      canvas.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointermove', e => {
+      if (pointerDown || e.pointerType === 'mouse') {
+        if (pointerDown && Math.hypot(e.clientX - downX, e.clientY - downY) > 12) moved = true;
+        aim(e.clientX);
+      }
+      e.preventDefault();
+    });
+    canvas.addEventListener('pointerup', e => {
+      if (pointerDown && !moved) drop();   // a tap (not a slide) releases the fruit
+      pointerDown = false;
+      e.preventDefault();
+    });
+
+    const keys = {};
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { keys[e.key] = true; e.preventDefault(); }
+      if (e.key === ' ' || e.key === 'ArrowDown' || e.key === 'Enter') {
+        e.preventDefault();
+        if (state === 'start') startBtn.click();
+        else if (state === 'play') { audio(); drop(); }
+      }
+    });
+    document.addEventListener('keyup', e => { keys[e.key] = false; });
+    function keySlide(dt) {
+      if (!held) return;
+      const speed = 260 * dt;
+      if (keys.ArrowLeft) { lastAimX = held.x - speed; held.x = clampHeldX(lastAimX, held.tier); }
+      if (keys.ArrowRight) { lastAimX = held.x + speed; held.x = clampHeldX(lastAimX, held.tier); }
+    }
+
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('click', () => {
+      audio();
+      document.getElementById('startOverlay').classList.add('hidden');
+      reset();
+    });
+    document.getElementById('againBtn').addEventListener('click', () => {
+      audio();
+      document.getElementById('endOverlay').classList.add('hidden');
+      reset();
+    });
+
+    // ---------- fruit drawing ----------
+    function face(c, r, happy) {
+      const er = Math.max(1.2, r * 0.075);
+      c.fillStyle = '#3a2233';
+      c.beginPath(); c.arc(-r * 0.28, -r * 0.12, er, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(r * 0.28, -r * 0.12, er, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.85)';
+      c.beginPath(); c.arc(-r * 0.28 - er * 0.3, -r * 0.12 - er * 0.35, er * 0.35, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(r * 0.28 - er * 0.3, -r * 0.12 - er * 0.35, er * 0.35, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#3a2233';
+      c.lineWidth = Math.max(1, r * 0.05);
+      c.lineCap = 'round';
+      c.beginPath();
+      c.arc(0, r * (happy ? 0.1 : 0.16), r * (happy ? 0.3 : 0.22), Math.PI * 0.15, Math.PI * 0.85);
+      c.stroke();
+      c.fillStyle = 'rgba(255,120,150,0.4)';
+      c.beginPath(); c.arc(-r * 0.5, r * 0.14, r * 0.11, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(r * 0.5, r * 0.14, r * 0.11, 0, Math.PI * 2); c.fill();
+    }
+
+    function shade(c, r, color, light) {
+      const g = c.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.15, 0, 0, r * 1.15);
+      g.addColorStop(0, light);
+      g.addColorStop(1, color);
+      return g;
+    }
+
+    function leaf(c, x, y, r, ang) {
+      c.save();
+      c.translate(x, y);
+      c.rotate(ang || -0.5);
+      c.fillStyle = '#3f9b3f';
+      c.beginPath();
+      c.ellipse(r * 0.16, 0, r * 0.2, r * 0.09, 0, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+
+    function drawFruitShape(c, tier, r) {
+      c.save();
+      switch (tier) {
+        case 0: // blueberry
+          c.fillStyle = shade(c, r, '#4a63d8', '#8ba4ff');
+          c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = '#2e3f9e'; c.lineWidth = Math.max(1, r * 0.07); c.lineCap = 'round';
+          for (let i = 0; i < 5; i++) {  // crown
+            const a = -Math.PI / 2 + (i - 2) * 0.42;
+            c.beginPath();
+            c.moveTo(Math.cos(a) * r * 0.68, Math.sin(a) * r * 0.68 - r * 0.12);
+            c.lineTo(Math.cos(a) * r * 0.92, Math.sin(a) * r * 0.92 - r * 0.12);
+            c.stroke();
+          }
+          break;
+        case 1: { // raspberry — cluster of druplets
+          c.fillStyle = '#c81e5e';
+          c.beginPath(); c.arc(0, 0, r * 0.92, 0, Math.PI * 2); c.fill();
+          c.fillStyle = shade(c, r, '#d92a6d', '#f06a9d');
+          const spots = [[0, 0], [0.52, 0], [-0.52, 0], [0.26, 0.46], [-0.26, 0.46], [0.26, -0.46], [-0.26, -0.46], [0, 0.75], [0.6, 0.42], [-0.6, 0.42]];
+          for (const [sx, sy] of spots) {
+            c.beginPath(); c.arc(sx * r, sy * r, r * 0.32, 0, Math.PI * 2); c.fill();
+          }
+          c.fillStyle = 'rgba(255,255,255,0.35)';
+          for (const [sx, sy] of spots) {
+            c.beginPath(); c.arc(sx * r - r * 0.08, sy * r - r * 0.1, r * 0.07, 0, Math.PI * 2); c.fill();
+          }
+          leaf(c, -r * 0.15, -r * 0.85, r, -0.9);
+          leaf(c, r * 0.15, -r * 0.85, r, -2.2);
+          break;
+        }
+        case 2: { // strawberry
+          c.fillStyle = shade(c, r, '#e6262b', '#ff7062');
+          c.beginPath();
+          c.moveTo(0, r * 0.98);
+          c.bezierCurveTo(-r * 1.05, r * 0.25, -r * 0.95, -r * 0.85, 0, -r * 0.85);
+          c.bezierCurveTo(r * 0.95, -r * 0.85, r * 1.05, r * 0.25, 0, r * 0.98);
+          c.fill();
+          c.fillStyle = '#ffe28a';   // seeds
+          for (let i = 0; i < 8; i++) {
+            const sx = ((i % 3) - 1) * 0.44 + (i > 4 ? 0.12 : -0.05);
+            const sy = -0.45 + Math.floor(i / 3) * 0.42;
+            c.beginPath(); c.ellipse(sx * r, sy * r, r * 0.05, r * 0.08, 0, 0, Math.PI * 2); c.fill();
+          }
+          c.fillStyle = '#3f9b3f';   // leafy top
+          for (let i = -2; i <= 2; i++) {
+            c.save();
+            c.translate(i * r * 0.28, -r * 0.8);
+            c.rotate(i * 0.35);
+            c.beginPath(); c.ellipse(0, 0, r * 0.13, r * 0.26, 0, 0, Math.PI * 2); c.fill();
+            c.restore();
+          }
+          break;
+        }
+        case 3: // orange
+          c.fillStyle = shade(c, r, '#f28500', '#ffbb52');
+          c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+          c.fillStyle = 'rgba(200,100,0,0.35)';   // pores
+          for (let i = 0; i < 14; i++) {
+            const a = i * 2.4, rr = r * (0.35 + (i % 4) * 0.16);
+            c.beginPath(); c.arc(Math.cos(a) * rr, Math.sin(a) * rr, r * 0.035, 0, Math.PI * 2); c.fill();
+          }
+          c.fillStyle = '#7a4a1e';
+          c.fillRect(-r * 0.05, -r * 1.02, r * 0.1, r * 0.18);
+          leaf(c, r * 0.08, -r * 0.95, r, -0.4);
+          break;
+        case 4: { // apple
+          c.fillStyle = shade(c, r, '#d8332a', '#ff8a70');
+          c.beginPath();
+          c.arc(-r * 0.32, r * 0.08, r * 0.72, Math.PI * 0.42, Math.PI * 1.72);
+          c.arc(r * 0.32, r * 0.08, r * 0.72, Math.PI * 1.28, Math.PI * 0.58);
+          c.closePath(); c.fill();
+          c.strokeStyle = '#6d3d19'; c.lineWidth = Math.max(1.5, r * 0.07); c.lineCap = 'round';
+          c.beginPath(); c.moveTo(0, -r * 0.62); c.quadraticCurveTo(r * 0.12, -r * 0.92, r * 0.06, -r * 1.05); c.stroke();
+          leaf(c, r * 0.2, -r * 0.82, r, -0.5);
+          break;
+        }
+        case 5: { // lemon
+          c.fillStyle = shade(c, r, '#f2c500', '#fff29b');
+          c.beginPath(); c.ellipse(0, 0, r, r * 0.8, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#e8b800';   // end nubs
+          c.beginPath(); c.ellipse(-r * 0.98, 0, r * 0.12, r * 0.16, 0, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(r * 0.98, 0, r * 0.12, r * 0.16, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = 'rgba(255,255,255,0.4)';
+          c.beginPath(); c.ellipse(-r * 0.35, -r * 0.35, r * 0.22, r * 0.12, -0.5, 0, Math.PI * 2); c.fill();
+          break;
+        }
+        case 6: { // melon
+          c.fillStyle = shade(c, r, '#a7c95c', '#dcedaa');
+          c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = 'rgba(110,140,60,0.55)'; c.lineWidth = Math.max(1, r * 0.035);
+          for (let i = -2; i <= 2; i++) {   // segment stripes
+            c.beginPath(); c.ellipse(0, 0, r * Math.abs(i) * 0.42, r, 0, 0, Math.PI * 2); c.stroke();
+          }
+          c.fillStyle = '#7a4a1e';
+          c.fillRect(-r * 0.06, -r * 1.05, r * 0.12, r * 0.2);
+          c.beginPath(); c.arc(0, -r * 0.86, r * 0.12, 0, Math.PI * 2); c.fill();
+          break;
+        }
+        case 7: { // watermelon
+          c.fillStyle = shade(c, r, '#2f9e3f', '#7fd67f');
+          c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = '#176e26';
+          for (let i = -2; i <= 2; i++) {   // bold stripes like the drawing
+            c.lineWidth = r * 0.13;
+            c.beginPath();
+            c.ellipse(0, 0, r * Math.abs(i) * 0.4 + r * 0.02, r * 0.99, 0, 0, Math.PI * 2);
+            c.stroke();
+          }
+          c.strokeStyle = '#7a4a1e'; c.lineWidth = Math.max(2, r * 0.05); c.lineCap = 'round';
+          c.beginPath(); c.moveTo(0, -r * 0.95); c.quadraticCurveTo(r * 0.15, -r * 1.1, r * 0.22, -r * 1.02); c.stroke();
+          break;
+        }
+      }
+      c.restore();
+      face(c, r * (tier === 2 ? 0.85 : 1), tier >= 6);
+    }
+
+    function drawFruit(f) {
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.rotate(f.a);
+      drawFruitShape(ctx, f.tier, f.r);
+      ctx.restore();
+    }
+
+    // ---------- render ----------
+    function render() {
+      ctx.save();
+      ctx.clearRect(0, 0, W, H);
+      const bg = ctx.createLinearGradient(0, 0, 0, H);
+      bg.addColorStop(0, '#150634');
+      bg.addColorStop(1, '#0d0221');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, W, H);
+
+      if (shake > 0.2) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+
+      // danger line
+      ctx.strokeStyle = dangerFlash
+        ? (Math.floor(performance.now() / 160) % 2 ? '#ff2e88' : '#ff8ab8')
+        : 'rgba(0,240,255,0.5)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.moveTo(0, LINE_Y); ctx.lineTo(W, LINE_Y); ctx.stroke();
+      ctx.setLineDash([]);
+
+      for (const f of fruits) drawFruit(f);
+
+      // held fruit + drop guide
+      if (held) {
+        ctx.strokeStyle = 'rgba(255,230,0,0.22)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 10]);
+        ctx.beginPath(); ctx.moveTo(held.x, DROP_Y); ctx.lineTo(held.x, H); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.save();
+        ctx.translate(held.x, DROP_Y + Math.sin(performance.now() / 350) * 3);
+        drawFruitShape(ctx, held.tier, TIERS[held.tier].r);
+        ctx.restore();
+      }
+
+      for (const p of particles) {
+        ctx.globalAlpha = Math.max(0, 1 - p.t / p.life);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      renderChain();
+      renderNext();
+    }
+
+    // evolution chain strip, undiscovered fruits stay mysterious
+    function renderChain() {
+      const c = chainCtx;
+      const w = chainCanvas.width / DPR, h = chainCanvas.height / DPR;
+      c.save();
+      c.scale(DPR, DPR);
+      c.clearRect(0, 0, w, h);
+      const slot = w / TIERS.length;
+      for (let t = 0; t < TIERS.length; t++) {
+        const cx = slot * t + slot / 2, cy = h / 2;
+        const rr = 8 + t * 1.6;
+        c.save();
+        c.translate(cx, cy);
+        if (discovered.has(t)) {
+          drawFruitShape(c, t, rr);
+        } else {
+          c.fillStyle = 'rgba(155,147,184,0.18)';
+          c.beginPath(); c.arc(0, 0, rr, 0, Math.PI * 2); c.fill();
+          c.fillStyle = 'rgba(155,147,184,0.6)';
+          c.font = '10px "Press Start 2P", monospace';
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText('?', 0, 1);
+        }
+        c.restore();
+        if (t < TIERS.length - 1) {
+          c.fillStyle = 'rgba(255,46,136,0.6)';
+          c.font = '8px "Press Start 2P", monospace';
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText('>', slot * (t + 1), h / 2);
+        }
+      }
+      c.restore();
+    }
+
+    function renderNext() {
+      const c = nextCtx;
+      c.save();
+      c.clearRect(0, 0, 80, 80);
+      c.translate(40, 40);
+      if (state === 'play') {
+        const r = 14 + nextTier * 1.5;
+        c.scale(24 / r, 24 / r);       // normalise so it fits the box
+        drawFruitShape(c, nextTier, r);
+      }
+      c.restore();
+    }
+
+    // ---------- sizing ----------
+    let DPR = Math.min(2, window.devicePixelRatio || 1);
+    function resize() {
+      DPR = Math.min(2, window.devicePixelRatio || 1);
+      const availH = window.innerHeight - 210;
+      const availW = Math.min(window.innerWidth - 24, 460);
+      const scale = Math.max(0.4, Math.min(availW / W, availH / H));
+      canvas.style.width = (W * scale) + 'px';
+      canvas.style.height = (H * scale) + 'px';
+      canvas.width = Math.round(W * scale * DPR);
+      canvas.height = Math.round(H * scale * DPR);
+      ctx.setTransform(canvas.width / W, 0, 0, canvas.width / W, 0, 0);
+
+      chainCanvas.style.width = (W * scale) + 'px';
+      chainCanvas.style.height = '44px';
+      chainCanvas.width = Math.round(W * scale * DPR);
+      chainCanvas.height = 44 * DPR;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ---------- main loop ----------
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      keySlide(dt);
+      update(dt);
+      render();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
