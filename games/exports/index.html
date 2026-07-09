@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Exports — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      min-height: 100vh;
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.6rem;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .wrap {
+      width: min(560px, 100%);
+      max-height: 100%;
+      border: 2px solid #ff2e88;
+      border-radius: 14px;
+      background: rgba(12, 4, 35, 0.95);
+      box-shadow: 0 0 26px rgba(255, 46, 136, 0.25);
+      padding: 0.7rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.55rem;
+      flex-wrap: wrap;
+    }
+    a.back { color: #00f0ff; text-decoration: none; }
+    .hud { display: flex; gap: 0.8rem; align-items: center; }
+    .hud .lives { color: #ff2e88; letter-spacing: 2px; }
+    .hud .secrets { color: #ffe600; }
+    h1 {
+      font-size: clamp(0.9rem, 4.5vw, 1.3rem);
+      text-align: center;
+      color: #ffe600;
+      text-shadow: 0 0 12px rgba(255, 230, 0, 0.6);
+      letter-spacing: 0.08em;
+    }
+
+    /* ---- scene ---- */
+    .scene {
+      position: relative;
+      border: 2px solid #3e2f65;
+      border-radius: 10px;
+      background:
+        radial-gradient(ellipse at 50% 120%, rgba(0, 240, 255, 0.12), transparent 60%),
+        linear-gradient(#070113, #0d0221);
+      height: clamp(120px, 24vh, 190px);
+      overflow: hidden;
+      flex: none;
+    }
+    .stars {
+      position: absolute; inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 12% 20%, #6f5fa8 50%, transparent 51%),
+        radial-gradient(1px 1px at 45% 10%, #6f5fa8 50%, transparent 51%),
+        radial-gradient(1px 1px at 78% 26%, #6f5fa8 50%, transparent 51%),
+        radial-gradient(1px 1px at 30% 42%, #4a3d7a 50%, transparent 51%),
+        radial-gradient(1px 1px at 88% 55%, #4a3d7a 50%, transparent 51%),
+        radial-gradient(1px 1px at 60% 33%, #6f5fa8 50%, transparent 51%);
+    }
+    .laser {
+      position: absolute;
+      top: 0;
+      width: 4px;
+      height: 0%;
+      background: linear-gradient(#ff2e88, #ff5d5d);
+      box-shadow: 0 0 10px #ff2e88, 0 0 22px rgba(255, 46, 136, 0.7);
+      border-radius: 0 0 4px 4px;
+      transition: height 0.25s linear;
+      opacity: 0;
+    }
+    .laser::after {
+      content: '';
+      position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%);
+      width: 10px; height: 6px; border-radius: 50%;
+      background: #ffe600; box-shadow: 0 0 10px #ffe600;
+    }
+    .scene.attacking .laser { opacity: 1; }
+    .ufo {
+      position: absolute;
+      top: 4px;
+      transform: translateX(-50%);
+      font-size: 1.1rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      filter: drop-shadow(0 0 6px rgba(255, 46, 136, 0.8));
+    }
+    .scene.attacking .ufo { opacity: 1; animation: hover 1.2s ease-in-out infinite alternate; }
+    @keyframes hover { from { margin-top: 0; } to { margin-top: 5px; } }
+    .tablet {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: clamp(80px, 22vw, 110px);
+      height: clamp(58px, 15vw, 78px);
+      border: 3px solid #00f0ff;
+      border-radius: 10px;
+      background: linear-gradient(#123, #0a1a2a);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.5);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 3px;
+      padding: 6px;
+      align-content: center;
+    }
+    .tablet .glyph {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      background: rgba(0, 240, 255, 0.1);
+      display: grid;
+      place-items: center;
+      font-size: 0.45rem;
+      color: transparent;
+      transition: all 0.4s;
+    }
+    .tablet .glyph.lit {
+      background: rgba(255, 230, 0, 0.22);
+      color: #ffe600;
+      box-shadow: 0 0 8px rgba(255, 230, 0, 0.6);
+    }
+    .scene .shield {
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: clamp(120px, 34vw, 170px);
+      height: clamp(70px, 18vw, 95px);
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      border: 2px solid rgba(0, 240, 255, 0.9);
+      border-bottom: none;
+      background: radial-gradient(ellipse at 50% 100%, rgba(0, 240, 255, 0.25), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .scene.shielded .shield { opacity: 1; animation: shieldPulse 0.9s ease-in-out infinite alternate; }
+    @keyframes shieldPulse { from { filter: brightness(1); } to { filter: brightness(1.6); } }
+    .scene.zapped { animation: shake 0.4s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      40% { transform: translateX(7px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    .flash {
+      position: absolute; inset: 0;
+      background: #ff2e88;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .flash.go { animation: flashout 0.5s; }
+    @keyframes flashout { from { opacity: 0.7; } to { opacity: 0; } }
+
+    /* ---- timer ---- */
+    .timerbar {
+      height: 12px;
+      border: 2px solid #3e2f65;
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.4);
+      flex: none;
+    }
+    .timerbar .fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00f0ff, #ffe600);
+      transition: width 0.1s linear;
+    }
+    .timerbar .fill.danger { background: linear-gradient(90deg, #ff2e88, #ff5d5d); }
+
+    /* ---- message + input ---- */
+    .msg {
+      text-align: center;
+      font-size: clamp(0.55rem, 2.6vw, 0.72rem);
+      line-height: 1.7;
+      color: #9b93b8;
+      min-height: 2.6em;
+    }
+    .msg strong { color: #00f0ff; }
+    .msg .warn { color: #ff2e88; }
+    .entry {
+      text-align: center;
+      border: 2px solid #00f0ff;
+      border-radius: 10px;
+      background: rgba(0, 240, 255, 0.07);
+      padding: 0.7rem 0.4rem;
+      font-size: clamp(0.85rem, 4.5vw, 1.15rem);
+      color: #ffe600;
+      letter-spacing: 0.22em;
+      min-height: 2.6em;
+      display: grid;
+      align-content: center;
+      overflow-wrap: anywhere;
+      flex: none;
+    }
+    .entry .cursor { animation: blink 0.9s steps(1) infinite; color: #00f0ff; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .entry.denied { animation: shake 0.4s; border-color: #ff2e88; color: #ff2e88; }
+
+    /* ---- keyboard ---- */
+    .kb { display: grid; gap: 5px; flex: none; }
+    .kb .row { display: flex; gap: 5px; justify-content: center; }
+    .kb button {
+      font-family: inherit;
+      font-size: clamp(0.55rem, 2.9vw, 0.8rem);
+      color: #e8e6f0;
+      background: rgba(0, 240, 255, 0.08);
+      border: 2px solid #3e2f65;
+      border-radius: 8px;
+      flex: 1;
+      max-width: 52px;
+      padding: clamp(0.55rem, 2.4vw, 0.85rem) 0;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .kb button:active, .kb button.pressed {
+      background: #00f0ff;
+      color: #0d0221;
+      border-color: #00f0ff;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+    }
+    .kb button.space { max-width: none; flex: 5; color: #00f0ff; }
+    .kb button.wide { max-width: none; flex: 2; }
+    .kb button.go { color: #0d0221; background: #ffe600; border-color: #ffe600; flex: 2; max-width: none; }
+    .kb button.go:active { background: #fff; }
+
+    /* ---- overlay screens ---- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 2, 33, 0.96);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1.2rem;
+      text-align: center;
+      z-index: 5;
+      overflow-y: auto;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h2 {
+      font-size: clamp(1rem, 5vw, 1.5rem);
+      color: #ff2e88;
+      text-shadow: 0 0 14px rgba(255, 46, 136, 0.7);
+      line-height: 1.5;
+    }
+    .overlay p { font-size: clamp(0.55rem, 2.6vw, 0.7rem); line-height: 1.9; color: #9b93b8; max-width: 40ch; }
+    .overlay p strong { color: #00f0ff; }
+    .overlay p em { color: #ffe600; font-style: normal; }
+    .overlay .biglabel {
+      font-size: clamp(0.9rem, 4vw, 1.2rem);
+      color: #ffe600;
+      animation: blink 1s steps(1) infinite;
+    }
+    .overlay button.cta {
+      font-family: inherit;
+      font-size: clamp(0.65rem, 3vw, 0.85rem);
+      padding: 0.9rem 1.6rem;
+      background: #ff2e88;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 18px rgba(255, 46, 136, 0.6);
+    }
+    .overlay button.cta:active { transform: scale(0.95); }
+    .overlay .secretlist {
+      list-style: none;
+      font-size: clamp(0.5rem, 2.4vw, 0.62rem);
+      line-height: 2;
+      color: #ffe600;
+      text-align: left;
+      max-width: 42ch;
+    }
+    .secretcard {
+      border: 2px solid #ffe600;
+      border-radius: 12px;
+      background: rgba(255, 230, 0, 0.08);
+      box-shadow: 0 0 20px rgba(255, 230, 0, 0.35);
+      padding: 1rem;
+      font-size: clamp(0.6rem, 2.8vw, 0.78rem);
+      line-height: 1.9;
+      color: #ffe600;
+      max-width: 42ch;
+    }
+    .secretcard .label { color: #00f0ff; font-size: 0.8em; display: block; margin-bottom: 0.6rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="back" href="../../">&larr; FLOCADE</a>
+      <div class="hud">
+        <span class="secrets" id="hudSecrets">🔓 0/10</span>
+        <span class="lives" id="hudLives">♥♥♥</span>
+      </div>
+    </div>
+
+    <div class="scene" id="scene">
+      <div class="stars"></div>
+      <div class="ufo" id="ufo1" style="left:25%">🛸</div>
+      <div class="ufo" id="ufo2" style="left:50%">🛸</div>
+      <div class="ufo" id="ufo3" style="left:75%">🛸</div>
+      <div class="laser" id="laser1" style="left:calc(25% - 2px)"></div>
+      <div class="laser" id="laser2" style="left:calc(50% - 2px)"></div>
+      <div class="laser" id="laser3" style="left:calc(75% - 2px)"></div>
+      <div class="shield"></div>
+      <div class="tablet" id="tablet"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="timerbar"><div class="fill" id="timerFill"></div></div>
+
+    <div class="msg" id="msg">…</div>
+
+    <div class="entry" id="entry"><span class="cursor">_</span></div>
+
+    <div class="kb" id="kb"></div>
+
+    <!-- intro -->
+    <div class="overlay" id="introScreen">
+      <h2>EXPORTS</h2>
+      <p>The Ancient Tablet holds <em>10 secrets</em>… and the laser ships want them!</p>
+      <p><strong>Think of a secret password</strong> and type it in. When an <em>EXPORT</em> begins, the lasers attack — type your password (don't forget the <strong>SPACE BAR</strong> works too!) before they zap the tablet.</p>
+      <p>Every export you survive, the tablet whispers you one of its secrets…</p>
+      <button class="cta" id="startBtn">THINK OF A PASSWORD</button>
+    </div>
+
+    <!-- secret reveal -->
+    <div class="overlay hidden" id="secretScreen">
+      <h2 style="color:#ffe600; text-shadow:0 0 14px rgba(255,230,0,0.7)">EXPORT SURVIVED!</h2>
+      <div class="secretcard">
+        <span class="label" id="secretLabel">TABLET SECRET No.1</span>
+        <span id="secretText"></span>
+      </div>
+      <p class="biglabel" id="nextExportLabel">NEXT EXPORT IN 3…</p>
+    </div>
+
+    <!-- game over -->
+    <div class="overlay hidden" id="overScreen">
+      <h2>TABLET ZAPPED!</h2>
+      <p id="overStats"></p>
+      <ul class="secretlist" id="overSecrets"></ul>
+      <button class="cta" id="retryBtn">TRY AGAIN</button>
+    </div>
+
+    <!-- win -->
+    <div class="overlay hidden" id="winScreen">
+      <h2 style="color:#ffe600; text-shadow:0 0 14px rgba(255,230,0,0.7)">🏆 ALL 10 SECRETS! 🏆</h2>
+      <p>You survived every export. The lasers give up and fly home!</p>
+      <ul class="secretlist" id="winSecrets"></ul>
+      <button class="cta" id="winBtn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const SECRETS = [
+      "The tablet is a bit ticklish on its left corner.",
+      "It hums little songs at midnight when nobody is listening.",
+      "It once beat a pyramid at hide and seek. The pyramid is still looking.",
+      "Its favourite food is moon cheese sandwiches (with the crusts cut off).",
+      "The squiggly glyph on row two is actually a drawing of its pet snail, Keith.",
+      "It thinks lasers are just very rude torches.",
+      "It can count to a billion but always falls asleep at 7,000,004.",
+      "It's scared of erasers. Don't tell anyone.",
+      "Its best friend is a very old teapot that lives in a museum in Bristol.",
+      "The last secret? YOUR password is now carved on its back forever. You're part of the tablet!"
+    ];
+    const TOTAL = SECRETS.length;
+    const MAX_LIVES = 3;
+
+    // ---- state ----
+    let mode = 'idle';           // idle | setup | confirm | calm | export | between
+    let password = '';
+    let typed = '';
+    let lives = MAX_LIVES;
+    let secretsFound = 0;
+    let exportTime = 0;          // ms allowed for current export
+    let timeLeft = 0;
+    let timerId = null;
+    let alarmId = null;
+
+    // ---- elements ----
+    const $ = id => document.getElementById(id);
+    const scene = $('scene'), entry = $('entry'), msg = $('msg'), kb = $('kb');
+    const timerFill = $('timerFill'), flash = $('flash');
+    const lasers = [$('laser1'), $('laser2'), $('laser3')];
+
+    // ---- audio ----
+    let ac = null;
+    function audio() {
+      if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+      if (ac && ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+    function tone(freq, dur, type, vol, when) {
+      const ctx = audio();
+      if (!ctx) return;
+      const t = ctx.currentTime + (when || 0);
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = type || 'square';
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(vol || 0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g).connect(ctx.destination);
+      o.start(t); o.stop(t + dur);
+    }
+    const sKey = () => tone(700 + Math.floor(Math.random() * 60), 0.05, 'square', 0.04);
+    const sSpace = () => tone(320, 0.08, 'square', 0.05);
+    const sDeny = () => { tone(180, 0.22, 'sawtooth', 0.09); tone(150, 0.24, 'sawtooth', 0.09, 0.08); };
+    const sOk = () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.14, 'square', 0.06, i * 0.09)); };
+    const sZap = () => { tone(900, 0.3, 'sawtooth', 0.1); tone(120, 0.4, 'sawtooth', 0.12, 0.05); };
+    const sAlarm = () => { tone(880, 0.12, 'square', 0.05); tone(660, 0.12, 'square', 0.05, 0.15); };
+
+    // ---- tablet glyphs ----
+    const GLYPHS = ['✦', '☾', '♦', '☼', '♪', '✿', '⚡', '☺', '♥', '★'];
+    const tabletEl = $('tablet');
+    for (let i = 0; i < TOTAL; i++) {
+      const d = document.createElement('div');
+      d.className = 'glyph';
+      d.textContent = GLYPHS[i];
+      tabletEl.appendChild(d);
+    }
+    function litGlyphs() {
+      [...tabletEl.children].forEach((g, i) => g.classList.toggle('lit', i < secretsFound));
+    }
+
+    // ---- keyboard ----
+    const ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+    ROWS.forEach((row, ri) => {
+      const div = document.createElement('div');
+      div.className = 'row';
+      for (const ch of row) {
+        const b = document.createElement('button');
+        b.textContent = ch;
+        b.dataset.key = ch;
+        div.appendChild(b);
+      }
+      if (ri === 2) {
+        const del = document.createElement('button');
+        del.textContent = '⌫';
+        del.className = 'wide';
+        del.dataset.key = 'BACKSPACE';
+        div.appendChild(del);
+      }
+      kb.appendChild(div);
+    });
+    const bottom = document.createElement('div');
+    bottom.className = 'row';
+    const spaceBtn = document.createElement('button');
+    spaceBtn.textContent = 'SPACE';
+    spaceBtn.className = 'space';
+    spaceBtn.dataset.key = ' ';
+    const goBtn = document.createElement('button');
+    goBtn.textContent = 'GO!';
+    goBtn.className = 'go';
+    goBtn.dataset.key = 'ENTER';
+    bottom.appendChild(spaceBtn);
+    bottom.appendChild(goBtn);
+    kb.appendChild(bottom);
+
+    kb.addEventListener('pointerdown', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      e.preventDefault();
+      press(b.dataset.key);
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.repeat) return;
+      let k = null;
+      if (/^[a-zA-Z]$/.test(e.key)) k = e.key.toUpperCase();
+      else if (e.key === ' ') k = ' ';
+      else if (e.key === 'Backspace') k = 'BACKSPACE';
+      else if (e.key === 'Enter') k = 'ENTER';
+      if (!k) return;
+      e.preventDefault();
+      const btn = kb.querySelector('button[data-key="' + (k === ' ' ? ' ' : k) + '"]');
+      if (btn) { btn.classList.add('pressed'); setTimeout(() => btn.classList.remove('pressed'), 120); }
+      press(k);
+    });
+
+    function press(key) {
+      if (mode !== 'setup' && mode !== 'confirm' && mode !== 'export') return;
+      if (key === 'ENTER') { submit(); return; }
+      if (key === 'BACKSPACE') {
+        if (typed.length) { typed = typed.slice(0, -1); sSpace(); }
+        renderEntry();
+        return;
+      }
+      if (typed.length >= 16) return;
+      typed += key;
+      key === ' ' ? sSpace() : sKey();
+      renderEntry();
+    }
+
+    function renderEntry() {
+      const hidden = mode === 'export' || mode === 'confirm';
+      let shown = '';
+      for (const ch of typed) shown += ch === ' ' ? '␣' : (hidden ? '•' : ch);
+      entry.innerHTML = shown + '<span class="cursor">_</span>';
+    }
+
+    function setMsg(html) { msg.innerHTML = html; }
+    function renderHud() {
+      $('hudLives').textContent = '♥'.repeat(lives) + '♡'.repeat(MAX_LIVES - lives);
+      $('hudSecrets').textContent = '🔓 ' + secretsFound + '/' + TOTAL;
+    }
+
+    // ---- flow ----
+    $('startBtn').addEventListener('click', () => { audio(); $('introScreen').classList.add('hidden'); startSetup(); });
+    $('retryBtn').addEventListener('click', () => { audio(); $('overScreen').classList.add('hidden'); resetGame(); startSetup(); });
+    $('winBtn').addEventListener('click', () => { audio(); $('winScreen').classList.add('hidden'); resetGame(); startSetup(); });
+
+    function resetGame() {
+      lives = MAX_LIVES;
+      secretsFound = 0;
+      password = '';
+      litGlyphs();
+      renderHud();
+    }
+
+    function startSetup() {
+      mode = 'setup';
+      typed = '';
+      renderEntry();
+      renderHud();
+      timerFill.style.width = '100%';
+      timerFill.classList.remove('danger');
+      setMsg('Think of a <strong>secret password</strong> (4+ letters, spaces allowed!) then press <strong>GO!</strong>');
+    }
+
+    function startConfirm() {
+      mode = 'confirm';
+      typed = '';
+      renderEntry();
+      setMsg('Type it <strong>one more time</strong> to lock it in. No peeking!');
+    }
+
+    function submit() {
+      if (mode === 'setup') {
+        const t = typed.trim();
+        if (t.length < 4) { deny('Too short! 4 letters or more.'); return; }
+        password = typed;
+        sOk();
+        startConfirm();
+      } else if (mode === 'confirm') {
+        if (typed === password) {
+          sOk();
+          setMsg('Password locked in. <strong>Remember it!</strong>');
+          startCalm(3);
+        } else {
+          deny("That doesn't match! Let's start over.");
+          setTimeout(startSetup, 900);
+        }
+      } else if (mode === 'export') {
+        if (typed === password) exportSurvived();
+        else deny('<span class="warn">ACCESS DENIED!</span> Try again — fast!');
+      }
+    }
+
+    function deny(text) {
+      sDeny();
+      typed = '';
+      entry.classList.add('denied');
+      setTimeout(() => entry.classList.remove('denied'), 450);
+      renderEntry();
+      setMsg(text);
+    }
+
+    function startCalm(seconds) {
+      mode = 'between';
+      typed = '';
+      renderEntry();
+      let n = seconds;
+      const tick = () => {
+        if (n <= 0) { startExport(); return; }
+        setMsg('<span class="warn">⚠ EXPORT INCOMING IN ' + n + '… ⚠</span>');
+        sAlarm();
+        n--;
+        timerId = setTimeout(tick, 1000);
+      };
+      tick();
+    }
+
+    function startExport() {
+      mode = 'export';
+      typed = '';
+      renderEntry();
+      // gets faster each round: 18s down to 8s
+      exportTime = Math.max(8000, 18000 - secretsFound * 1100);
+      timeLeft = exportTime;
+      scene.classList.add('attacking');
+      scene.classList.remove('shielded');
+      setMsg('<span class="warn">EXPORT ' + (secretsFound + 1) + '!</span> Type your password before the lasers reach the tablet!');
+      alarmId = setInterval(sAlarm, 2500);
+      const started = performance.now();
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        timeLeft = exportTime - (performance.now() - started);
+        const frac = Math.max(0, timeLeft / exportTime);
+        timerFill.style.width = (frac * 100) + '%';
+        timerFill.classList.toggle('danger', frac < 0.35);
+        lasers.forEach((l, i) => {
+          l.style.height = Math.min(92, (1 - frac) * 100 + i * 2) + '%';
+        });
+        if (timeLeft <= 0) exportFailed();
+      }, 100);
+    }
+
+    function stopExport() {
+      clearInterval(timerId);
+      clearInterval(alarmId);
+      scene.classList.remove('attacking');
+      lasers.forEach(l => l.style.height = '0%');
+    }
+
+    function exportSurvived() {
+      stopExport();
+      sOk();
+      scene.classList.add('shielded');
+      secretsFound++;
+      litGlyphs();
+      renderHud();
+      timerFill.style.width = '100%';
+      timerFill.classList.remove('danger');
+      mode = 'between';
+      typed = '';
+      renderEntry();
+
+      $('secretLabel').textContent = 'TABLET SECRET No.' + secretsFound;
+      $('secretText').textContent = SECRETS[secretsFound - 1];
+      $('secretScreen').classList.remove('hidden');
+
+      if (secretsFound >= TOTAL) {
+        $('nextExportLabel').textContent = '★ THE TABLET TRUSTS YOU ★';
+        setTimeout(() => { $('secretScreen').classList.add('hidden'); win(); }, 3200);
+        return;
+      }
+      let n = 4;
+      const tick = () => {
+        n--;
+        if (n <= 0) {
+          $('secretScreen').classList.add('hidden');
+          scene.classList.remove('shielded');
+          startCalm(3);
+          return;
+        }
+        $('nextExportLabel').textContent = 'NEXT EXPORT IN ' + n + '…';
+        timerId = setTimeout(tick, 1400);
+      };
+      $('nextExportLabel').textContent = 'NEXT EXPORT IN ' + n + '…';
+      tick();
+    }
+
+    function exportFailed() {
+      stopExport();
+      sZap();
+      lives--;
+      renderHud();
+      flash.classList.add('go');
+      scene.classList.add('zapped');
+      setTimeout(() => { flash.classList.remove('go'); scene.classList.remove('zapped'); }, 500);
+      mode = 'between';
+      typed = '';
+      renderEntry();
+      timerFill.style.width = '100%';
+      timerFill.classList.remove('danger');
+      if (lives <= 0) { setTimeout(gameOver, 700); return; }
+      setMsg('<span class="warn">ZAP! The tablet got hit!</span> ' + lives + (lives === 1 ? ' life' : ' lives') + ' left…');
+      setTimeout(() => startCalm(3), 1800);
+    }
+
+    function gameOver() {
+      mode = 'idle';
+      $('overStats').innerHTML = 'The lasers stole the tablet… but you rescued <em>' + secretsFound + ' of ' + TOTAL + '</em> secrets first!';
+      const ul = $('overSecrets');
+      ul.innerHTML = '';
+      for (let i = 0; i < secretsFound; i++) {
+        const li = document.createElement('li');
+        li.textContent = '🔓 ' + SECRETS[i];
+        ul.appendChild(li);
+      }
+      $('overScreen').classList.remove('hidden');
+    }
+
+    function win() {
+      mode = 'idle';
+      const ul = $('winSecrets');
+      ul.innerHTML = '';
+      SECRETS.forEach(s => {
+        const li = document.createElement('li');
+        li.textContent = '🔓 ' + s;
+        ul.appendChild(li);
+      });
+      sOk();
+      setTimeout(sOk, 500);
+      $('winScreen').classList.remove('hidden');
+    }
+
+    renderHud();
+    litGlyphs();
+  </script>
+</body>
+</html>
