@@ -130,5 +130,11 @@
     "title": "Fruit Match",
     "icon": "🍉",
     "description": "Drop cute fruits and match pairs to grow them — blueberry to watermelon! Make two watermelons touch to win. No rush!"
+  },
+  {
+    "slug": "exports",
+    "title": "Exports",
+    "icon": "🔐",
+    "description": "Think up a secret password, then type it fast when the laser Exports attack! Every export you survive unlocks one of the tablet's secrets."
   }
 ]
