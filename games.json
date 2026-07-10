@@ -136,5 +136,11 @@
     "title": "Exports",
     "icon": "🔐",
     "description": "Think up a secret password, then type it fast when the laser Exports attack! Every export you survive unlocks one of the tablet's secrets."
+  },
+  {
+    "slug": "sharpeners",
+    "title": "Sharpeners",
+    "icon": "✏️",
+    "description": "Pure satisfaction: feed pencils into a giant sharpener, tap the end, and watch the shavings coil out. No winning, just sharpening."
   }
 ]
