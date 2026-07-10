@@ -138,6 +138,12 @@
     "description": "Think up a secret password, then type it fast when the laser Exports attack! Every export you survive unlocks one of the tablet's secrets."
   },
   {
+    "slug": "jump",
+    "title": "Jump",
+    "icon": "🐉",
+    "description": "A fire-breathing dragon blocks your path! Jump its fireballs — dodge 10 and it's slain. Every level gets harder."
+  },
+  {
     "slug": "sharpeners",
     "title": "Sharpeners",
     "icon": "✏️",
