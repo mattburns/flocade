@@ -144,6 +144,12 @@
     "description": "A fire-breathing dragon blocks your path! Jump its fireballs — dodge 10 and it's slain. Every level gets harder."
   },
   {
+    "slug": "lego-smash",
+    "title": "Lego Smash!",
+    "icon": "🧱",
+    "description": "A bit like Minecraft! Every colour of brick, every piece — build anything in 3D, walk inside your creation, then SMASH it."
+  },
+  {
     "slug": "sharpeners",
     "title": "Sharpeners",
     "icon": "✏️",
