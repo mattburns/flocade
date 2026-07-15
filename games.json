@@ -9,7 +9,7 @@
     "slug": "head-chef",
     "title": "Head Chef",
     "icon": "🐼",
-    "description": "Cook tasty dishes for a hungry panda. No timers, no stress."
+    "description": "Cook tasty dishes for a hungry panda — every dish you cook unlocks a new, harder recipe!"
   },
   {
     "slug": "pixel-paint",
@@ -45,7 +45,7 @@
     "slug": "my-world",
     "title": "My World",
     "icon": "🌸",
-    "description": "Explore a cute 3D world — wander the park and mall, pop into shops, make friends."
+    "description": "Explore a cute 3D world — wander the park, step inside the mall and browse shops stacked with stuff."
   },
   {
     "slug": "super-pac-man",
