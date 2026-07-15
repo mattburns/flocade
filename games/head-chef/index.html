@@ -97,6 +97,12 @@
     .recipe-btn:hover { transform: translateY(-2px); box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
     .recipe-btn .dish { font-size: 1.8rem; }
     .recipe-btn .stars { margin-left: auto; color: var(--yellow); letter-spacing: 2px; }
+    .recipe-btn .info { text-align: left; line-height: 1.4; }
+    .recipe-btn .lvl { font-family: 'Press Start 2P', monospace; font-size: 0.5rem; color: var(--dim); }
+    .recipe-btn.locked { opacity: 0.45; border-color: var(--dim); cursor: default; }
+    .recipe-btn.locked:hover { transform: none; box-shadow: none; }
+    .hint { color: var(--dim); font-size: 0.85rem; text-align: center; }
+    .unlock { font-family: 'Press Start 2P', monospace; font-size: 0.6rem; color: var(--yellow); text-align: center; line-height: 2; }
 
     /* Ingredient grid */
     .items { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
@@ -180,7 +186,7 @@
 <body>
   <a class="back" href="../../">&larr; FLOCADE</a>
   <h1>HEAD CHEF</h1>
-  <p class="subtitle">Cook for the hungry panda 🐼 — no timers, no stress</p>
+  <p class="subtitle">Cook for the hungry panda 🐼 — every dish you cook unlocks a new, harder recipe!</p>
   <div id="game"></div>
 
   <script>
@@ -220,10 +226,106 @@
           { type: 'serve' },
         ],
       },
+      {
+        id: 'noodle-soup',
+        name: 'Noodle Soup',
+        dish: '🥣',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🥕', '🧅', '🥬', '🍄'], decoys: ['🍫', '🍬', '🧁'] },
+          { type: 'chop', prompt: 'CHOP THE VEGGIES', items: [{ emoji: '🥕', taps: 4 }, { emoji: '🧅', taps: 4 }, { emoji: '🍄', taps: 3 }] },
+          { type: 'action', prompt: 'BOIL THE BROTH', emoji: '♨️', taps: 8 },
+          { type: 'action', prompt: 'STIR IN THE NOODLES', emoji: '🍜', taps: 6 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'veggie-pizza',
+        name: 'Veggie Pizza',
+        dish: '🍕',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🌾', '🍅', '🧀', '🍄', '🫑'], decoys: ['🍦', '🍉', '🍪'] },
+          { type: 'action', prompt: 'KNEAD THE DOUGH', emoji: '🫓', taps: 8 },
+          { type: 'chop', prompt: 'CHOP THE TOPPINGS', items: [{ emoji: '🍅', taps: 4 }, { emoji: '🍄', taps: 3 }, { emoji: '🫑', taps: 4 }] },
+          { type: 'action', prompt: 'SPRINKLE THE CHEESE', emoji: '🧀', taps: 6 },
+          { type: 'action', prompt: 'BAKE IT HOT!', emoji: '🔥', taps: 8 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'sushi-platter',
+        name: 'Sushi Platter',
+        dish: '🍣',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🍚', '🐟', '🥒', '🥑', '🌿'], decoys: ['🍭', '🧀', '🍔'] },
+          { type: 'chop', prompt: 'SLICE IT ALL UP', items: [{ emoji: '🐟', taps: 5 }, { emoji: '🥒', taps: 4 }, { emoji: '🥑', taps: 4 }] },
+          { type: 'action', prompt: 'ROLL IT UP', emoji: '🍙', taps: 8 },
+          { type: 'action', prompt: 'SLICE THE ROLLS', emoji: '🔪', taps: 6 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'panda-burger',
+        name: 'Panda Burger',
+        dish: '🍔',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🍞', '🥩', '🧀', '🥬', '🍅', '🧅'], decoys: ['🍨', '🍇', '🍬'] },
+          { type: 'chop', prompt: 'CHOP THE FIXINGS', items: [{ emoji: '🍅', taps: 4 }, { emoji: '🧅', taps: 5 }, { emoji: '🥬', taps: 3 }] },
+          { type: 'action', prompt: 'SIZZLE THE PATTY', emoji: '🥩', taps: 9 },
+          { type: 'action', prompt: 'FLIP IT!', emoji: '🍳', taps: 6 },
+          { type: 'action', prompt: 'STACK IT TALL', emoji: '🍔', taps: 7 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'taco-fiesta',
+        name: 'Taco Fiesta',
+        dish: '🌮',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🌽', '🥩', '🍅', '🧅', '🥬', '🌶️'], decoys: ['🍰', '🍪', '🥛'] },
+          { type: 'chop', prompt: 'CHOP THE SALSA', items: [{ emoji: '🍅', taps: 5 }, { emoji: '🧅', taps: 5 }, { emoji: '🥬', taps: 4 }, { emoji: '🌶️', taps: 3 }] },
+          { type: 'action', prompt: 'SIZZLE THE FILLING', emoji: '🍳', taps: 9 },
+          { type: 'action', prompt: 'WARM THE SHELLS', emoji: '🫓', taps: 6 },
+          { type: 'action', prompt: 'SPOON THE SALSA', emoji: '🥣', taps: 6 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'birthday-cake',
+        name: 'Birthday Cake',
+        dish: '🎂',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🥚', '🥛', '🌾', '🧈', '🍓', '🍫', '🍯'], decoys: ['🧄', '🐟', '🌶️'] },
+          { type: 'action', prompt: 'WHISK THE BATTER', emoji: '🥣', taps: 12 },
+          { type: 'action', prompt: 'BAKE THE LAYERS', emoji: '🔥', taps: 10 },
+          { type: 'chop', prompt: 'CHOP THE DECORATIONS', items: [{ emoji: '🍓', taps: 5 }, { emoji: '🍫', taps: 4 }] },
+          { type: 'action', prompt: 'SPREAD THE FROSTING', emoji: '🍦', taps: 8 },
+          { type: 'action', prompt: 'ADD THE CANDLES', emoji: '🕯️', taps: 5 },
+          { type: 'serve' },
+        ],
+      },
+      {
+        id: 'panda-banquet',
+        name: 'Grand Panda Banquet',
+        dish: '🍱',
+        steps: [
+          { type: 'pick', prompt: 'PICK THE INGREDIENTS', need: ['🍚', '🐟', '🍤', '🥕', '🥦', '🥚', '🥬', '🍄'], decoys: ['🍬', '🍭', '🍫', '🧁'] },
+          { type: 'chop', prompt: 'CHOP EVERYTHING!', items: [{ emoji: '🥕', taps: 5 }, { emoji: '🥦', taps: 4 }, { emoji: '🥬', taps: 4 }, { emoji: '🍄', taps: 4 }, { emoji: '🐟', taps: 5 }] },
+          { type: 'action', prompt: 'STEAM THE RICE', emoji: '♨️', taps: 10 },
+          { type: 'action', prompt: 'GRILL THE PRAWNS', emoji: '🍤', taps: 8 },
+          { type: 'action', prompt: 'FRY THE VEGGIES', emoji: '🍳', taps: 8 },
+          { type: 'action', prompt: 'ARRANGE THE BENTO', emoji: '🍱', taps: 10 },
+          { type: 'serve' },
+        ],
+      },
     ];
 
     const game = document.getElementById('game');
     const stars = JSON.parse(localStorage.getItem('headchef-stars') || '{}');
+    // level 1 starts unlocked; every dish you cook unlocks the next one
+    let unlocked = Math.min(RECIPES.length, Math.max(
+      parseInt(localStorage.getItem('headchef-unlocked') || '1', 10) || 1,
+      RECIPES.filter(r => stars[r.id]).length + 1
+    ));
 
     function saveStars(id, n) {
       stars[id] = Math.max(stars[id] || 0, n);
@@ -254,14 +356,25 @@
       </div>`);
       const stage = el(`<div class="stage"><p class="prompt">RECIPE BOOK</p><div class="recipes"></div></div>`);
       const list = stage.querySelector('.recipes');
-      for (const r of RECIPES) {
-        const earned = stars[r.id] || 0;
-        const btn = el(`<button class="recipe-btn">
-          <span class="dish">${r.dish}</span> ${r.name}
-          <span class="stars">${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}</span>
-        </button>`);
-        btn.addEventListener('click', () => startRecipe(r));
-        list.appendChild(btn);
+      RECIPES.forEach((r, i) => {
+        if (i < unlocked) {
+          const earned = stars[r.id] || 0;
+          const btn = el(`<button class="recipe-btn">
+            <span class="dish">${r.dish}</span>
+            <span class="info"><span class="lvl">LEVEL ${i + 1}</span><br>${r.name}</span>
+            <span class="stars">${'★'.repeat(earned)}${'☆'.repeat(3 - earned)}</span>
+          </button>`);
+          btn.addEventListener('click', () => startRecipe(r));
+          list.appendChild(btn);
+        } else {
+          list.appendChild(el(`<button class="recipe-btn locked" disabled>
+            <span class="dish">🔒</span>
+            <span class="info"><span class="lvl">LEVEL ${i + 1}</span><br>Mystery dish</span>
+          </button>`));
+        }
+      });
+      if (unlocked < RECIPES.length) {
+        stage.appendChild(el(`<p class="hint">Cook a dish to unlock the next recipe!</p>`));
       }
       game.append(scene, stage);
     }
@@ -376,6 +489,12 @@
     function finishRecipe(run) {
       const earned = Math.max(1, 3 - run.mistakes);
       saveStars(run.recipe.id, earned);
+      let newRecipe = null;
+      if (unlocked < RECIPES.length) {
+        newRecipe = RECIPES[unlocked];
+        unlocked++;
+        localStorage.setItem('headchef-unlocked', String(unlocked));
+      }
       game.innerHTML = '';
       const scene = el(`<div class="scene">
         <div class="panda happy">🐼</div>
@@ -384,9 +503,15 @@
       const stage = el(`<div class="stage">
         <p class="prompt">DISH COMPLETE!</p>
         <div class="result-stars">${'⭐'.repeat(earned)}${'<span style="opacity:0.25">⭐</span>'.repeat(3 - earned)}</div>
-        <button class="btn">RECIPE BOOK</button>
+        ${newRecipe ? `<p class="unlock">🎉 NEW RECIPE UNLOCKED! 🎉<br>LEVEL ${unlocked}: ${newRecipe.dish} ${newRecipe.name}</p>` : ''}
+        <div style="display:flex;gap:0.6rem;flex-wrap:wrap;justify-content:center">
+          ${newRecipe ? '<button class="btn" data-act="next">COOK IT!</button>' : ''}
+          <button class="btn ${newRecipe ? 'alt' : ''}" data-act="menu">RECIPE BOOK</button>
+        </div>
       </div>`);
-      stage.querySelector('.btn').addEventListener('click', showMenu);
+      stage.querySelector('[data-act=menu]').addEventListener('click', showMenu);
+      const nextBtn = stage.querySelector('[data-act=next]');
+      if (nextBtn) nextBtn.addEventListener('click', () => startRecipe(newRecipe));
       game.append(scene, stage);
       // celebration hearts
       for (let i = 0; i < 6; i++) {

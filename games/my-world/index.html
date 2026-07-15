@@ -35,19 +35,6 @@
       text-decoration: none; text-shadow: 2px 2px 0 var(--pink-deep);
     }
 
-    /* friends counter */
-    #friends {
-      position: fixed; top: 10px; right: 12px;
-      background: rgba(255, 245, 251, 0.9);
-      border: 3px solid var(--pink);
-      border-radius: 999px;
-      padding: 0.4rem 0.9rem;
-      font-weight: 700; color: var(--text);
-      font-size: 0.95rem;
-      cursor: pointer;
-      box-shadow: 0 3px 0 rgba(255, 46, 136, 0.3);
-    }
-
     /* joystick */
     #joy {
       position: fixed; left: 18px; bottom: 18px;
@@ -66,21 +53,6 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
     }
 
-    /* interaction prompt */
-    #prompt {
-      position: fixed; left: 50%; bottom: 30px;
-      transform: translateX(-50%);
-      background: var(--pink-deep); color: #fff;
-      border: 3px solid #fff;
-      border-radius: 999px;
-      padding: 0.7rem 1.3rem;
-      font-weight: 700; font-size: 1rem;
-      cursor: pointer; display: none;
-      box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-      animation: bobBtn 0.8s ease-in-out infinite alternate;
-    }
-    @keyframes bobBtn { from { transform: translateX(-50%) translateY(0); } to { transform: translateX(-50%) translateY(-6px); } }
-
     /* small round toggle buttons */
     .toggle {
       position: fixed; right: 14px;
@@ -94,7 +66,7 @@
     #gyroBtn { bottom: 90px; }
     #muteBtn { bottom: 24px; }
 
-    /* dialog + screens */
+    /* modal screens */
     .modal {
       position: fixed; inset: 0; z-index: 10;
       background: rgba(74, 46, 82, 0.5);
@@ -110,8 +82,6 @@
       text-align: center;
       box-shadow: 0 10px 0 rgba(255, 46, 136, 0.25);
     }
-    .card .face { font-size: 3.5rem; line-height: 1; }
-    .card h2 { color: var(--pink-deep); font-family: 'Press Start 2P', monospace; font-size: 0.95rem; margin: 0.6rem 0; }
     .card p { color: var(--text); font-size: 1.05rem; line-height: 1.6; margin-bottom: 1rem; }
     .card .btn {
       background: var(--pink-deep); color: #fff; border: none;
@@ -119,27 +89,16 @@
       padding: 0.8rem 1.4rem; cursor: pointer; margin: 0.25rem;
       box-shadow: 0 4px 0 rgba(0,0,0,0.15);
     }
-    .card .btn.alt { background: #fff; color: var(--pink-deep); border: 3px solid var(--pink); }
     .card .btn:active { transform: translateY(3px); box-shadow: none; }
 
     #intro h1 { font-family: 'Press Start 2P', monospace; color: var(--pink-deep); font-size: 1.5rem; line-height: 1.6; margin-bottom: 0.5rem; }
-    #intro .friends-list { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin: 0.5rem 0 1rem; }
-    #intro .friends-list span { font-size: 1.6rem; }
     .controls-help { color: var(--text); font-size: 0.9rem; line-height: 1.8; margin-bottom: 1rem; }
-
-    .heartpop {
-      position: fixed; font-size: 2rem; pointer-events: none; z-index: 20;
-      animation: heartUp 1s ease-out forwards;
-    }
-    @keyframes heartUp { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(-80px) scale(1.6); } }
   </style>
 </head>
 <body>
   <div id="ui">
     <a class="back" href="../../">&larr; FLOCADE</a>
-    <div id="friends">💖 0</div>
     <div id="joy"><div class="thumb"></div></div>
-    <button id="prompt">👋 Say hi!</button>
     <button class="toggle off" id="gyroBtn" title="Tilt to look">🔄</button>
     <button class="toggle" id="muteBtn" title="Music">🔊</button>
   </div>
@@ -147,29 +106,6 @@
 
   <script type="module">
     import * as THREE from './three.module.min.js';
-
-    // ============================================================
-    // Characters & world data
-    // ============================================================
-    const NPCS = [
-      // park friends (wander)
-      { name: 'Bun',     type: 'bunny', color: 0xfff0f5, x: -10, z: -14, wander: true, line: "Hop hop! Wanna race to the flowers? 🌸" },
-      { name: 'Mochi',   type: 'bear',  color: 0xffe0b3, x: -16, z: -22, wander: true, line: "I found the comfiest napping spot. Zzz... 🐻" },
-      { name: 'Whiskers',type: 'cat',   color: 0xd9c2ff, x: 12,  z: -18, wander: true, line: "Mrow! Did you see the butterflies today? 🦋" },
-      { name: 'Tweet',   type: 'bird',  color: 0xb3f0ff, x: 6,   z: -26, wander: true, line: "Tweet tweet! I know ALL the best songs! 🎵" },
-      { name: 'Pip',     type: 'blob',  color: 0xc2ffd9, x: -4,  z: -28, wander: true, line: "Boing! I'm a little jelly bean of joy! 🟢" },
-      { name: 'Cocoa',   type: 'bear',  color: 0xc99c6b, x: 16,  z: -12, wander: true, line: "Want to share my picnic? I have berry buns! 🫐" },
-      // mall shopkeepers (stay)
-      { name: 'Sprinkle',type: 'cat',   color: 0xffd1ea, x: -7,  z: 15, face: Math.PI/2, line: "Welcome to the ice cream parlour! Two scoops? 🍦", shop: '🍦' },
-      { name: 'Buttons', type: 'bear',  color: 0xffcf8f, x: -7,  z: 23, face: Math.PI/2, line: "So many toys! What do you want to play with? 🧸", shop: '🧸' },
-      { name: 'Clover',  type: 'bunny', color: 0xe6ffe0, x: 7,   z: 15, face: -Math.PI/2, line: "All my pets need cuddles. Say hello! 🐾", shop: '🐾' },
-      { name: 'Coco',    type: 'blob',  color: 0xffc2e0, x: 7,   z: 23, face: -Math.PI/2, line: "Ooh, let's find you the cutest outfit! 👗", shop: '👗' },
-      { name: 'Muffin',  type: 'bird',  color: 0xfff0b3, x: 0,   z: 29, face: Math.PI,   line: "Fresh cupcakes, baked with love today! 🧁", shop: '🧁' },
-    ];
-
-    const SHOPS = NPCS.filter(n => n.shop).map(n => ({ x: n.x, z: n.z, rot: n.face, emoji: n.shop, label: n.name }));
-
-    let friends = new Set(JSON.parse(localStorage.getItem('myworld-friends') || '[]'));
 
     // ============================================================
     // Three.js setup
@@ -181,7 +117,7 @@
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xcdeffd);
-    scene.fog = new THREE.Fog(0xcdeffd, 35, 75);
+    scene.fog = new THREE.Fog(0xcdeffd, 40, 85);
 
     const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 200);
 
@@ -196,8 +132,57 @@
       renderer.setSize(innerWidth, innerHeight);
     });
 
-    const obstacles = []; // {x, z, r}
+    const obstacles = []; // circles {x, z, r}
+    const boxes = [];     // AABBs {minX, maxX, minZ, maxZ}
     const mat = (color, rough = 0.85) => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 });
+
+    function addBoxObstacle(cx, cz, halfX, halfZ) {
+      boxes.push({ minX: cx - halfX, maxX: cx + halfX, minZ: cz - halfZ, maxZ: cz + halfZ });
+    }
+
+    // ---- Canvas sign / emoji sprite helpers ----
+    function roundRect(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r);
+      c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r);
+      c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+    const emojiTexCache = {};
+    function emojiTexture(e) {
+      if (emojiTexCache[e]) return emojiTexCache[e];
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 128;
+      const c = cv.getContext('2d');
+      c.font = '100px serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(e, 64, 70);
+      const t = new THREE.CanvasTexture(cv);
+      emojiTexCache[e] = t;
+      return t;
+    }
+    const itemGeo = new THREE.PlaneGeometry(1, 1);
+    function itemSprite(e, size = 0.6) {
+      const m = new THREE.Mesh(itemGeo, new THREE.MeshBasicMaterial({ map: emojiTexture(e), transparent: true, side: THREE.DoubleSide }));
+      m.scale.setScalar(size);
+      return m;
+    }
+    function textSign(emoji, label, w = 2.4, h = 2.4) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 256;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff5fb';
+      c.strokeStyle = '#ff7eb6'; c.lineWidth = 14;
+      roundRect(c, 12, 12, 232, 232, 36); c.fill(); c.stroke();
+      c.font = '110px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText(emoji, 128, 105);
+      c.fillStyle = '#ff2e88'; c.font = 'bold 42px Inter, sans-serif';
+      c.fillText(label, 128, 202);
+      const tex = new THREE.CanvasTexture(cv);
+      return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    }
 
     // ---- Ground ----
     const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 48), mat(0xb6e8a0));
@@ -283,67 +268,168 @@
       obstacles.push({ x: -14, z: -20, r: 4.3 });
     })();
 
-    // ---- Mall pavilion (+z) ----
-    (function mall() {
-      const floor = new THREE.Mesh(new THREE.PlaneGeometry(24, 22), mat(0xfff0d6));
-      floor.rotation.x = -Math.PI / 2;
-      floor.position.set(0, 0.05, 21);
-      scene.add(floor);
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(26, 0.7, 24), mat(0xff9ec7));
-      roof.position.set(0, 6, 21);
-      scene.add(roof);
-      // candy-stripe roof trim
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(26.4, 0.5, 0.6), mat(0xffffff));
-      for (const z of [10, 32]) { const t = trim.clone(); t.position.set(0, 5.7, z); scene.add(t); }
-      const pillarPos = [[-11, 11], [11, 11], [-11, 31], [11, 31]];
-      pillarPos.forEach(([x, z]) => {
-        const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6, 14), mat(0xffffff));
-        pil.position.set(x, 3, z);
-        scene.add(pil);
-        obstacles.push({ x, z, r: 0.7 });
-      });
-    })();
+    // ============================================================
+    // The mall — a proper building with walls, big shops, stocked shelves
+    // Footprint: x -20..20, z 12..44. Entrance gap on the front (z=12).
+    // ============================================================
+    const WALL_H = 5;
 
-    // ---- Shop stalls ----
-    function emojiSign(emoji, label) {
-      const cv = document.createElement('canvas');
-      cv.width = cv.height = 256;
-      const c = cv.getContext('2d');
-      c.fillStyle = '#fff5fb';
-      c.strokeStyle = '#ff7eb6'; c.lineWidth = 14;
-      roundRect(c, 12, 12, 232, 232, 36); c.fill(); c.stroke();
-      c.font = '120px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText(emoji, 128, 110);
-      c.fillStyle = '#ff2e88'; c.font = 'bold 40px Inter, sans-serif';
-      c.fillText(label, 128, 205);
-      const tex = new THREE.CanvasTexture(cv);
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    function wallBox(cx, cz, sx, sz, h = WALL_H, color = 0xffd6ec, solid = true, cy) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, h, sz), mat(color));
+      m.position.set(cx, cy ?? h / 2, cz);
+      scene.add(m);
+      if (solid) addBoxObstacle(cx, cz, sx / 2, sz / 2);
       return m;
     }
-    function roundRect(c, x, y, w, h, r) {
-      c.beginPath();
-      c.moveTo(x + r, y);
-      c.arcTo(x + w, y, x + w, y + h, r);
-      c.arcTo(x + w, y + h, x, y + h, r);
-      c.arcTo(x, y + h, x, y, r);
-      c.arcTo(x, y, x + w, y, r);
-      c.closePath();
-    }
-    SHOPS.forEach(s => {
+
+    (function mallBuilding() {
+      // floor + corridor carpet
+      const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 32), mat(0xfff6ec));
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.set(0, 0.06, 28);
+      scene.add(floor);
+      const carpet = new THREE.Mesh(new THREE.PlaneGeometry(8, 31), mat(0xffe3f1));
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.set(0, 0.07, 28);
+      scene.add(carpet);
+
+      // outer walls (front has an entrance gap x -4..4)
+      wallBox(-12, 12, 16, 0.6);           // front left
+      wallBox(12, 12, 16, 0.6);            // front right
+      wallBox(0, 12, 8.6, 0.6, 1.6, 0xffd6ec, false, WALL_H - 0.8); // header above entrance
+      wallBox(0, 44, 40.6, 0.6);           // back
+      wallBox(-20, 28, 0.6, 32);           // west
+      wallBox(20, 28, 0.6, 32);            // east
+
+      // shop divider walls (lower, so the mall feels open inside)
+      for (const z of [23, 33]) {
+        wallBox(-12.5, z, 15, 0.5, 3.6, 0xffe9f4);
+        wallBox(12.5, z, 15, 0.5, 3.6, 0xffe9f4);
+      }
+
+      // roof
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(42, 0.6, 34), mat(0xff9ec7));
+      roof.position.set(0, WALL_H + 0.3, 28);
+      scene.add(roof);
+
+      // big MALL sign over the entrance
+      const cv = document.createElement('canvas');
+      cv.width = 512; cv.height = 128;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff5fb'; c.strokeStyle = '#ff7eb6'; c.lineWidth = 10;
+      roundRect(c, 6, 6, 500, 116, 30); c.fill(); c.stroke();
+      c.fillStyle = '#ff2e88'; c.font = 'bold 72px Inter, sans-serif';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('🛍️ THE MALL 🛍️', 256, 68);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(8, 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+      sign.position.set(0, WALL_H + 1.5, 11.7);
+      sign.rotation.y = Math.PI;
+      scene.add(sign);
+
+      // ceiling lights down the corridor
+      for (const z of [16.5, 22.5, 28.5, 34.5, 40.5]) {
+        const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6), mat(0x4a2e52));
+        cord.position.set(0, WALL_H - 0.4, z);
+        const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff6c8 }));
+        bulb.position.set(0, WALL_H - 0.85, z);
+        scene.add(cord, bulb);
+      }
+
+      // benches + potted plants in the corridor
+      function bench(x, z) {
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 2.2), mat(0xb98b5e));
+        seat.position.set(x, 0.5, z);
+        for (const dz of [-0.9, 0.9]) {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.15), mat(0x9a6f45));
+          leg.position.set(x, 0.25, z + dz);
+          scene.add(leg);
+        }
+        scene.add(seat);
+        addBoxObstacle(x, z, 0.5, 1.3);
+      }
+      bench(-3.9, 25.5); bench(3.9, 30.5);
+      function plant(x, z) {
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.28, 0.5, 12), mat(0xff9e57));
+        pot.position.set(x, 0.25, z);
+        const bush = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), mat(0x7fd0a0));
+        bush.position.set(x, 0.85, z);
+        scene.add(pot, bush);
+        obstacles.push({ x, z, r: 0.55 });
+      }
+      plant(-3.9, 14); plant(3.9, 14); plant(-3.9, 42); plant(3.9, 42);
+    })();
+
+    // ---- Shops: big rooms with shelves full of things ----
+    // West shops span x -20..-5, east shops x 5..20; corridor is x -5..5.
+    const SHOP_LIST = [
+      { side: -1, cz: 17.5, zMin: 12.3, zMax: 22.75, name: 'Scoops',   emoji: '🍦', items: ['🍦','🍨','🍧','🍫','🧁','🍪','🍭','🥤'] },
+      { side: -1, cz: 28,   zMin: 23.25, zMax: 32.75, name: 'Toy Box', emoji: '🧸', items: ['🧸','🤖','🪀','🚂','🦄','⚽','🎲','🪁'] },
+      { side: -1, cz: 38.5, zMin: 33.25, zMax: 43.7,  name: 'Bakery',  emoji: '🥐', items: ['🥐','🍞','🥖','🎂','🍩','🧁','🥨','🍪'] },
+      { side: 1,  cz: 17.5, zMin: 12.3, zMax: 22.75,  name: 'Boutique',emoji: '👗', items: ['👗','👕','👖','🧥','👟','👒','🧣','🎒'] },
+      { side: 1,  cz: 28,   zMin: 23.25, zMax: 32.75, name: 'Market',  emoji: '🛒', items: ['🍎','🍌','🥕','🥛','🧃','🥫','🍉','🥚'] },
+      { side: 1,  cz: 38.5, zMin: 33.25, zMax: 43.7,  name: 'Books',   emoji: '📚', items: ['📕','📗','📘','📙','🧩','🎮','✏️','🎨'] },
+    ];
+
+    // A shelf unit: back panel + 3 boards, each stocked with items. Faces +z before rotation.
+    function shelfUnit(items, offset) {
       const g = new THREE.Group();
-      const counter = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1, 1), mat(0xffd6ec));
-      counter.position.set(0, 0.5, 1);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(3.2, 2.4, 0.3), mat(0xffe0f0));
-      back.position.set(0, 1.2, -0.6);
-      const awning = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.3, 1.4), mat(0xff7eb6));
-      awning.position.set(0, 2.6, 0.4);
-      const sign = emojiSign(s.emoji, s.label);
-      sign.position.set(0, 1.5, 1.55);
-      g.add(counter, back, awning, sign);
-      g.position.set(s.x, 0, s.z);
-      g.rotation.y = s.rot;
-      scene.add(g);
-      obstacles.push({ x: s.x, z: s.z, r: 1.8 });
+      const back = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.1, 0.14), mat(0xffe0f0));
+      back.position.y = 1.55;
+      g.add(back);
+      [0.55, 1.35, 2.15].forEach((y, row) => {
+        const board = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.09, 0.7), mat(0xffffff));
+        board.position.set(0, y, 0.38);
+        g.add(board);
+        for (let i = 0; i < 4; i++) {
+          const it = itemSprite(items[(row * 4 + i + offset) % items.length]);
+          it.position.set(-1.5 + i, y + 0.42, 0.42);
+          g.add(it);
+        }
+      });
+      return g;
+    }
+
+    function placeShelf(x, z, ry, items, offset) {
+      const u = shelfUnit(items, offset);
+      u.position.set(x, 0, z);
+      u.rotation.y = ry;
+      scene.add(u);
+      // AABB: 4.4 long, ~1 deep, oriented by ry
+      const along = Math.abs(Math.sin(ry)) > 0.5; // true → long axis runs along z
+      addBoxObstacle(x, z, along ? 0.6 : 2.2, along ? 2.2 : 0.6);
+    }
+
+    SHOP_LIST.forEach((s, si) => {
+      const backX = s.side * 18.9;                 // against the outer wall
+      const backRy = s.side === -1 ? Math.PI / 2 : -Math.PI / 2;
+      placeShelf(backX, s.cz - 2.6, backRy, s.items, 0);
+      placeShelf(backX, s.cz + 2.6, backRy, s.items, 2);
+      // shelves along the divider / front-back walls
+      const sideX = s.side * 12.5;
+      placeShelf(sideX, s.zMin + 0.75, 0, s.items, 1);
+      placeShelf(sideX, s.zMax - 0.75, Math.PI, s.items, 3);
+
+      // counter near the shopfront with a till and a couple of goodies
+      const counterX = s.side * 7.8;
+      const counter = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.95, 3.4), mat(0xffd6ec));
+      counter.position.set(counterX, 0.475, s.cz);
+      const counterTop = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 3.7), mat(0xffffff));
+      counterTop.position.set(counterX, 0.98, s.cz);
+      scene.add(counter, counterTop);
+      addBoxObstacle(counterX, s.cz, 0.75, 1.85);
+      const till = itemSprite('🧾', 0.5);
+      till.position.set(counterX, 1.3, s.cz - 1);
+      till.rotation.y = s.side === -1 ? Math.PI / 2 : -Math.PI / 2;
+      const treat = itemSprite(s.items[0], 0.55);
+      treat.position.set(counterX, 1.32, s.cz + 0.8);
+      treat.rotation.y = till.rotation.y;
+      scene.add(till, treat);
+
+      // hanging shop sign facing the corridor
+      const sign = textSign(s.emoji, s.name);
+      sign.position.set(s.side * 5.4, 3.4, s.cz);
+      sign.rotation.y = s.side === -1 ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(sign);
     });
 
     // ---- Directional signposts in plaza ----
@@ -367,84 +453,159 @@
     signpost('🛍️ MALL', 4, 9, Math.PI);
 
     // ============================================================
-    // Cute character builder
+    // Toca-style people
     // ============================================================
     const white = mat(0xffffff), dark = mat(0x4a2e52, 0.5), blush = mat(0xff9ec7);
-    function makeCharacter(type, color) {
-      const g = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 16), mat(color));
-      body.scale.set(1, 0.95, 1);
-      body.position.y = 0.55;
-      g.add(body);
 
-      // eyes (front = +z)
-      for (const sx of [-0.17, 0.17]) {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), white);
-        eye.position.set(sx, 0.62, 0.42);
-        const pup = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), dark);
-        pup.position.set(sx, 0.62, 0.5);
-        g.add(eye, pup);
+    function makeHuman(p) {
+      const g = new THREE.Group();
+      const skin = mat(p.skin), topM = mat(p.top), botM = mat(p.bottom), hairM = mat(p.hairColor);
+      // legs + shoes
+      for (const sx of [-0.13, 0.13]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.42, 10), botM);
+        leg.position.set(sx, 0.21, 0);
+        const shoe = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), white);
+        shoe.scale.set(1, 0.55, 1.4);
+        shoe.position.set(sx, 0.06, 0.05);
+        g.add(leg, shoe);
       }
-      // cheeks
-      for (const sx of [-0.28, 0.28]) {
-        const ch = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), blush);
-        ch.position.set(sx, 0.5, 0.44); ch.rotation.y = sx > 0 ? -0.4 : 0.4;
+      // torso
+      const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.3, 6, 14), topM);
+      torso.position.y = 0.72;
+      g.add(torso);
+      // arms + hands
+      for (const sx of [-0.3, 0.3]) {
+        const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.28, 4, 10), topM);
+        arm.position.set(sx, 0.78, 0);
+        arm.rotation.z = sx > 0 ? -0.18 : 0.18;
+        const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), skin);
+        hand.position.set(sx * 1.14, 0.56, 0);
+        g.add(arm, hand);
+      }
+      // big friendly head (front = +z)
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 16), skin);
+      head.position.y = 1.32;
+      g.add(head);
+      for (const sx of [-0.11, 0.11]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), dark);
+        eye.position.set(sx, 1.36, 0.27);
+        g.add(eye);
+      }
+      for (const sx of [-0.19, 0.19]) {
+        const ch = new THREE.Mesh(new THREE.CircleGeometry(0.05, 10), blush);
+        ch.position.set(sx, 1.28, 0.235);
+        ch.rotation.y = sx > 0 ? -0.65 : 0.65;
         g.add(ch);
       }
-      // feet
-      for (const sx of [-0.2, 0.2]) {
-        const foot = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), mat(color));
-        foot.scale.set(1, 0.6, 1.3);
-        foot.position.set(sx, 0.1, 0.15);
-        g.add(foot);
+      const smile = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.016, 6, 12, Math.PI), dark);
+      smile.position.set(0, 1.27, 0.27);
+      smile.rotation.z = Math.PI;
+      g.add(smile);
+      // hair styles
+      if (p.hair === 'bob') {
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), hairM);
+        cap.position.y = 1.34;
+        const back = new THREE.Mesh(new THREE.SphereGeometry(0.31, 14, 10), hairM);
+        back.scale.set(1, 1.15, 0.7);
+        back.position.set(0, 1.26, -0.12);
+        g.add(cap, back);
+      } else if (p.hair === 'bun') {
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM);
+        cap.position.y = 1.36;
+        const bun = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), hairM);
+        bun.position.set(0, 1.68, -0.05);
+        g.add(cap, bun);
+      } else if (p.hair === 'spiky') {
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.31, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.45), hairM);
+        cap.position.y = 1.36;
+        g.add(cap);
+        for (const [sx, sz] of [[-0.12, 0], [0, 0.05], [0.12, -0.03]]) {
+          const spike = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 8), hairM);
+          spike.position.set(sx, 1.66, sz);
+          g.add(spike);
+        }
+      } else if (p.hair === 'long') {
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), hairM);
+        cap.position.y = 1.34;
+        g.add(cap);
+        for (const sx of [-0.24, 0.24]) {
+          const lock = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.45, 4, 8), hairM);
+          lock.position.set(sx, 1.05, -0.08);
+          g.add(lock);
+        }
+      } else if (p.hair === 'cap') {
+        const crown = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), hairM);
+        crown.position.y = 1.37;
+        const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.04, 12), hairM);
+        brim.position.set(0, 1.45, 0.3);
+        brim.scale.z = 1.4;
+        g.add(crown, brim);
       }
-      // type toppings
-      const cm = mat(color);
-      if (type === 'bunny') {
-        for (const sx of [-0.13, 0.13]) {
-          const ear = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.4, 4, 8), cm);
-          ear.position.set(sx, 1.15, 0); g.add(ear);
-        }
-      } else if (type === 'bear') {
-        for (const sx of [-0.32, 0.32]) {
-          const ear = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), cm);
-          ear.position.set(sx, 0.92, 0.05); g.add(ear);
-        }
-      } else if (type === 'cat') {
-        for (const sx of [-0.25, 0.25]) {
-          const ear = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 8), cm);
-          ear.position.set(sx, 0.98, 0); g.add(ear);
-        }
-      } else if (type === 'bird') {
-        const beak = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.22, 8), mat(0xffb347));
-        beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.52, 0.5); g.add(beak);
-        const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.25, 8), cm);
-        tuft.position.set(0, 1.0, 0); g.add(tuft);
-      }
-      // friendship heart (hidden until befriended)
-      const heart = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), mat(0xff2e88));
-      heart.position.y = 1.4; heart.visible = false;
-      g.add(heart);
-      g.userData.heart = heart;
       return g;
     }
 
-    // instantiate NPCs
-    const npcMeshes = [];
-    NPCS.forEach(n => {
-      const g = makeCharacter(n.type, n.color);
-      g.position.set(n.x, 0, n.z);
-      g.rotation.y = n.face ?? Math.random() * Math.PI * 2;
-      if (friends.has(n.name)) g.userData.heart.visible = true;
-      scene.add(g);
-      npcMeshes.push({ data: n, group: g, baseX: n.x, baseZ: n.z, phase: Math.random() * 6.28, tx: n.x, tz: n.z, wt: 0, faceYaw: g.rotation.y });
+    // wander regions
+    const PARK = { minX: -24, maxX: 24, minZ: -30, maxZ: -6 };
+    const CORRIDOR = { minX: -3.4, maxX: 3.4, minZ: 14, maxZ: 42 };
+
+    const PEOPLE = [
+      // park visitors
+      { x: -8,  z: -12, region: PARK, hair: 'bob',   hairColor: 0xb85c38, skin: 0xf1c27d, top: 0xff7eb6, bottom: 0x4a6cff },
+      { x: 10,  z: -16, region: PARK, hair: 'spiky', hairColor: 0x1f1f26, skin: 0x8d5524, top: 0x7ee8fa, bottom: 0x38406e },
+      { x: 18,  z: -24, region: PARK, hair: 'bun',   hairColor: 0xf6d365, skin: 0xffdbc4, top: 0xffe600, bottom: 0x69d18c },
+      { x: -4,  z: -27, region: PARK, hair: 'long',  hairColor: 0x3b2b20, skin: 0xe0ac69, top: 0xb38bff, bottom: 0xffffff },
+      { x: 5,   z: -9,  region: PARK, hair: 'cap',   hairColor: 0xff5a5a, skin: 0xc68642, top: 0xffffff, bottom: 0x4a6cff },
+      { x: -20, z: -12, region: PARK, hair: 'bob',   hairColor: 0xff7eb6, skin: 0xffdbc4, top: 0x69d18c, bottom: 0xffb347 },
+      // mall shoppers strolling the corridor
+      { x: 0,  z: 17, region: CORRIDOR, hair: 'long',  hairColor: 0x9b6bff, skin: 0xf1c27d, top: 0xff9e57, bottom: 0x4a2e52 },
+      { x: 2,  z: 29, region: CORRIDOR, hair: 'spiky', hairColor: 0xb85c38, skin: 0x8d5524, top: 0xffe600, bottom: 0x38406e },
+      { x: -2, z: 39, region: CORRIDOR, hair: 'bun',   hairColor: 0x1f1f26, skin: 0xe0ac69, top: 0x7ee8fa, bottom: 0xff7eb6 },
+      { x: 1,  z: 23, region: CORRIDOR, hair: 'cap',   hairColor: 0x4a6cff, skin: 0xffdbc4, top: 0xb6e8a0, bottom: 0xffffff },
+    ];
+
+    // shopkeepers standing behind their counters
+    const KEEPER_LOOKS = [
+      { hair: 'bun',   hairColor: 0xff7eb6, skin: 0xe0ac69, top: 0xffffff, bottom: 0xff2e88 },
+      { hair: 'spiky', hairColor: 0x3b2b20, skin: 0xffdbc4, top: 0xffe600, bottom: 0x4a6cff },
+      { hair: 'bob',   hairColor: 0xf6d365, skin: 0x8d5524, top: 0xff9e57, bottom: 0x4a2e52 },
+      { hair: 'long',  hairColor: 0x1f1f26, skin: 0xc68642, top: 0xb38bff, bottom: 0xffffff },
+      { hair: 'cap',   hairColor: 0x69d18c, skin: 0xf1c27d, top: 0x7ee8fa, bottom: 0x38406e },
+      { hair: 'bob',   hairColor: 0x9b6bff, skin: 0xffdbc4, top: 0xff7eb6, bottom: 0x69d18c },
+    ];
+    SHOP_LIST.forEach((s, i) => {
+      PEOPLE.push({
+        x: s.side * 9.3, z: s.cz,
+        face: s.side === -1 ? Math.PI / 2 : -Math.PI / 2,
+        ...KEEPER_LOOKS[i],
+      });
     });
+
+    const people = [];
+    PEOPLE.forEach(p => {
+      const g = makeHuman(p);
+      g.position.set(p.x, 0, p.z);
+      g.rotation.y = p.face ?? Math.random() * Math.PI * 2;
+      scene.add(g);
+      people.push({ data: p, group: g, baseX: p.x, baseZ: p.z, phase: Math.random() * 6.28, tx: p.x, tz: p.z, wt: Math.random() * 3, faceYaw: g.rotation.y });
+    });
+
+    function pickTarget(m) {
+      const r = m.data.region;
+      for (let i = 0; i < 6; i++) {
+        const tx = Math.max(r.minX, Math.min(r.maxX, m.baseX + (Math.random() - 0.5) * 10));
+        const tz = Math.max(r.minZ, Math.min(r.maxZ, m.baseZ + (Math.random() - 0.5) * 10));
+        // keep park walkers out of the pond and off the fountain
+        if (r === PARK && (Math.hypot(tx + 14, tz + 20) < 5.2 || Math.hypot(tx, tz) < 3)) continue;
+        m.tx = tx; m.tz = tz;
+        return;
+      }
+    }
 
     // ============================================================
     // Player + controls
     // ============================================================
     const player = { x: 0, z: 7, yaw: 0, pitch: 0 };
-    const EYE = 1.5, RADIUS = 0.5, WORLD_R = 40;
+    const EYE = 1.5, RADIUS = 0.5, WORLD_R = 55;
     const move = { f: 0, s: 0 };
 
     function resolveCollisions(nx, nz) {
@@ -454,6 +615,28 @@
         if (d < min && d > 0.0001) {
           nx = o.x + (dx / d) * min;
           nz = o.z + (dz / d) * min;
+        }
+      }
+      for (const b of boxes) {
+        const cx = Math.max(b.minX, Math.min(nx, b.maxX));
+        const cz = Math.max(b.minZ, Math.min(nz, b.maxZ));
+        let dx = nx - cx, dz = nz - cz;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < RADIUS * RADIUS) {
+          if (d2 > 1e-8) {
+            const d = Math.sqrt(d2);
+            nx = cx + (dx / d) * RADIUS;
+            nz = cz + (dz / d) * RADIUS;
+          } else {
+            // centre is inside the box — push out through the nearest face
+            const pushes = [
+              { d: nx - b.minX, x: b.minX - RADIUS, z: nz },
+              { d: b.maxX - nx, x: b.maxX + RADIUS, z: nz },
+              { d: nz - b.minZ, x: nx, z: b.minZ - RADIUS },
+              { d: b.maxZ - nz, x: nx, z: b.maxZ + RADIUS },
+            ].sort((a, b2) => a.d - b2.d);
+            nx = pushes[0].x; nz = pushes[0].z;
+          }
         }
       }
       const dc = Math.hypot(nx, nz);
@@ -527,77 +710,6 @@
     });
 
     // ============================================================
-    // NPC interaction
-    // ============================================================
-    const promptBtn = document.getElementById('prompt');
-    const friendsEl = document.getElementById('friends');
-    let nearNpc = null;
-    updateFriendsCounter();
-
-    function updateFriendsCounter() {
-      friendsEl.textContent = `💖 ${friends.size}/${NPCS.length}`;
-    }
-
-    function findNearest() {
-      const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
-      let best = null, bestD = 3.6;
-      for (const m of npcMeshes) {
-        const dx = m.group.position.x - player.x, dz = m.group.position.z - player.z;
-        const d = Math.hypot(dx, dz);
-        if (d > bestD) continue;
-        const dot = (dx / d) * fwdX + (dz / d) * fwdZ;
-        if (dot < 0.2) continue; // must be roughly in front
-        best = m; bestD = d;
-      }
-      return best;
-    }
-
-    promptBtn.addEventListener('click', () => { if (nearNpc) openDialog(nearNpc); });
-
-    const screenDiv = document.getElementById('screen');
-    function openDialog(m) {
-      const n = m.data;
-      const already = friends.has(n.name);
-      const face = { bunny: '🐰', bear: '🐻', cat: '🐱', bird: '🐤', blob: '🟢' }[n.type];
-      screenDiv.innerHTML = `<div class="modal"><div class="card">
-        <div class="face">${face}</div>
-        <h2>${n.name}${n.shop ? ' ' + n.shop : ''}</h2>
-        <p>"${already ? "I'm so happy we're friends! Come visit anytime! 💕" : n.line}"</p>
-        ${already
-          ? `<button class="btn" data-act="wave">👋 Wave</button>`
-          : `<button class="btn" data-act="friend">💖 Be friends!</button>`}
-        <button class="btn alt" data-act="bye">Bye!</button>
-      </div></div>`;
-      const close = () => { screenDiv.innerHTML = ''; };
-      screenDiv.querySelector('[data-act=bye]').addEventListener('click', close);
-      const waveBtn = screenDiv.querySelector('[data-act=wave]');
-      if (waveBtn) waveBtn.addEventListener('click', () => { heartPop(); close(); });
-      const friendBtn = screenDiv.querySelector('[data-act=friend]');
-      if (friendBtn) friendBtn.addEventListener('click', () => {
-        friends.add(n.name);
-        localStorage.setItem('myworld-friends', JSON.stringify([...friends]));
-        m.group.userData.heart.visible = true;
-        updateFriendsCounter();
-        chime();
-        heartPop();
-        close();
-        if (friends.size === NPCS.length) setTimeout(showWin, 400);
-      });
-    }
-
-    function heartPop() {
-      for (let i = 0; i < 6; i++) {
-        const h = document.createElement('div');
-        h.className = 'heartpop';
-        h.textContent = ['💖', '✨', '💕', '⭐'][i % 4];
-        h.style.left = (innerWidth / 2 + (Math.random() - 0.5) * 160) + 'px';
-        h.style.top = (innerHeight / 2 + (Math.random() - 0.5) * 80) + 'px';
-        document.body.appendChild(h);
-        setTimeout(() => h.remove(), 1000);
-      }
-    }
-
-    // ============================================================
     // Sound (WebAudio)
     // ============================================================
     let actx = null, ambientGain = null, muted = false;
@@ -619,19 +731,6 @@
         o.start(); lfo.start();
       });
     }
-    function chime() {
-      if (!actx || muted) return;
-      [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-        const o = actx.createOscillator(), g = actx.createGain();
-        o.type = 'triangle'; o.frequency.value = f;
-        const t = actx.currentTime + i * 0.08;
-        g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
-        o.connect(g).connect(actx.destination);
-        o.start(t); o.stop(t + 0.55);
-      });
-    }
     const muteBtn = document.getElementById('muteBtn');
     muteBtn.addEventListener('click', () => {
       muted = !muted;
@@ -645,6 +744,7 @@
     // ============================================================
     const clock = new THREE.Clock();
     let started = false;
+    const screenDiv = document.getElementById('screen');
 
     function animate() {
       requestAnimationFrame(animate);
@@ -671,19 +771,14 @@
       camera.position.set(player.x, EYE, player.z);
       camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
 
-      // NPC animation
-      for (const m of npcMeshes) {
-        m.group.position.y = Math.abs(Math.sin(t * 2 + m.phase)) * 0.08;
-        if (m.group.userData.heart.visible) {
-          m.group.userData.heart.position.y = 1.35 + Math.sin(t * 3 + m.phase) * 0.08;
-          m.group.userData.heart.rotation.y = t * 2;
-        }
-        if (m.data.wander && started) {
+      // people animation
+      for (const m of people) {
+        m.group.position.y = Math.abs(Math.sin(t * 2 + m.phase)) * 0.05;
+        if (m.data.region && started) {
           m.wt -= dt;
           if (m.wt <= 0) {
-            m.tx = m.baseX + (Math.random() - 0.5) * 8;
-            m.tz = m.baseZ + (Math.random() - 0.5) * 8;
-            m.wt = 2 + Math.random() * 3;
+            pickTarget(m);
+            m.wt = 2.5 + Math.random() * 4;
           }
           const dx = m.tx - m.group.position.x, dz = m.tz - m.group.position.z;
           const d = Math.hypot(dx, dz);
@@ -696,32 +791,19 @@
         }
       }
 
-      // interaction prompt
-      if (started) {
-        nearNpc = findNearest();
-        if (nearNpc && !screenDiv.firstChild) {
-          promptBtn.style.display = 'block';
-          promptBtn.textContent = friends.has(nearNpc.data.name) ? `💬 Chat with ${nearNpc.data.name}` : `👋 Say hi to ${nearNpc.data.name}`;
-        } else {
-          promptBtn.style.display = 'none';
-        }
-      }
-
       renderer.render(scene, camera);
     }
     animate();
 
     // ============================================================
-    // Intro / win screens
+    // Intro screen
     // ============================================================
     function showIntro() {
-      const known = NPCS.filter(n => friends.has(n.name));
       screenDiv.innerHTML = `<div class="modal"><div class="card" id="intro">
         <h1>MY WORLD</h1>
         <div style="font-size:2.5rem">🌸🏬🌳</div>
-        <p>Explore the park and the mall, pop into the shops, and make friends with everyone you meet!</p>
-        ${known.length ? `<div class="friends-list">${known.map(n => ({bunny:'🐰',bear:'🐻',cat:'🐱',bird:'🐤',blob:'🟢'}[n.type])).join(' ')}</div>` : ''}
-        <div class="controls-help">🕹️ Drag the circle to walk<br>👆 Swipe the screen to look around<br>💖 Walk up to a friend and say hi!</div>
+        <p>Wander the park, then step inside the mall — six big shops with shelves full of lovely things to browse!</p>
+        <div class="controls-help">🕹️ Drag the circle to walk<br>👆 Swipe the screen to look around<br>⌨️ Or use WASD / arrow keys</div>
         <button class="btn" data-act="go">LET'S GO!</button>
       </div></div>`;
       screenDiv.querySelector('[data-act=go]').addEventListener('click', () => {
@@ -730,16 +812,6 @@
         initAudio();
         if (actx && actx.state === 'suspended') actx.resume();
       });
-    }
-
-    function showWin() {
-      screenDiv.innerHTML = `<div class="modal"><div class="card">
-        <div class="face">🎉🌈🎉</div>
-        <h2>BEST FRIENDS!</h2>
-        <p>You made friends with everyone in My World! What a superstar. 💖</p>
-        <button class="btn" data-act="go">KEEP EXPLORING</button>
-      </div></div>`;
-      screenDiv.querySelector('[data-act=go]').addEventListener('click', () => { screenDiv.innerHTML = ''; });
     }
 
     showIntro();
