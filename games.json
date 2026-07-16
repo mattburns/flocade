@@ -150,6 +150,12 @@
     "description": "A bit like Minecraft! Every colour of brick, every piece — build anything in 3D, walk inside your creation, then SMASH it."
   },
   {
+    "slug": "make-a-monster",
+    "title": "Make a Monster!",
+    "icon": "👹",
+    "description": "Mix and match eyes, fangs, noses, long wiggly legs and stripey socks to build your own silly monster — then save a picture of it!"
+  },
+  {
     "slug": "sharpeners",
     "title": "Sharpeners",
     "icon": "✏️",
