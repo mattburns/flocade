@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Make a Monster — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 1rem;
+    }
+    a.back { color: #00f0ff; font-size: 0.7rem; text-decoration: none; align-self: flex-start; }
+    h1 {
+      font-size: 1rem;
+      color: #ff2e88;
+      text-shadow: 0 0 12px rgba(255, 46, 136, 0.7);
+      text-align: center;
+      line-height: 1.6;
+    }
+    .stage {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    canvas {
+      border: 2px solid #ff2e88;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+      max-width: 100%;
+      height: auto;
+      touch-action: manipulation;
+      background: #16063a;
+    }
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      width: 300px;
+      max-width: 100%;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #1a0940;
+      border: 2px solid #2d1566;
+      padding: 0.35rem 0.45rem;
+      border-radius: 8px;
+    }
+    .row.sel { border-color: #00f0ff; box-shadow: 0 0 8px rgba(0, 240, 255, 0.4); }
+    .row .name { font-size: 0.5rem; color: #ffe600; width: 4.4rem; flex-shrink: 0; }
+    .row .val { font-size: 0.5rem; color: #e8e6f0; flex: 1; text-align: center; }
+    .row button {
+      font-family: inherit;
+      font-size: 0.6rem;
+      background: #ff2e88;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .row button:active { transform: scale(0.9); }
+    .swatches { display: flex; gap: 0.3rem; flex: 1; justify-content: center; flex-wrap: wrap; }
+    .swatch {
+      width: 1.4rem; height: 1.4rem;
+      border-radius: 50%;
+      border: 2px solid #2d1566;
+      cursor: pointer;
+      padding: 0;
+    }
+    .swatch.sel { border-color: #fff; box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+    .bigbtns { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+    .bigbtns button {
+      flex: 1;
+      font-family: inherit;
+      font-size: 0.6rem;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 0.4rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    #surprise { background: #ffe600; color: #0d0221; }
+    #save { background: #00f0ff; color: #0d0221; }
+    .bigbtns button:active { transform: scale(0.95); }
+    .hint { font-size: 0.55rem; color: #9b93b8; text-align: center; line-height: 1.9; max-width: 40rem; }
+  </style>
+</head>
+<body>
+  <a class="back" href="../../">&larr; FLOCADE</a>
+  <h1>MAKE A MONSTER!!!!!</h1>
+  <div class="stage">
+    <canvas id="c" width="480" height="560"></canvas>
+    <div class="panel" id="panel"></div>
+  </div>
+  <p class="hint">Mix the parts to build your monster! &uarr;&darr; pick a row, &larr;&rarr; change it, SPACE for a surprise &middot; Tap the name for a new one</p>
+
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const GROUND = 470;
+
+    // ---------- monster parts (straight from the design sheet!) ----------
+    const COLORS = [
+      { name: 'RED',    fill: '#ff3b30' },
+      { name: 'PINK',   fill: '#ff2e88' },
+      { name: 'CYAN',   fill: '#00f0ff' },
+      { name: 'YELLOW', fill: '#ffe600' },
+      { name: 'GREEN',  fill: '#3dff73' },
+      { name: 'PURPLE', fill: '#b56cff' },
+    ];
+    const PARTS = [
+      { key: 'body',   name: 'BODY',   opts: ['BLOB', 'EGG', 'SPIKY', 'BOXY', 'WOBBLY'] },
+      { key: 'eyes',   name: 'EYES',   opts: ['TWO', 'ONE', 'THREE', 'LOTS', 'SLEEPY'] },
+      { key: 'mouth',  name: 'MOUTH',  opts: ['SMILE', 'FANGS', 'ZIGZAG', 'OPEN', 'OOO'] },
+      { key: 'nose',   name: 'NOSE',   opts: ['RED', 'DOTS', 'CARROT', 'SNOUT', 'NONE'] },
+      { key: 'cheeks', name: 'CHEEKS', opts: ['ROSY', 'FRECKLES', 'SWIRLS', 'NONE'] },
+      { key: 'legs',   name: 'LEGS',   opts: ['LONG', 'SHORT', 'SPRINGY', 'FOUR'] },
+      { key: 'feet',   name: 'FEET',   opts: ['ROUND', 'BIG', 'CLAWS', 'BOOTS'] },
+      { key: 'socks',  name: 'SOCKS',  opts: ['NONE', 'STRIPEY', 'CYAN', 'SUNNY', 'ODD'] },
+    ];
+    const state = { color: 0 };
+    PARTS.forEach(p => state[p.key] = 0);
+
+    const NAME_A = ['ZIG', 'BOG', 'FLUFF', 'SNORT', 'WIB', 'GRUM', 'POP', 'MUNCH', 'ZAZZ', 'BLOB', 'SQUIDGE', 'FANG'];
+    const NAME_B = ['GLE', 'ZLE', 'BLE', 'POP', 'SNAP', 'WORT', 'FUZZ', 'OODLE', 'ERT', 'INKS', 'UMP', 'OOZLE'];
+    let monsterName = 'FLOZZLE';
+    function newName() {
+      monsterName = NAME_A[Math.floor(Math.random() * NAME_A.length)] + NAME_B[Math.floor(Math.random() * NAME_B.length)];
+    }
+
+    // ---------- sound ----------
+    let audio = null;
+    function initAudio() { if (!audio) try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    function beep(freq, dur = 0.09, type = 'square', vol = 0.07) {
+      if (!audio) return;
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, audio.currentTime);
+      g.gain.setValueAtTime(vol, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+      o.connect(g).connect(audio.destination);
+      o.start();
+      o.stop(audio.currentTime + dur);
+    }
+    function fanfare() { [330, 415, 495, 660].forEach((f, i) => setTimeout(() => beep(f, 0.12, 'square', 0.08), i * 80)); }
+
+    // ---------- helpers ----------
+    function shade(hex, f) {
+      const n = parseInt(hex.slice(1), 16);
+      const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+      const g = Math.min(255, Math.round(((n >> 8) & 255) * f));
+      const b = Math.min(255, Math.round((n & 255) * f));
+      return `rgb(${r},${g},${b})`;
+    }
+    function opt(key) { return PARTS.find(p => p.key === key).opts[state[key]]; }
+
+    // ---------- confetti ----------
+    let confetti = [];
+    function burst() {
+      for (let i = 0; i < 40; i++) {
+        confetti.push({
+          x: W / 2, y: H / 2,
+          vx: (Math.random() - 0.5) * 10, vy: -Math.random() * 8 - 2,
+          c: COLORS[Math.floor(Math.random() * COLORS.length)].fill,
+          life: 60 + Math.random() * 30,
+        });
+      }
+    }
+
+    // ---------- drawing ----------
+    let mouse = { x: W / 2, y: H / 3 };
+    let blinkUntil = 0, nextBlink = 2000;
+
+    function bodySize() {
+      switch (opt('body')) {
+        case 'EGG':  return { w: 88, h: 122 };
+        case 'BOXY': return { w: 102, h: 95 };
+        default:     return { w: 112, h: 98 };
+      }
+    }
+    function legLen() {
+      switch (opt('legs')) {
+        case 'LONG': return 165;
+        case 'SHORT': return 55;
+        case 'SPRINGY': return 120;
+        case 'FOUR': return 110;
+      }
+    }
+    function ankles() {
+      return opt('legs') === 'FOUR' ? [-66, -24, 24, 66] : [-40, 40];
+    }
+
+    function drawBodyShape(cx, cy, w, h, fill, dark) {
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      const kind = opt('body');
+      if (kind === 'BOXY') {
+        ctx.roundRect(cx - w, cy - h, w * 2, h * 2, 32);
+      } else if (kind === 'SPIKY') {
+        const n = 12;
+        for (let i = 0; i <= n * 2; i++) {
+          const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2;
+          const r = i % 2 === 0 ? 1.0 : 0.86;
+          const x = cx + Math.cos(a) * w * r, y = cy + Math.sin(a) * h * r;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      } else if (kind === 'WOBBLY') {
+        const n = 40;
+        for (let i = 0; i <= n; i++) {
+          const a = (i / n) * Math.PI * 2;
+          const r = 1 + Math.sin(a * 5) * 0.07;
+          const x = cx + Math.cos(a) * w * r, y = cy + Math.sin(a) * h * r;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      } else {
+        ctx.ellipse(cx, cy, w, h, 0, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawArms(cx, cy, w, dark) {
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const s of [-1, 1]) {
+        const x0 = cx + s * (w - 6), y0 = cy - 8;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + s * 18, y0 - 14);
+        ctx.lineTo(x0 + s * 26, y0 + 2);
+        ctx.lineTo(x0 + s * 42, y0 - 10);
+        ctx.stroke();
+      }
+    }
+
+    function drawEye(x, y, r, blinking, fill, dark) {
+      if (blinking) {
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - r, y);
+        ctx.lineTo(x + r, y);
+        ctx.stroke();
+        return;
+      }
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      const dx = mouse.x - x, dy = mouse.y - y;
+      const d = Math.max(1, Math.hypot(dx, dy));
+      const off = Math.min(r * 0.3, 4);
+      const px = x + (dx / d) * off, py = y + (dy / d) * off;
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.arc(px, py, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(px - r * 0.14, py - r * 0.14, r * 0.13, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawEyes(cx, ey, blinking, fill, dark) {
+      const kind = opt('eyes');
+      if (kind === 'ONE') { drawEye(cx, ey, 24, blinking, fill, dark); return; }
+      if (kind === 'TWO') { drawEye(cx - 32, ey, 16, blinking, fill, dark); drawEye(cx + 32, ey, 16, blinking, fill, dark); return; }
+      if (kind === 'THREE') {
+        drawEye(cx - 38, ey, 14, blinking, fill, dark);
+        drawEye(cx, ey - 10, 14, blinking, fill, dark);
+        drawEye(cx + 38, ey, 14, blinking, fill, dark);
+        return;
+      }
+      if (kind === 'LOTS') {
+        const spots = [[-42, -4], [-18, -14], [8, -6], [32, -14], [-28, 12], [22, 10]];
+        for (const [dx, dy] of spots) drawEye(cx + dx, ey + dy, 9, blinking, fill, dark);
+        return;
+      }
+      // SLEEPY
+      for (const s of [-1, 1]) {
+        const x = cx + s * 32;
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, ey - 4, 14, 0.15 * Math.PI, 0.85 * Math.PI);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 12, ey + 8);
+        ctx.lineTo(x - 6, ey + 12);
+        ctx.moveTo(x, ey + 9);
+        ctx.lineTo(x, ey + 14);
+        ctx.moveTo(x + 12, ey + 8);
+        ctx.lineTo(x + 6, ey + 12);
+        ctx.stroke();
+      }
+    }
+
+    function drawMouth(cx, my, dark) {
+      const kind = opt('mouth');
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 5;
+      ctx.lineCap = 'round';
+      if (kind === 'SMILE') {
+        ctx.beginPath();
+        ctx.arc(cx, my - 10, 30, 0.2 * Math.PI, 0.8 * Math.PI);
+        ctx.stroke();
+      } else if (kind === 'FANGS') {
+        ctx.fillStyle = '#5a0f2e';
+        ctx.beginPath();
+        ctx.moveTo(cx - 34, my - 8);
+        ctx.quadraticCurveTo(cx, my + 26, cx + 34, my - 8);
+        ctx.quadraticCurveTo(cx, my + 2, cx - 34, my - 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        for (const s of [-1, 1]) {
+          const fx = cx + s * 18;
+          ctx.beginPath();
+          ctx.moveTo(fx - 6, my - 5);
+          ctx.lineTo(fx + 6, my - 5);
+          ctx.lineTo(fx, my + 14);
+          ctx.closePath();
+          ctx.fill();
+        }
+      } else if (kind === 'ZIGZAG') {
+        ctx.beginPath();
+        ctx.moveTo(cx - 32, my);
+        for (let i = 1; i <= 8; i++) ctx.lineTo(cx - 32 + i * 8, my + (i % 2 === 0 ? 0 : 8));
+        ctx.stroke();
+      } else if (kind === 'OPEN') {
+        ctx.fillStyle = '#5a0f2e';
+        ctx.beginPath();
+        ctx.ellipse(cx, my + 2, 24, 18, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ff6b9d';
+        ctx.beginPath();
+        ctx.ellipse(cx, my + 12, 12, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(cx - 14, my - 14, 9, 8);
+        ctx.fillRect(cx + 5, my - 14, 9, 8);
+      } else { // OOO
+        ctx.fillStyle = '#5a0f2e';
+        ctx.beginPath();
+        ctx.arc(cx, my, 9, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    function drawNose(cx, ny, dark) {
+      const kind = opt('nose');
+      if (kind === 'NONE') return;
+      if (kind === 'RED') {
+        ctx.fillStyle = '#ff3b30';
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, ny, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.beginPath();
+        ctx.arc(cx - 4, ny - 4, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (kind === 'DOTS') {
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.arc(cx - 7, ny, 3.5, 0, Math.PI * 2);
+        ctx.arc(cx + 7, ny, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (kind === 'CARROT') {
+        ctx.fillStyle = '#ff8c1a';
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 9, ny - 8);
+        ctx.lineTo(cx + 9, ny - 8);
+        ctx.lineTo(cx, ny + 16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (kind === 'SNOUT') {
+        ctx.fillStyle = '#ffb3c6';
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(cx, ny, 17, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = dark;
+        ctx.beginPath();
+        ctx.arc(cx - 6, ny, 3, 0, Math.PI * 2);
+        ctx.arc(cx + 6, ny, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawCheeks(cx, my, w, dark) {
+      const kind = opt('cheeks');
+      if (kind === 'NONE') return;
+      for (const s of [-1, 1]) {
+        const x = cx + s * w * 0.62, y = my - 12;
+        if (kind === 'ROSY') {
+          ctx.fillStyle = 'rgba(255,110,160,0.55)';
+          ctx.beginPath();
+          ctx.arc(x, y, 13, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (kind === 'FRECKLES') {
+          ctx.fillStyle = dark;
+          for (const [dx, dy] of [[-6, -3], [4, 2], [0, -8]]) {
+            ctx.beginPath();
+            ctx.arc(x + dx, y + dy, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (kind === 'SWIRLS') {
+          ctx.strokeStyle = dark;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, 10, 0, Math.PI * 1.5);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(x, y - 2, 5, Math.PI, Math.PI * 2.4);
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawLegs(cx, hipY, fill, dark, t) {
+      const kind = opt('legs');
+      const xs = ankles();
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const pass of [[dark, 18], [fill, 10]]) {
+        ctx.strokeStyle = pass[0];
+        ctx.lineWidth = pass[1];
+        for (let i = 0; i < xs.length; i++) {
+          const ax = cx + xs[i];
+          const hx = cx + xs[i] * 0.45;
+          const wig = Math.sin(t * 2 + i * 1.7) * 6;
+          ctx.beginPath();
+          ctx.moveTo(hx, hipY);
+          if (kind === 'SPRINGY') {
+            const seg = (GROUND - 8 - hipY) / 5;
+            for (let k = 1; k <= 5; k++) {
+              const zx = k === 5 ? ax : ax + (k % 2 === 0 ? -14 : 14);
+              ctx.lineTo(zx, hipY + seg * k);
+            }
+          } else if (kind === 'SHORT') {
+            ctx.lineTo(ax, GROUND - 8);
+          } else {
+            ctx.bezierCurveTo(
+              cx + xs[i] * 1.7 + wig, hipY + (GROUND - hipY) * 0.4,
+              ax - wig, hipY + (GROUND - hipY) * 0.75,
+              ax, GROUND - 8
+            );
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    function drawSocks(cx, dark) {
+      const kind = opt('socks');
+      if (kind === 'NONE') return;
+      const xs = ankles();
+      for (let i = 0; i < xs.length; i++) {
+        const x = cx + xs[i];
+        let base = '#fff', stripe = '#ff3b30';
+        if (kind === 'CYAN') { base = '#00f0ff'; stripe = null; }
+        if (kind === 'SUNNY') { base = '#ffe600'; stripe = '#ff2e88'; }
+        if (kind === 'ODD') { base = '#fff'; stripe = i % 2 === 0 ? '#ff3b30' : '#00f0ff'; }
+        ctx.fillStyle = base;
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(x - 11, GROUND - 54, 22, 46, 8);
+        ctx.fill();
+        ctx.stroke();
+        if (stripe) {
+          ctx.fillStyle = stripe;
+          ctx.fillRect(x - 11, GROUND - 48, 22, 7);
+          ctx.fillRect(x - 11, GROUND - 34, 22, 7);
+          ctx.fillRect(x - 11, GROUND - 20, 22, 7);
+        }
+      }
+    }
+
+    function drawFeet(cx, fill, dark) {
+      const kind = opt('feet');
+      const xs = ankles();
+      for (const dx of xs) {
+        const x = cx + dx;
+        const s = dx === 0 ? 1 : Math.sign(dx);
+        ctx.strokeStyle = dark;
+        ctx.lineWidth = 4;
+        if (kind === 'BOOTS') {
+          ctx.fillStyle = '#3a3a4a';
+          ctx.beginPath();
+          ctx.roundRect(x - 14, GROUND - 18, 28 + s * 8, 26, 7);
+          ctx.fill();
+          ctx.stroke();
+          ctx.strokeStyle = '#ffe600';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(x - 8, GROUND - 10);
+          ctx.lineTo(x + 8, GROUND - 4);
+          ctx.moveTo(x + 8, GROUND - 10);
+          ctx.lineTo(x - 8, GROUND - 4);
+          ctx.stroke();
+          continue;
+        }
+        ctx.fillStyle = fill;
+        const rx = kind === 'BIG' ? 34 : 22;
+        const ox = kind === 'BIG' ? s * 14 : s * 7;
+        ctx.beginPath();
+        ctx.ellipse(x + ox, GROUND, rx, 13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        if (kind === 'CLAWS') {
+          ctx.fillStyle = '#fff';
+          for (let k = -1; k <= 1; k++) {
+            ctx.beginPath();
+            ctx.moveTo(x + ox + s * (rx - 4), GROUND - 6 + k * 6 + 6);
+            ctx.lineTo(x + ox + s * (rx + 12), GROUND + k * 6 + 3);
+            ctx.lineTo(x + ox + s * (rx - 4), GROUND + k * 6 + 6);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    function drawMonster(t) {
+      const { w, h } = bodySize();
+      const bob = Math.sin(t * 2.2) * 5;
+      const cx = W / 2;
+      const cy = GROUND - legLen() - h + 12 + bob;
+      const fill = COLORS[state.color].fill;
+      const dark = shade(fill, 0.45);
+      const hipY = cy + h - 16;
+
+      drawLegs(cx, hipY, fill, dark, t);
+      drawSocks(cx, dark);
+      drawFeet(cx, fill, dark);
+      drawArms(cx, cy, w, dark);
+      drawBodyShape(cx, cy, w, h, fill, dark);
+
+      const blinking = performance.now() < blinkUntil && opt('eyes') !== 'SLEEPY';
+      drawEyes(cx, cy - h * 0.3, blinking, fill, dark);
+      drawNose(cx, cy + h * 0.08, dark);
+      drawMouth(cx, cy + h * 0.42, dark);
+      drawCheeks(cx, cy + h * 0.42, w, dark);
+    }
+
+    function frame(now) {
+      const t = now / 1000;
+      if (now > nextBlink) { blinkUntil = now + 160; nextBlink = now + 1800 + Math.random() * 3000; }
+
+      ctx.clearRect(0, 0, W, H);
+      // starry background
+      ctx.fillStyle = '#16063a';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      for (let i = 0; i < 30; i++) {
+        const sx = (i * 137) % W, sy = (i * 89) % (H - 100);
+        const tw = 0.5 + 0.5 * Math.sin(t * 2 + i);
+        ctx.globalAlpha = 0.15 + 0.2 * tw;
+        ctx.fillRect(sx, sy, 3, 3);
+      }
+      ctx.globalAlpha = 1;
+      // floor
+      ctx.strokeStyle = '#ff2e88';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(20, GROUND + 16);
+      ctx.lineTo(W - 20, GROUND + 16);
+      ctx.stroke();
+
+      drawMonster(t);
+
+      // name
+      ctx.fillStyle = '#ffe600';
+      ctx.font = '16px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(monsterName + '!', W / 2, H - 22);
+
+      // confetti
+      confetti = confetti.filter(p => p.life > 0);
+      for (const p of confetti) {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.25; p.life--;
+        ctx.fillStyle = p.c;
+        ctx.globalAlpha = Math.min(1, p.life / 30);
+        ctx.fillRect(p.x, p.y, 6, 6);
+      }
+      ctx.globalAlpha = 1;
+
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    // ---------- controls ----------
+    const panel = document.getElementById('panel');
+    const ROWS = [{ key: 'color', name: 'COLOUR' }, ...PARTS.map(p => ({ key: p.key, name: p.name }))];
+    let selRow = 0;
+    const rowEls = [], valEls = [];
+
+    function change(key, dir) {
+      initAudio();
+      if (key === 'color') {
+        state.color = (state.color + dir + COLORS.length) % COLORS.length;
+      } else {
+        const part = PARTS.find(p => p.key === key);
+        state[key] = (state[key] + dir + part.opts.length) % part.opts.length;
+      }
+      beep(280 + ROWS.findIndex(r => r.key === key) * 55, 0.08);
+      updatePanel();
+    }
+
+    function updatePanel() {
+      ROWS.forEach((row, i) => {
+        rowEls[i].classList.toggle('sel', i === selRow);
+        if (row.key === 'color') {
+          [...rowEls[i].querySelectorAll('.swatch')].forEach((sw, j) => sw.classList.toggle('sel', j === state.color));
+        } else {
+          const part = PARTS.find(p => p.key === row.key);
+          valEls[i].textContent = part.opts[state[row.key]];
+        }
+      });
+    }
+
+    ROWS.forEach((row, i) => {
+      const div = document.createElement('div');
+      div.className = 'row';
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = row.name;
+      div.appendChild(name);
+      if (row.key === 'color') {
+        const wrap = document.createElement('div');
+        wrap.className = 'swatches';
+        COLORS.forEach((c, j) => {
+          const sw = document.createElement('button');
+          sw.className = 'swatch';
+          sw.style.background = c.fill;
+          sw.setAttribute('aria-label', c.name);
+          sw.addEventListener('click', () => { selRow = i; state.color = j; initAudio(); beep(280, 0.08); updatePanel(); });
+          wrap.appendChild(sw);
+        });
+        div.appendChild(wrap);
+        valEls.push(null);
+      } else {
+        const left = document.createElement('button');
+        left.textContent = '◀';
+        left.addEventListener('click', () => { selRow = i; change(row.key, -1); });
+        const val = document.createElement('span');
+        val.className = 'val';
+        const right = document.createElement('button');
+        right.textContent = '▶';
+        right.addEventListener('click', () => { selRow = i; change(row.key, 1); });
+        div.appendChild(left);
+        div.appendChild(val);
+        div.appendChild(right);
+        valEls.push(val);
+      }
+      panel.appendChild(div);
+      rowEls.push(div);
+    });
+
+    const bigbtns = document.createElement('div');
+    bigbtns.className = 'bigbtns';
+    bigbtns.innerHTML = '<button id="surprise">🎲 SURPRISE!</button><button id="save">💾 SAVE</button>';
+    panel.appendChild(bigbtns);
+
+    document.getElementById('surprise').addEventListener('click', () => {
+      initAudio();
+      state.color = Math.floor(Math.random() * COLORS.length);
+      PARTS.forEach(p => state[p.key] = Math.floor(Math.random() * p.opts.length));
+      newName();
+      burst();
+      fanfare();
+      updatePanel();
+    });
+
+    document.getElementById('save').addEventListener('click', () => {
+      initAudio();
+      beep(660, 0.15, 'sine', 0.1);
+      const a = document.createElement('a');
+      a.download = monsterName.toLowerCase() + '-the-monster.png';
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+
+    // tap the name (bottom of canvas) for a new one
+    canvas.addEventListener('pointerdown', e => {
+      const r = canvas.getBoundingClientRect();
+      const y = (e.clientY - r.top) / r.height * H;
+      if (y > H - 60) { newName(); initAudio(); beep(520, 0.1); }
+    });
+    canvas.addEventListener('pointermove', e => {
+      const r = canvas.getBoundingClientRect();
+      mouse.x = (e.clientX - r.left) / r.width * W;
+      mouse.y = (e.clientY - r.top) / r.height * H;
+    });
+
+    window.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp') { selRow = (selRow - 1 + ROWS.length) % ROWS.length; updatePanel(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { selRow = (selRow + 1) % ROWS.length; updatePanel(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { change(ROWS[selRow].key, -1); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { change(ROWS[selRow].key, 1); e.preventDefault(); }
+      else if (e.key === ' ') { document.getElementById('surprise').click(); e.preventDefault(); }
+    });
+
+    updatePanel();
+  </script>
+</body>
+</html>
