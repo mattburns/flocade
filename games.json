@@ -166,5 +166,11 @@
     "title": "Sharpeners",
     "icon": "✏️",
     "description": "Pure satisfaction: feed pencils into a giant sharpener, tap the end, and watch the shavings coil out. No winning, just sharpening."
+  },
+  {
+    "slug": "polly-heedrun",
+    "title": "Polly Heedrun",
+    "icon": "🎲",
+    "description": "Spin a 3D die with a drag, then tap its faces in order — 1, 2, 3… Correct taps buy you time! Levels climb from D6 to D20, with dots or numbers."
   }
 ]
