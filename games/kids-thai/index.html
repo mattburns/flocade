@@ -113,6 +113,48 @@
       line-height: 1.8;
       text-align: center;
     }
+    .menu button.sel { border-color: #ffe600; box-shadow: 0 0 14px rgba(255, 230, 0, 0.3); }
+    .menu button.girl-btn {
+      border-color: #ff2e88;
+      background: rgba(255, 46, 136, 0.12);
+    }
+    .menu button.girl-btn:hover, .menu button.girl-btn:focus-visible {
+      background: rgba(255, 46, 136, 0.22);
+    }
+    .gender-note {
+      border: 2px solid #3e2f65;
+      border-radius: 10px;
+      background: rgba(0, 240, 255, 0.05);
+      padding: 0.9rem 0.7rem;
+      font-size: 0.5rem;
+      color: #9b93b8;
+      line-height: 2;
+      text-align: center;
+    }
+    .gender-note .thai { color: #00f0ff; font-size: 0.85rem; }
+    .who-line {
+      text-align: center;
+      font-size: 0.55rem;
+      color: #9b93b8;
+      line-height: 1.9;
+    }
+    .who-line .thai { color: #00f0ff; font-size: 0.85rem; }
+    .who-line button {
+      border: 1px solid #3e2f65;
+      border-radius: 999px;
+      background: none;
+      color: #ffe600;
+      font: inherit;
+      font-size: 0.48rem;
+      padding: 0.4rem 0.7rem;
+      margin-left: 0.4rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .who-line button:hover, .who-line button:focus-visible {
+      border-color: #ffe600;
+      outline: none;
+    }
 
     /* ---------- Learn ---------- */
     .cats {
@@ -405,10 +447,30 @@
       <button class="linky" id="home-btn" hidden>&larr; MENU</button>
     </div>
 
+    <!-- GENDER PICK -->
+    <section class="screen active" id="screen-gender">
+      <h1 class="title">KIDS THAI<span class="thai">ภาษาไทย</span></h1>
+      <p class="subtitle">First — are you a girl or a boy?</p>
+      <div class="menu">
+        <button type="button" id="pick-girl" class="girl-btn">
+          <span class="big">👧</span>
+          <span class="label">GIRL</span>
+          <span class="desc">Girls say ฉัน "chan" for I, and end polite sentences with ค่ะ "kha".</span>
+        </button>
+        <button type="button" id="pick-boy">
+          <span class="big">👦</span>
+          <span class="label">BOY</span>
+          <span class="desc">Boys say ผม "phom" for I, and end polite sentences with ครับ "khrap".</span>
+        </button>
+      </div>
+      <p class="gender-note">In Thai, girls and boys speak a little differently — so your words and sentences will match you! You can change this any time.</p>
+    </section>
+
     <!-- HOME -->
-    <section class="screen active" id="screen-home">
+    <section class="screen" id="screen-home">
       <h1 class="title">KIDS THAI<span class="thai">ภาษาไทย</span></h1>
       <p class="subtitle">Learn Thai words, then beat the quiz!</p>
+      <p class="who-line" id="who-line"></p>
       <div class="menu">
         <button type="button" id="go-learn">
           <span class="big">📖</span>
@@ -507,20 +569,23 @@
 
     const WORDS = [
       // --- Basics (tier 1) ---
+      // {I}/{i} = I-pronoun (ผม phom / ฉัน chan), {P}/{p} = polite particle (ครับ khrap / ค่ะ kha)
       { cat: 'basics', en: 'Hello', th: 'สวัสดี', phon: 'sa-wat-dee',
-        ex: { th: 'สวัสดีครับ คุณครู', phon: 'sa-wat-dee khrap, khun khruu', en: 'Hello, teacher!' } },
+        ex: { th: 'สวัสดี{P} คุณครู', phon: 'sa-wat-dee {p}, khun khruu', en: 'Hello, teacher!' } },
+      { cat: 'basics', en: 'The polite word', th: '{P}', phon: '{p}',
+        ex: { th: 'ขอบคุณ{P}', phon: 'khop-khun {p}', en: 'Thank you (said politely!)' } },
       { cat: 'basics', en: 'Thank you', th: 'ขอบคุณ', phon: 'khop-khun',
-        ex: { th: 'ขอบคุณมากครับ', phon: 'khop-khun maak khrap', en: 'Thank you very much!' } },
+        ex: { th: 'ขอบคุณมาก{P}', phon: 'khop-khun maak {p}', en: 'Thank you very much!' } },
       { cat: 'basics', en: 'Yes', th: 'ใช่', phon: 'chai',
-        ex: { th: 'ใช่ ฉันชอบช้าง', phon: 'chai, chan chop chaang', en: 'Yes, I like elephants.' } },
+        ex: { th: 'ใช่ {I}ชอบช้าง', phon: 'chai, {i} chop chaang', en: 'Yes, I like elephants.' } },
       { cat: 'basics', en: 'No', th: 'ไม่', phon: 'mai',
-        ex: { th: 'ไม่ ขอบคุณ', phon: 'mai, khop-khun', en: 'No, thank you.' } },
+        ex: { th: 'ไม่ ขอบคุณ{P}', phon: 'mai, khop-khun {p}', en: 'No, thank you.' } },
       { cat: 'basics', en: 'Sorry', th: 'ขอโทษ', phon: 'khor-thoht',
-        ex: { th: 'ขอโทษครับ', phon: 'khor-thoht khrap', en: 'I’m sorry!' } },
-      { cat: 'basics', en: 'My name is…', th: 'ฉันชื่อ…', phon: 'chan chuue…',
-        ex: { th: 'ฉันชื่อโฟล', phon: 'chan chuue Flo', en: 'My name is Flo.' } },
+        ex: { th: 'ขอโทษ{P}', phon: 'khor-thoht {p}', en: 'I’m sorry!' } },
+      { cat: 'basics', en: 'My name is…', th: '{I}ชื่อ…', phon: '{i} chuue…',
+        ex: { th: '{I}ชื่อโฟล', phon: '{i} chuue Flo', en: 'My name is Flo.' } },
       { cat: 'basics', en: 'How are you?', th: 'สบายดีไหม', phon: 'sa-baai-dee mai',
-        ex: { th: 'สวัสดี สบายดีไหม', phon: 'sa-wat-dee, sa-baai-dee mai', en: 'Hello, how are you?' } },
+        ex: { th: 'สวัสดี{P} สบายดีไหม', phon: 'sa-wat-dee {p}, sa-baai-dee mai', en: 'Hello, how are you?' } },
       { cat: 'basics', en: 'Goodbye', th: 'ลาก่อน', phon: 'laa-gorn',
         ex: { th: 'ลาก่อน เจอกันใหม่', phon: 'laa-gorn, jer-gan-mai', en: 'Goodbye, see you again!' } },
 
@@ -566,11 +631,11 @@
 
       // --- Food (tier 2) ---
       { cat: 'food', en: 'Rice', th: 'ข้าว', phon: 'khaao',
-        ex: { th: 'ฉันกินข้าว', phon: 'chan gin khaao', en: 'I eat rice.' } },
+        ex: { th: '{I}กินข้าว', phon: '{i} gin khaao', en: 'I eat rice.' } },
       { cat: 'food', en: 'Water', th: 'น้ำ', phon: 'naam',
-        ex: { th: 'ขอน้ำหน่อย', phon: 'khor naam noi', en: 'Some water, please.' } },
+        ex: { th: 'ขอน้ำหน่อย{P}', phon: 'khor naam noi {p}', en: 'Some water, please.' } },
       { cat: 'food', en: 'Milk', th: 'นม', phon: 'nom',
-        ex: { th: 'ฉันดื่มนม', phon: 'chan duuem nom', en: 'I drink milk.' } },
+        ex: { th: '{I}ดื่มนม', phon: '{i} duuem nom', en: 'I drink milk.' } },
       { cat: 'food', en: 'Egg', th: 'ไข่', phon: 'khai',
         ex: { th: 'ไข่สองฟอง', phon: 'khai song fong', en: 'Two eggs.' } },
       { cat: 'food', en: 'Banana', th: 'กล้วย', phon: 'gluay',
@@ -578,7 +643,7 @@
       { cat: 'food', en: 'Mango', th: 'มะม่วง', phon: 'ma-muang',
         ex: { th: 'มะม่วงหวานมาก', phon: 'ma-muang waan maak', en: 'The mango is very sweet.' } },
       { cat: 'food', en: 'Ice cream', th: 'ไอศกรีม', phon: 'ai-sa-kreem',
-        ex: { th: 'ฉันชอบไอศกรีม', phon: 'chan chop ai-sa-kreem', en: 'I like ice cream.' } },
+        ex: { th: '{I}ชอบไอศกรีม', phon: '{i} chop ai-sa-kreem', en: 'I like ice cream.' } },
       { cat: 'food', en: 'Delicious', th: 'อร่อย', phon: 'a-roi',
         ex: { th: 'ข้าวอร่อยมาก', phon: 'khaao a-roi maak', en: 'The rice is delicious!' } },
 
@@ -606,21 +671,47 @@
       { cat: 'family', en: 'Dad', th: 'พ่อ', phon: 'por',
         ex: { th: 'พ่อชอบปลา', phon: 'por chop bplaa', en: 'Dad likes fish.' } },
       { cat: 'family', en: 'Friend', th: 'เพื่อน', phon: 'peuuan',
-        ex: { th: 'เพื่อนของฉัน', phon: 'peuuan khong chan', en: 'My friend.' } },
+        ex: { th: 'เพื่อนของ{I}', phon: 'peuuan khong {i}', en: 'My friend.' } },
       { cat: 'family', en: 'Teacher', th: 'ครู', phon: 'khruu',
-        ex: { th: 'สวัสดีคุณครู', phon: 'sa-wat-dee khun khruu', en: 'Hello, teacher!' } },
+        ex: { th: 'คุณครูใจดีมาก', phon: 'khun khruu jai-dee maak', en: 'The teacher is very kind.' } },
       { cat: 'family', en: 'Child', th: 'เด็ก', phon: 'dek',
         ex: { th: 'เด็กสามคน', phon: 'dek saam khon', en: 'Three children.' } },
       { cat: 'family', en: 'Big brother / sister', th: 'พี่', phon: 'pee',
-        ex: { th: 'พี่ของฉันใจดี', phon: 'pee khong chan jai-dee', en: 'My big sibling is kind.' } },
+        ex: { th: 'พี่ของ{I}ใจดี', phon: 'pee khong {i} jai-dee', en: 'My big sibling is kind.' } },
       { cat: 'family', en: 'Little brother / sister', th: 'น้อง', phon: 'nong',
         ex: { th: 'น้องชอบไอศกรีม', phon: 'nong chop ai-sa-kreem', en: 'My little sibling likes ice cream.' } },
-      { cat: 'family', en: 'I / me', th: 'ฉัน', phon: 'chan',
-        ex: { th: 'ฉันชอบสีฟ้า', phon: 'chan chop see faa', en: 'I like blue.' } },
+      { cat: 'family', en: 'I / me', th: '{I}', phon: '{i}',
+        ex: { th: '{I}ชอบสีฟ้า', phon: '{i} chop see faa', en: 'I like blue.' } },
     ];
 
     const CAT_TIER = Object.fromEntries(CATEGORIES.map(c => [c.id, c.tier]));
     WORDS.forEach(w => { w.tier = CAT_TIER[w.cat]; });
+
+    // ---------- Gender ----------
+    // Thai is spoken differently by girls and boys: the I-pronoun and the
+    // polite particle change. Words are stored with {I}/{i}/{P}/{p} tokens
+    // and resolved through the chosen gender before display or quizzing.
+    const GENDER = {
+      girl: { I: 'ฉัน', i: 'chan', P: 'ค่ะ', p: 'kha', emoji: '👧', label: 'GIRL' },
+      boy: { I: 'ผม', i: 'phom', P: 'ครับ', p: 'khrap', emoji: '👦', label: 'BOY' },
+    };
+    const GENDER_KEY = 'flocade-kids-thai-gender';
+
+    function fill(str) {
+      const g = GENDER[gender] || GENDER.girl;
+      return str.replace(/\{(I|i|P|p)\}/g, (_, token) => g[token]);
+    }
+
+    function resolveWord(word) {
+      return {
+        cat: word.cat,
+        tier: word.tier,
+        en: word.en,
+        th: fill(word.th),
+        phon: fill(word.phon),
+        ex: { th: fill(word.ex.th), phon: fill(word.ex.phon), en: word.ex.en },
+      };
+    }
 
     // ---------- Quiz lesson plan ----------
     // Each lesson: which word tiers are in play, which question types, how many choices.
@@ -648,6 +739,7 @@
 
     // ---------- State ----------
     let progress = loadProgress();
+    let gender = loadGender();
     let currentCat = CATEGORIES[0].id;
     let detailIndex = 0;   // index into current category's word list
     let quiz = null;       // active quiz run
@@ -655,15 +747,60 @@
     // ---------- Elements ----------
     const $ = id => document.getElementById(id);
     const screens = {
-      home: $('screen-home'), learn: $('screen-learn'), word: $('screen-word'),
+      gender: $('screen-gender'), home: $('screen-home'),
+      learn: $('screen-learn'), word: $('screen-word'),
       quiz: $('screen-quiz'), play: $('screen-play'), result: $('screen-result'),
     };
 
     function show(name) {
       Object.entries(screens).forEach(([key, el]) => el.classList.toggle('active', key === name));
-      $('home-btn').hidden = name === 'home';
+      $('home-btn').hidden = name === 'home' || name === 'gender';
       window.scrollTo(0, 0);
     }
+
+    function loadGender() {
+      const stored = localStorage.getItem(GENDER_KEY);
+      return GENDER[stored] ? stored : null;
+    }
+
+    function setGender(g) {
+      gender = g;
+      try {
+        localStorage.setItem(GENDER_KEY, g);
+      } catch (_) { /* ignore storage failures */ }
+      updateWho();
+      show('home');
+    }
+
+    function updateWho() {
+      const g = GENDER[gender];
+      const line = $('who-line');
+      line.innerHTML = '';
+      if (!g) return;
+      line.append(document.createTextNode(g.emoji + ' You say '));
+      const th = document.createElement('span');
+      th.className = 'thai';
+      th.textContent = g.I + ' + ' + g.P;
+      line.appendChild(th);
+      line.append(document.createTextNode(' "' + g.i + '" + "' + g.p + '"'));
+      const change = document.createElement('button');
+      change.type = 'button';
+      change.textContent = 'CHANGE';
+      change.addEventListener('click', () => {
+        highlightGenderPick();
+        show('gender');
+      });
+      line.appendChild(change);
+    }
+
+    function highlightGenderPick() {
+      $('pick-girl').classList.toggle('sel', gender === 'girl');
+      $('pick-boy').classList.toggle('sel', gender === 'boy');
+    }
+
+    $('pick-girl').addEventListener('click', () => setGender('girl'));
+    $('pick-boy').addEventListener('click', () => setGender('boy'));
+    highlightGenderPick();
 
     // ---------- Speech ----------
     let thaiVoice = null;
@@ -688,7 +825,7 @@
 
     // ---------- Learn ----------
     function catWords(catId) {
-      return WORDS.filter(w => w.cat === catId);
+      return WORDS.filter(w => w.cat === catId).map(resolveWord);
     }
 
     function renderCats() {
@@ -807,7 +944,7 @@
     }
 
     function buildQuestions(lesson) {
-      const pool = WORDS.filter(w => w.tier <= lesson.tiers);
+      const pool = WORDS.filter(w => w.tier <= lesson.tiers).map(resolveWord);
       const chosen = shuffle(pool.slice()).slice(0, QUESTIONS_PER_LESSON);
       return chosen.map(word => {
         let type = pick(lesson.types);
