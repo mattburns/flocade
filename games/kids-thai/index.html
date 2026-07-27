@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kids Thai — Flocade</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .thai {
+      font-family: 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', 'Tahoma', sans-serif;
+      font-weight: 700;
+    }
+    .wrap {
+      width: min(760px, 100%);
+      border: 2px solid #ff2e88;
+      border-radius: 14px;
+      background: rgba(12, 4, 35, 0.95);
+      box-shadow: 0 0 26px rgba(255, 46, 136, 0.25);
+      padding: 1rem;
+      display: grid;
+      gap: 1rem;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      font-size: 0.62rem;
+    }
+    a.back, button.linky {
+      color: #00f0ff;
+      background: none;
+      border: none;
+      font: inherit;
+      font-size: 0.62rem;
+      text-decoration: none;
+      cursor: pointer;
+      padding: 0.2rem 0;
+    }
+    .screen { display: none; }
+    .screen.active { display: grid; gap: 1rem; }
+
+    /* ---------- Home ---------- */
+    .title {
+      text-align: center;
+      color: #ffe600;
+      font-size: clamp(1.1rem, 5vw, 1.8rem);
+      line-height: 1.5;
+      text-shadow: 0 0 12px rgba(255, 230, 0, 0.5);
+      padding-top: 0.5rem;
+    }
+    .title .thai {
+      display: block;
+      color: #00f0ff;
+      font-size: clamp(1.3rem, 6vw, 2.2rem);
+      margin-top: 0.5rem;
+      text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+    }
+    .subtitle {
+      text-align: center;
+      color: #9b93b8;
+      font-size: 0.55rem;
+      line-height: 1.9;
+    }
+    .menu {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+    }
+    .menu button {
+      border: 2px solid #00f0ff;
+      border-radius: 12px;
+      background: rgba(0, 240, 255, 0.1);
+      color: #e8e6f0;
+      font: inherit;
+      padding: 1.4rem 0.6rem;
+      cursor: pointer;
+      display: grid;
+      gap: 0.7rem;
+      justify-items: center;
+      touch-action: manipulation;
+      transition: transform 80ms ease, background 150ms ease;
+    }
+    .menu button:hover, .menu button:focus-visible {
+      background: rgba(0, 240, 255, 0.2);
+      outline: none;
+    }
+    .menu button:active { transform: scale(0.97); }
+    .menu button.quiz-btn {
+      border-color: #ff2e88;
+      background: rgba(255, 46, 136, 0.12);
+    }
+    .menu button.quiz-btn:hover, .menu button.quiz-btn:focus-visible {
+      background: rgba(255, 46, 136, 0.22);
+    }
+    .menu .big { font-size: 1.6rem; }
+    .menu .label { font-size: 0.75rem; color: #ffe600; }
+    .menu .desc {
+      font-size: 0.48rem;
+      color: #9b93b8;
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    /* ---------- Learn ---------- */
+    .cats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .cats button {
+      border: 2px solid #3e2f65;
+      border-radius: 999px;
+      background: rgba(0, 240, 255, 0.06);
+      color: #e8e6f0;
+      font: inherit;
+      font-size: 0.5rem;
+      padding: 0.55rem 0.7rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .cats button.sel {
+      border-color: #ffe600;
+      color: #ffe600;
+      background: rgba(255, 230, 0, 0.1);
+    }
+    .words {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.6rem;
+    }
+    .word-card {
+      border: 2px solid #ff2e88;
+      border-radius: 10px;
+      background: rgba(255, 46, 136, 0.1);
+      color: #e8e6f0;
+      font: inherit;
+      padding: 0.8rem 0.5rem;
+      cursor: pointer;
+      display: grid;
+      gap: 0.5rem;
+      justify-items: center;
+      touch-action: manipulation;
+      transition: transform 80ms ease, background 150ms ease;
+    }
+    .word-card:hover, .word-card:focus-visible {
+      background: rgba(255, 46, 136, 0.2);
+      outline: none;
+    }
+    .word-card:active { transform: scale(0.97); }
+    .word-card .en { font-size: 0.55rem; line-height: 1.5; text-align: center; }
+    .word-card .thai { font-size: 1.15rem; color: #00f0ff; }
+
+    /* ---------- Word detail ---------- */
+    .detail {
+      border: 2px solid #00f0ff;
+      border-radius: 12px;
+      background: rgba(0, 240, 255, 0.07);
+      padding: 1.2rem 0.9rem;
+      display: grid;
+      gap: 0.9rem;
+      justify-items: center;
+      text-align: center;
+    }
+    .detail .en-word { font-size: 0.8rem; color: #ffe600; line-height: 1.6; }
+    .detail .thai-word { font-size: 2.2rem; color: #00f0ff; }
+    .detail .phon {
+      font-size: 0.7rem;
+      color: #ff2e88;
+      letter-spacing: 0.08em;
+      line-height: 1.7;
+    }
+    .say-btn {
+      border: 2px solid #ffe600;
+      border-radius: 999px;
+      background: rgba(255, 230, 0, 0.1);
+      color: #ffe600;
+      font: inherit;
+      font-size: 0.55rem;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .say-btn:hover, .say-btn:focus-visible { background: rgba(255, 230, 0, 0.2); outline: none; }
+    .example {
+      border-top: 1px solid #3e2f65;
+      padding-top: 0.9rem;
+      width: 100%;
+      display: grid;
+      gap: 0.55rem;
+    }
+    .example .lbl { font-size: 0.5rem; color: #9b93b8; }
+    .example .thai { font-size: 1.1rem; color: #e8e6f0; line-height: 1.6; }
+    .example .phon { font-size: 0.55rem; color: #ff2e88; line-height: 1.8; }
+    .example .en { font-size: 0.55rem; color: #ffe600; line-height: 1.8; }
+    .detail-nav {
+      display: flex;
+      gap: 0.6rem;
+      width: 100%;
+    }
+    .detail-nav button {
+      flex: 1;
+      border: 2px solid #3e2f65;
+      border-radius: 10px;
+      background: rgba(0, 240, 255, 0.06);
+      color: #e8e6f0;
+      font: inherit;
+      font-size: 0.55rem;
+      padding: 0.8rem 0.4rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .detail-nav button:hover, .detail-nav button:focus-visible {
+      border-color: #00f0ff;
+      outline: none;
+    }
+
+    /* ---------- Quiz level select ---------- */
+    .levels {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.6rem;
+    }
+    .level-card {
+      border: 2px solid #ff2e88;
+      border-radius: 10px;
+      background: rgba(255, 46, 136, 0.1);
+      color: #e8e6f0;
+      font: inherit;
+      padding: 0.9rem 0.4rem;
+      cursor: pointer;
+      display: grid;
+      gap: 0.5rem;
+      justify-items: center;
+      touch-action: manipulation;
+    }
+    .level-card:hover, .level-card:focus-visible {
+      background: rgba(255, 46, 136, 0.2);
+      outline: none;
+    }
+    .level-card .num { font-size: 0.7rem; color: #ffe600; }
+    .level-card .stars { font-size: 0.6rem; letter-spacing: 0.15em; }
+    .level-card .tag { font-size: 0.42rem; color: #9b93b8; line-height: 1.6; text-align: center; }
+    .level-card.locked {
+      border-color: #3e2f65;
+      background: rgba(62, 47, 101, 0.15);
+      color: #6a6086;
+      cursor: not-allowed;
+    }
+    .level-card.locked .num { color: #6a6086; }
+
+    /* ---------- Quiz play ---------- */
+    .q-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.55rem;
+      color: #9b93b8;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .q-hud strong { color: #ffe600; }
+    .q-progress {
+      height: 10px;
+      border: 1px solid #3e2f65;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(0, 240, 255, 0.05);
+    }
+    .q-progress div {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #ff2e88, #00f0ff);
+      transition: width 250ms ease;
+    }
+    .q-prompt {
+      text-align: center;
+      border: 2px solid #00f0ff;
+      border-radius: 10px;
+      background: rgba(0, 240, 255, 0.08);
+      padding: 1.1rem 0.6rem;
+      min-height: 130px;
+      display: grid;
+      align-content: center;
+      gap: 0.7rem;
+    }
+    .q-prompt .ask { font-size: 0.55rem; color: #9b93b8; line-height: 1.8; }
+    .q-prompt .word { font-size: clamp(0.9rem, 4.5vw, 1.4rem); color: #ffe600; line-height: 1.6; }
+    .q-prompt .word .thai { font-size: clamp(1.3rem, 6vw, 2rem); color: #00f0ff; }
+    .q-answers {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.7rem;
+    }
+    .q-answers button {
+      border: 2px solid #ff2e88;
+      border-radius: 10px;
+      background: rgba(255, 46, 136, 0.12);
+      color: #e8e6f0;
+      font: inherit;
+      font-size: 0.6rem;
+      padding: 0.9rem 0.5rem;
+      min-height: 70px;
+      cursor: pointer;
+      touch-action: manipulation;
+      line-height: 1.6;
+      transition: transform 80ms ease, background 150ms ease;
+      display: grid;
+      gap: 0.35rem;
+      justify-items: center;
+      align-content: center;
+    }
+    .q-answers button .thai { font-size: 1.2rem; color: #00f0ff; }
+    .q-answers button .phon { font-size: 0.48rem; color: #ff8ab9; }
+    .q-answers button:hover, .q-answers button:focus-visible {
+      background: rgba(255, 46, 136, 0.22);
+      outline: none;
+    }
+    .q-answers button:active { transform: scale(0.97); }
+    .q-answers button[disabled] { cursor: default; }
+    .q-answers button.right {
+      border-color: #2eff8a;
+      background: rgba(46, 255, 138, 0.18);
+    }
+    .q-answers button.wrong {
+      border-color: #ff4444;
+      background: rgba(255, 68, 68, 0.18);
+      opacity: 0.85;
+    }
+    .q-feedback {
+      text-align: center;
+      font-size: 0.55rem;
+      color: #9b93b8;
+      min-height: 2.2em;
+      line-height: 1.9;
+    }
+    .q-feedback.good { color: #2eff8a; }
+    .q-feedback.bad { color: #ff8ab9; }
+
+    /* ---------- Results ---------- */
+    .result {
+      text-align: center;
+      border: 2px solid #ffe600;
+      border-radius: 12px;
+      background: rgba(255, 230, 0, 0.07);
+      padding: 1.5rem 0.8rem;
+      display: grid;
+      gap: 1rem;
+      justify-items: center;
+    }
+    .result .r-title { font-size: 1rem; color: #ffe600; line-height: 1.6; }
+    .result .r-stars { font-size: 1.6rem; letter-spacing: 0.2em; }
+    .result .r-msg { font-size: 0.55rem; color: #9b93b8; line-height: 1.9; }
+    .result-nav { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
+    .result-nav button {
+      border: 2px solid #00f0ff;
+      border-radius: 10px;
+      background: rgba(0, 240, 255, 0.12);
+      color: #e8e6f0;
+      font: inherit;
+      font-size: 0.55rem;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .result-nav button:hover, .result-nav button:focus-visible {
+      background: rgba(0, 240, 255, 0.22);
+      outline: none;
+    }
+    .hint {
+      text-align: center;
+      color: #9b93b8;
+      font-size: 0.48rem;
+      line-height: 1.9;
+    }
+    .heading {
+      text-align: center;
+      color: #ffe600;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+    @media (max-width: 480px) {
+      .q-answers { grid-template-columns: 1fr; }
+      .menu { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <a class="back" href="../../">&larr; FLOCADE</a>
+      <button class="linky" id="home-btn" hidden>&larr; MENU</button>
+    </div>
+
+    <!-- HOME -->
+    <section class="screen active" id="screen-home">
+      <h1 class="title">KIDS THAI<span class="thai">ภาษาไทย</span></h1>
+      <p class="subtitle">Learn Thai words, then beat the quiz!</p>
+      <div class="menu">
+        <button type="button" id="go-learn">
+          <span class="big">📖</span>
+          <span class="label">LEARN</span>
+          <span class="desc">Tap a word to hear how to say it, what it means, and how to use it in a sentence.</span>
+        </button>
+        <button type="button" class="quiz-btn" id="go-quiz">
+          <span class="big">⭐</span>
+          <span class="label">QUIZ</span>
+          <span class="desc">Lots of questions on what you learnt. Starts easy — every lesson gets harder!</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- LEARN -->
+    <section class="screen" id="screen-learn">
+      <h2 class="heading">LEARN</h2>
+      <div class="cats" id="cats"></div>
+      <div class="words" id="words"></div>
+      <p class="hint">Tap any word to see how to say it!</p>
+    </section>
+
+    <!-- WORD DETAIL -->
+    <section class="screen" id="screen-word">
+      <div class="detail">
+        <p class="en-word" id="d-en"></p>
+        <p class="thai-word thai" id="d-thai"></p>
+        <p class="phon" id="d-phon"></p>
+        <button type="button" class="say-btn" id="d-say">🔊 SAY IT</button>
+        <div class="example">
+          <p class="lbl">IN A SENTENCE:</p>
+          <p class="thai" id="d-ex-thai"></p>
+          <p class="phon" id="d-ex-phon"></p>
+          <p class="en" id="d-ex-en"></p>
+        </div>
+        <div class="detail-nav">
+          <button type="button" id="d-prev">&larr; PREV</button>
+          <button type="button" id="d-list">WORD LIST</button>
+          <button type="button" id="d-next">NEXT &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUIZ LEVEL SELECT -->
+    <section class="screen" id="screen-quiz">
+      <h2 class="heading">QUIZ</h2>
+      <p class="hint">Pass a lesson (6/8 or better) to unlock the next. They get harder!</p>
+      <div class="levels" id="levels"></div>
+    </section>
+
+    <!-- QUIZ PLAY -->
+    <section class="screen" id="screen-play">
+      <div class="q-hud">
+        <span>LESSON <strong id="q-level">1</strong></span>
+        <span>Q <strong id="q-num">1</strong>/8</span>
+        <span>SCORE <strong id="q-score">0</strong></span>
+      </div>
+      <div class="q-progress"><div id="q-bar"></div></div>
+      <div class="q-prompt">
+        <p class="ask" id="q-ask"></p>
+        <p class="word" id="q-word"></p>
+      </div>
+      <div class="q-answers" id="q-answers"></div>
+      <p class="q-feedback" id="q-feedback"></p>
+      <p class="hint">Keyboard: 1–4 to answer</p>
+    </section>
+
+    <!-- QUIZ RESULT -->
+    <section class="screen" id="screen-result">
+      <div class="result">
+        <p class="r-title" id="r-title"></p>
+        <p class="r-stars" id="r-stars"></p>
+        <p class="r-msg" id="r-msg"></p>
+        <div class="result-nav">
+          <button type="button" id="r-retry">TRY AGAIN</button>
+          <button type="button" id="r-next" hidden>NEXT LESSON &rarr;</button>
+          <button type="button" id="r-levels">ALL LESSONS</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+
+    // ---------- Word bank ----------
+    // tier controls when a word enters the quiz pool (higher tier = later lessons)
+    const CATEGORIES = [
+      { id: 'basics', label: '👋 BASICS', tier: 1 },
+      { id: 'numbers', label: '🔢 NUMBERS', tier: 1 },
+      { id: 'animals', label: '🐘 ANIMALS', tier: 2 },
+      { id: 'food', label: '🍚 FOOD', tier: 2 },
+      { id: 'colors', label: '🌈 COLOURS', tier: 3 },
+      { id: 'family', label: '👨‍👩‍👧 PEOPLE', tier: 3 },
+    ];
+
+    const WORDS = [
+      // --- Basics (tier 1) ---
+      { cat: 'basics', en: 'Hello', th: 'สวัสดี', phon: 'sa-wat-dee',
+        ex: { th: 'สวัสดีครับ คุณครู', phon: 'sa-wat-dee khrap, khun khruu', en: 'Hello, teacher!' } },
+      { cat: 'basics', en: 'Thank you', th: 'ขอบคุณ', phon: 'khop-khun',
+        ex: { th: 'ขอบคุณมากครับ', phon: 'khop-khun maak khrap', en: 'Thank you very much!' } },
+      { cat: 'basics', en: 'Yes', th: 'ใช่', phon: 'chai',
+        ex: { th: 'ใช่ ฉันชอบช้าง', phon: 'chai, chan chop chaang', en: 'Yes, I like elephants.' } },
+      { cat: 'basics', en: 'No', th: 'ไม่', phon: 'mai',
+        ex: { th: 'ไม่ ขอบคุณ', phon: 'mai, khop-khun', en: 'No, thank you.' } },
+      { cat: 'basics', en: 'Sorry', th: 'ขอโทษ', phon: 'khor-thoht',
+        ex: { th: 'ขอโทษครับ', phon: 'khor-thoht khrap', en: 'I’m sorry!' } },
+      { cat: 'basics', en: 'My name is…', th: 'ฉันชื่อ…', phon: 'chan chuue…',
+        ex: { th: 'ฉันชื่อโฟล', phon: 'chan chuue Flo', en: 'My name is Flo.' } },
+      { cat: 'basics', en: 'How are you?', th: 'สบายดีไหม', phon: 'sa-baai-dee mai',
+        ex: { th: 'สวัสดี สบายดีไหม', phon: 'sa-wat-dee, sa-baai-dee mai', en: 'Hello, how are you?' } },
+      { cat: 'basics', en: 'Goodbye', th: 'ลาก่อน', phon: 'laa-gorn',
+        ex: { th: 'ลาก่อน เจอกันใหม่', phon: 'laa-gorn, jer-gan-mai', en: 'Goodbye, see you again!' } },
+
+      // --- Numbers (tier 1) ---
+      { cat: 'numbers', en: 'One', th: 'หนึ่ง', phon: 'neung',
+        ex: { th: 'ช้างหนึ่งตัว', phon: 'chaang neung dtua', en: 'One elephant.' } },
+      { cat: 'numbers', en: 'Two', th: 'สอง', phon: 'song',
+        ex: { th: 'หมาสองตัว', phon: 'maa song dtua', en: 'Two dogs.' } },
+      { cat: 'numbers', en: 'Three', th: 'สาม', phon: 'saam',
+        ex: { th: 'แมวสามตัว', phon: 'maew saam dtua', en: 'Three cats.' } },
+      { cat: 'numbers', en: 'Four', th: 'สี่', phon: 'see',
+        ex: { th: 'นกสี่ตัว', phon: 'nok see dtua', en: 'Four birds.' } },
+      { cat: 'numbers', en: 'Five', th: 'ห้า', phon: 'haa',
+        ex: { th: 'ปลาห้าตัว', phon: 'bplaa haa dtua', en: 'Five fish.' } },
+      { cat: 'numbers', en: 'Six', th: 'หก', phon: 'hok',
+        ex: { th: 'ไข่หกฟอง', phon: 'khai hok fong', en: 'Six eggs.' } },
+      { cat: 'numbers', en: 'Seven', th: 'เจ็ด', phon: 'jet',
+        ex: { th: 'กล้วยเจ็ดลูก', phon: 'gluay jet luuk', en: 'Seven bananas.' } },
+      { cat: 'numbers', en: 'Eight', th: 'แปด', phon: 'bpaet',
+        ex: { th: 'ลิงแปดตัว', phon: 'ling bpaet dtua', en: 'Eight monkeys.' } },
+      { cat: 'numbers', en: 'Nine', th: 'เก้า', phon: 'gao',
+        ex: { th: 'ไก่เก้าตัว', phon: 'gai gao dtua', en: 'Nine chickens.' } },
+      { cat: 'numbers', en: 'Ten', th: 'สิบ', phon: 'sip',
+        ex: { th: 'หมูสิบตัว', phon: 'muu sip dtua', en: 'Ten pigs.' } },
+
+      // --- Animals (tier 2) ---
+      { cat: 'animals', en: 'Dog', th: 'หมา', phon: 'maa',
+        ex: { th: 'หมาตัวใหญ่', phon: 'maa dtua yai', en: 'A big dog.' } },
+      { cat: 'animals', en: 'Cat', th: 'แมว', phon: 'maew',
+        ex: { th: 'แมวชอบนม', phon: 'maew chop nom', en: 'The cat likes milk.' } },
+      { cat: 'animals', en: 'Elephant', th: 'ช้าง', phon: 'chaang',
+        ex: { th: 'ช้างตัวใหญ่มาก', phon: 'chaang dtua yai maak', en: 'The elephant is very big.' } },
+      { cat: 'animals', en: 'Fish', th: 'ปลา', phon: 'bplaa',
+        ex: { th: 'ปลาอยู่ในน้ำ', phon: 'bplaa yuu nai naam', en: 'Fish live in the water.' } },
+      { cat: 'animals', en: 'Bird', th: 'นก', phon: 'nok',
+        ex: { th: 'นกบินได้', phon: 'nok bin dai', en: 'Birds can fly.' } },
+      { cat: 'animals', en: 'Monkey', th: 'ลิง', phon: 'ling',
+        ex: { th: 'ลิงชอบกล้วย', phon: 'ling chop gluay', en: 'Monkeys like bananas.' } },
+      { cat: 'animals', en: 'Chicken', th: 'ไก่', phon: 'gai',
+        ex: { th: 'ไก่กินข้าว', phon: 'gai gin khaao', en: 'The chicken eats rice.' } },
+      { cat: 'animals', en: 'Pig', th: 'หมู', phon: 'muu',
+        ex: { th: 'หมูสีชมพู', phon: 'muu see chom-puu', en: 'A pink pig.' } },
+
+      // --- Food (tier 2) ---
+      { cat: 'food', en: 'Rice', th: 'ข้าว', phon: 'khaao',
+        ex: { th: 'ฉันกินข้าว', phon: 'chan gin khaao', en: 'I eat rice.' } },
+      { cat: 'food', en: 'Water', th: 'น้ำ', phon: 'naam',
+        ex: { th: 'ขอน้ำหน่อย', phon: 'khor naam noi', en: 'Some water, please.' } },
+      { cat: 'food', en: 'Milk', th: 'นม', phon: 'nom',
+        ex: { th: 'ฉันดื่มนม', phon: 'chan duuem nom', en: 'I drink milk.' } },
+      { cat: 'food', en: 'Egg', th: 'ไข่', phon: 'khai',
+        ex: { th: 'ไข่สองฟอง', phon: 'khai song fong', en: 'Two eggs.' } },
+      { cat: 'food', en: 'Banana', th: 'กล้วย', phon: 'gluay',
+        ex: { th: 'กล้วยสีเหลือง', phon: 'gluay see leuang', en: 'Bananas are yellow.' } },
+      { cat: 'food', en: 'Mango', th: 'มะม่วง', phon: 'ma-muang',
+        ex: { th: 'มะม่วงหวานมาก', phon: 'ma-muang waan maak', en: 'The mango is very sweet.' } },
+      { cat: 'food', en: 'Ice cream', th: 'ไอศกรีม', phon: 'ai-sa-kreem',
+        ex: { th: 'ฉันชอบไอศกรีม', phon: 'chan chop ai-sa-kreem', en: 'I like ice cream.' } },
+      { cat: 'food', en: 'Delicious', th: 'อร่อย', phon: 'a-roi',
+        ex: { th: 'ข้าวอร่อยมาก', phon: 'khaao a-roi maak', en: 'The rice is delicious!' } },
+
+      // --- Colours (tier 3) ---
+      { cat: 'colors', en: 'Red', th: 'สีแดง', phon: 'see daeng',
+        ex: { th: 'รถสีแดง', phon: 'rot see daeng', en: 'A red car.' } },
+      { cat: 'colors', en: 'Blue', th: 'สีฟ้า', phon: 'see faa',
+        ex: { th: 'ท้องฟ้าสีฟ้า', phon: 'tong-faa see faa', en: 'The sky is blue.' } },
+      { cat: 'colors', en: 'Green', th: 'สีเขียว', phon: 'see khiaao',
+        ex: { th: 'ต้นไม้สีเขียว', phon: 'dton-mai see khiaao', en: 'The tree is green.' } },
+      { cat: 'colors', en: 'Yellow', th: 'สีเหลือง', phon: 'see leuang',
+        ex: { th: 'กล้วยสีเหลือง', phon: 'gluay see leuang', en: 'The banana is yellow.' } },
+      { cat: 'colors', en: 'Black', th: 'สีดำ', phon: 'see dam',
+        ex: { th: 'แมวสีดำ', phon: 'maew see dam', en: 'A black cat.' } },
+      { cat: 'colors', en: 'White', th: 'สีขาว', phon: 'see khaao',
+        ex: { th: 'นมสีขาว', phon: 'nom see khaao', en: 'Milk is white.' } },
+      { cat: 'colors', en: 'Pink', th: 'สีชมพู', phon: 'see chom-puu',
+        ex: { th: 'หมูสีชมพู', phon: 'muu see chom-puu', en: 'The pig is pink.' } },
+      { cat: 'colors', en: 'Orange', th: 'สีส้ม', phon: 'see som',
+        ex: { th: 'มะม่วงสีส้ม', phon: 'ma-muang see som', en: 'The mango is orange.' } },
+
+      // --- People (tier 3) ---
+      { cat: 'family', en: 'Mum', th: 'แม่', phon: 'mae',
+        ex: { th: 'แม่ทำข้าว', phon: 'mae tam khaao', en: 'Mum makes rice.' } },
+      { cat: 'family', en: 'Dad', th: 'พ่อ', phon: 'por',
+        ex: { th: 'พ่อชอบปลา', phon: 'por chop bplaa', en: 'Dad likes fish.' } },
+      { cat: 'family', en: 'Friend', th: 'เพื่อน', phon: 'peuuan',
+        ex: { th: 'เพื่อนของฉัน', phon: 'peuuan khong chan', en: 'My friend.' } },
+      { cat: 'family', en: 'Teacher', th: 'ครู', phon: 'khruu',
+        ex: { th: 'สวัสดีคุณครู', phon: 'sa-wat-dee khun khruu', en: 'Hello, teacher!' } },
+      { cat: 'family', en: 'Child', th: 'เด็ก', phon: 'dek',
+        ex: { th: 'เด็กสามคน', phon: 'dek saam khon', en: 'Three children.' } },
+      { cat: 'family', en: 'Big brother / sister', th: 'พี่', phon: 'pee',
+        ex: { th: 'พี่ของฉันใจดี', phon: 'pee khong chan jai-dee', en: 'My big sibling is kind.' } },
+      { cat: 'family', en: 'Little brother / sister', th: 'น้อง', phon: 'nong',
+        ex: { th: 'น้องชอบไอศกรีม', phon: 'nong chop ai-sa-kreem', en: 'My little sibling likes ice cream.' } },
+      { cat: 'family', en: 'I / me', th: 'ฉัน', phon: 'chan',
+        ex: { th: 'ฉันชอบสีฟ้า', phon: 'chan chop see faa', en: 'I like blue.' } },
+    ];
+
+    const CAT_TIER = Object.fromEntries(CATEGORIES.map(c => [c.id, c.tier]));
+    WORDS.forEach(w => { w.tier = CAT_TIER[w.cat]; });
+
+    // ---------- Quiz lesson plan ----------
+    // Each lesson: which word tiers are in play, which question types, how many choices.
+    // Types: 'en2th' (easy), 'th2en' (medium), 'sentence' (hard — fill the blank).
+    const QUESTIONS_PER_LESSON = 8;
+    const PASS_SCORE = 6;
+    const LESSONS = [
+      { tiers: 1, types: ['en2th'], choices: 3 },
+      { tiers: 1, types: ['en2th', 'th2en'], choices: 3 },
+      { tiers: 2, types: ['en2th', 'th2en'], choices: 3 },
+      { tiers: 2, types: ['en2th', 'th2en'], choices: 4 },
+      { tiers: 2, types: ['th2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['en2th', 'th2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['th2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['sentence', 'th2en'], choices: 4 },
+      { tiers: 3, types: ['sentence'], choices: 4 },
+      { tiers: 3, types: ['en2th', 'th2en', 'sentence'], choices: 4, boss: true },
+    ];
+    const LESSON_TAGS = [
+      'FIRST WORDS', 'BOTH WAYS', 'MORE WORDS', 'FOUR CHOICES', 'SENTENCES!',
+      'ALL WORDS', 'TRICKY MIX', 'HARD MODE', 'SENTENCE PRO', 'BOSS LESSON',
+    ];
+
+    const STORAGE_KEY = 'flocade-kids-thai-progress';
+
+    // ---------- State ----------
+    let progress = loadProgress();
+    let currentCat = CATEGORIES[0].id;
+    let detailIndex = 0;   // index into current category's word list
+    let quiz = null;       // active quiz run
+
+    // ---------- Elements ----------
+    const $ = id => document.getElementById(id);
+    const screens = {
+      home: $('screen-home'), learn: $('screen-learn'), word: $('screen-word'),
+      quiz: $('screen-quiz'), play: $('screen-play'), result: $('screen-result'),
+    };
+
+    function show(name) {
+      Object.entries(screens).forEach(([key, el]) => el.classList.toggle('active', key === name));
+      $('home-btn').hidden = name === 'home';
+      window.scrollTo(0, 0);
+    }
+
+    // ---------- Speech ----------
+    let thaiVoice = null;
+    function pickThaiVoice() {
+      if (!('speechSynthesis' in window)) return;
+      const voices = window.speechSynthesis.getVoices();
+      thaiVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('th')) || null;
+    }
+    if ('speechSynthesis' in window) {
+      pickThaiVoice();
+      window.speechSynthesis.onvoiceschanged = pickThaiVoice;
+    }
+    function speakThai(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'th-TH';
+      if (thaiVoice) utter.voice = thaiVoice;
+      utter.rate = 0.8;
+      window.speechSynthesis.speak(utter);
+    }
+
+    // ---------- Learn ----------
+    function catWords(catId) {
+      return WORDS.filter(w => w.cat === catId);
+    }
+
+    function renderCats() {
+      const holder = $('cats');
+      holder.innerHTML = '';
+      CATEGORIES.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = cat.label;
+        btn.classList.toggle('sel', cat.id === currentCat);
+        btn.addEventListener('click', () => {
+          currentCat = cat.id;
+          renderCats();
+          renderWords();
+        });
+        holder.appendChild(btn);
+      });
+    }
+
+    function renderWords() {
+      const holder = $('words');
+      holder.innerHTML = '';
+      catWords(currentCat).forEach((word, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'word-card';
+        const en = document.createElement('span');
+        en.className = 'en';
+        en.textContent = word.en;
+        const th = document.createElement('span');
+        th.className = 'thai';
+        th.textContent = word.th;
+        btn.append(en, th);
+        btn.addEventListener('click', () => openWord(index));
+        holder.appendChild(btn);
+      });
+    }
+
+    function openWord(index) {
+      const words = catWords(currentCat);
+      detailIndex = ((index % words.length) + words.length) % words.length;
+      const word = words[detailIndex];
+      $('d-en').textContent = word.en;
+      $('d-thai').textContent = word.th;
+      $('d-phon').textContent = 'say: "' + word.phon + '"';
+      $('d-ex-thai').textContent = word.ex.th;
+      $('d-ex-phon').textContent = word.ex.phon;
+      $('d-ex-en').textContent = '= ' + word.ex.en;
+      show('word');
+      speakThai(word.th);
+    }
+
+    $('d-say').addEventListener('click', () => {
+      const word = catWords(currentCat)[detailIndex];
+      speakThai(word.th + '. ' + word.ex.th);
+    });
+    $('d-prev').addEventListener('click', () => openWord(detailIndex - 1));
+    $('d-next').addEventListener('click', () => openWord(detailIndex + 1));
+    $('d-list').addEventListener('click', () => show('learn'));
+
+    // ---------- Quiz level select ----------
+    function loadProgress() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (raw && typeof raw === 'object' && Array.isArray(raw.stars)) {
+          return { unlocked: Math.max(1, raw.unlocked | 0), stars: raw.stars.map(n => n | 0) };
+        }
+      } catch (_) { /* fall through */ }
+      return { unlocked: 1, stars: [] };
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+      } catch (_) { /* ignore storage failures */ }
+    }
+
+    function renderLevels() {
+      const holder = $('levels');
+      holder.innerHTML = '';
+      LESSONS.forEach((lesson, i) => {
+        const level = i + 1;
+        const locked = level > progress.unlocked;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'level-card' + (locked ? ' locked' : '');
+        const num = document.createElement('span');
+        num.className = 'num';
+        num.textContent = locked ? '🔒 ' + level : (lesson.boss ? '👑 ' : '') + level;
+        const stars = document.createElement('span');
+        stars.className = 'stars';
+        const earned = progress.stars[i] || 0;
+        stars.textContent = '★'.repeat(earned) + '☆'.repeat(3 - earned);
+        stars.style.color = earned ? '#ffe600' : '#3e2f65';
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = LESSON_TAGS[i];
+        btn.append(num, stars, tag);
+        if (!locked) btn.addEventListener('click', () => startLesson(level));
+        else btn.disabled = true;
+        holder.appendChild(btn);
+      });
+    }
+
+    // ---------- Quiz play ----------
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function buildQuestions(lesson) {
+      const pool = WORDS.filter(w => w.tier <= lesson.tiers);
+      const chosen = shuffle(pool.slice()).slice(0, QUESTIONS_PER_LESSON);
+      return chosen.map(word => {
+        let type = pick(lesson.types);
+        // Sentence questions need the word to appear verbatim in its example.
+        if (type === 'sentence' && !word.ex.th.includes(word.th)) type = 'th2en';
+        const wrongPool = pool.filter(w => w !== word && w.th !== word.th && w.en !== word.en);
+        const wrong = shuffle(wrongPool.slice()).slice(0, lesson.choices - 1);
+        const options = shuffle([word, ...wrong]);
+        return { type, word, options };
+      });
+    }
+
+    function startLesson(level) {
+      const lesson = LESSONS[level - 1];
+      quiz = {
+        level,
+        lesson,
+        questions: buildQuestions(lesson),
+        index: 0,
+        score: 0,
+        answered: false,
+      };
+      $('q-level').textContent = String(level);
+      show('play');
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const q = quiz.questions[quiz.index];
+      quiz.answered = false;
+      $('q-num').textContent = String(quiz.index + 1);
+      $('q-score').textContent = String(quiz.score);
+      $('q-bar').style.width = (quiz.index / QUESTIONS_PER_LESSON * 100) + '%';
+      const feedback = $('q-feedback');
+      feedback.textContent = '';
+      feedback.className = 'q-feedback';
+
+      const ask = $('q-ask');
+      const wordEl = $('q-word');
+      wordEl.innerHTML = '';
+
+      if (q.type === 'en2th') {
+        ask.textContent = 'How do you say this in Thai?';
+        wordEl.textContent = q.word.en.toUpperCase();
+      } else if (q.type === 'th2en') {
+        ask.textContent = 'What does this mean?';
+        const th = document.createElement('span');
+        th.className = 'thai';
+        th.textContent = q.word.th;
+        wordEl.append(th, document.createElement('br'), document.createTextNode('"' + q.word.phon + '"'));
+      } else {
+        ask.textContent = 'Fill in the blank! (' + q.word.ex.en + ')';
+        const blanked = q.word.ex.th.split(q.word.th).join(' ___ ');
+        const th = document.createElement('span');
+        th.className = 'thai';
+        th.textContent = blanked;
+        wordEl.appendChild(th);
+      }
+
+      const holder = $('q-answers');
+      holder.innerHTML = '';
+      q.options.forEach((option, i) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        if (q.type === 'th2en') {
+          btn.textContent = option.en;
+        } else {
+          const th = document.createElement('span');
+          th.className = 'thai';
+          th.textContent = option.th;
+          const phon = document.createElement('span');
+          phon.className = 'phon';
+          phon.textContent = option.phon;
+          btn.append(th, phon);
+        }
+        btn.dataset.index = String(i);
+        btn.addEventListener('click', () => answer(i));
+        holder.appendChild(btn);
+      });
+    }
+
+    function answer(optionIndex) {
+      if (quiz.answered) return;
+      quiz.answered = true;
+      const q = quiz.questions[quiz.index];
+      const buttons = Array.from($('q-answers').children);
+      const correctIndex = q.options.indexOf(q.word);
+      const correct = optionIndex === correctIndex;
+      buttons.forEach((btn, i) => {
+        btn.disabled = true;
+        if (i === correctIndex) btn.classList.add('right');
+        else if (i === optionIndex) btn.classList.add('wrong');
+      });
+
+      const feedback = $('q-feedback');
+      if (correct) {
+        quiz.score += 1;
+        feedback.textContent = pick(['เก่งมาก! (geng maak — well done!)', 'ใช่! (chai — yes!)', 'ถูกต้อง! (correct!)', 'ดีมาก! (dee maak — very good!)']);
+        feedback.className = 'q-feedback good';
+      } else {
+        feedback.textContent = q.word.en + ' = ' + q.word.th + ' "' + q.word.phon + '"';
+        feedback.className = 'q-feedback bad';
+      }
+      speakThai(q.word.th);
+      $('q-score').textContent = String(quiz.score);
+      $('q-bar').style.width = ((quiz.index + 1) / QUESTIONS_PER_LESSON * 100) + '%';
+
+      window.setTimeout(() => {
+        quiz.index += 1;
+        if (quiz.index < quiz.questions.length) renderQuestion();
+        else finishLesson();
+      }, correct ? 900 : 1900);
+    }
+
+    function finishLesson() {
+      const { level, score } = quiz;
+      const passed = score >= PASS_SCORE;
+      const stars = score >= 8 ? 3 : score >= 7 ? 2 : score >= PASS_SCORE ? 1 : 0;
+      const i = level - 1;
+
+      if (stars > (progress.stars[i] || 0)) progress.stars[i] = stars;
+      if (passed && level >= progress.unlocked && level < LESSONS.length) {
+        progress.unlocked = level + 1;
+      }
+      saveProgress();
+
+      $('r-title').textContent = passed ? (stars === 3 ? 'PERFECT!' : 'LESSON PASSED!') : 'SO CLOSE!';
+      $('r-stars').textContent = passed
+        ? '★'.repeat(stars) + '☆'.repeat(3 - stars)
+        : '☆☆☆';
+      $('r-stars').style.color = passed ? '#ffe600' : '#3e2f65';
+      let msg = 'You scored ' + score + '/' + QUESTIONS_PER_LESSON + '.';
+      if (!passed) msg += ' Get ' + PASS_SCORE + ' to pass — try a peek at LEARN first!';
+      else if (level < LESSONS.length) msg += ' Lesson ' + (level + 1) + ' unlocked — it’s a bit harder!';
+      else msg += ' You beat the boss lesson — you’re a Thai star! เก่งมาก!';
+      $('r-msg').textContent = msg;
+      $('r-next').hidden = !(passed && level < LESSONS.length);
+      show('result');
+    }
+
+    // ---------- Navigation ----------
+    $('go-learn').addEventListener('click', () => { renderCats(); renderWords(); show('learn'); });
+    $('go-quiz').addEventListener('click', () => { renderLevels(); show('quiz'); });
+    $('home-btn').addEventListener('click', () => {
+      if (screens.word.classList.contains('active')) { show('learn'); return; }
+      if (screens.play.classList.contains('active') || screens.result.classList.contains('active')) {
+        renderLevels();
+        show('quiz');
+        return;
+      }
+      show('home');
+    });
+    $('r-retry').addEventListener('click', () => startLesson(quiz.level));
+    $('r-next').addEventListener('click', () => startLesson(quiz.level + 1));
+    $('r-levels').addEventListener('click', () => { renderLevels(); show('quiz'); });
+
+    document.addEventListener('keydown', event => {
+      if (!screens.play.classList.contains('active') || !quiz || quiz.answered) return;
+      if (event.key >= '1' && event.key <= '4') {
+        const idx = Number(event.key) - 1;
+        const buttons = $('q-answers').children;
+        if (buttons[idx]) {
+          event.preventDefault();
+          answer(idx);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
