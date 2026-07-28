@@ -172,5 +172,11 @@
     "title": "Polly Heedrun",
     "icon": "🎲",
     "description": "Spin a 3D die with a drag, then tap its faces in order — 1, 2, 3… Correct taps buy you time! Levels climb from D6 to D20, with dots or numbers."
+  },
+  {
+    "slug": "scrambled-eggs",
+    "title": "Scrambled Eggs",
+    "icon": "🍳",
+    "description": "Circular breakout in a frying pan! Slide your spatula around the rim, crack the eggshell, and get the ball rattling inside to scramble the whole egg."
   }
 ]
