@@ -1,0 +1,24 @@
+{
+  "name": "Flocade — Flo's Arcade",
+  "short_name": "Flocade",
+  "description": "A gallery of simple web games that are free and awesome.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0221",
+  "theme_color": "#0d0221",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

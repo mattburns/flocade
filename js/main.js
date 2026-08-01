@@ -1,5 +1,11 @@
 const gallery = document.getElementById('gallery');
 
+// The service worker precaches every game on first visit, so the whole
+// arcade works offline from then on (see sw.js).
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
 // no-store bypasses the browser cache so new games appear immediately,
 // despite GitHub Pages' 10-minute max-age on everything it serves
 fetch('games.json', { cache: 'no-store' })
