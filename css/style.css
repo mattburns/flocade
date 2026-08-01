@@ -50,6 +50,68 @@ body {
   font-size: 1.1rem;
 }
 
+/* Install pill */
+
+.install-pill {
+  margin-top: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--bg-card);
+  border: 2px solid var(--neon-pink);
+  border-radius: 999px;
+  padding: 0.5rem 0.75rem 0.5rem 1.25rem;
+  box-shadow: 0 0 16px rgba(255, 46, 136, 0.3);
+}
+
+.install-action {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.7rem;
+  color: var(--neon-yellow);
+  padding: 0.25rem 0;
+}
+
+.install-action:hover,
+.install-action:focus-visible {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+  outline: none;
+}
+
+.install-ios-hint {
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.install-ios-hint strong {
+  color: var(--neon-yellow);
+}
+
+.share-glyph {
+  color: var(--neon-cyan);
+  vertical-align: -0.15em;
+}
+
+.install-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.install-dismiss:hover,
+.install-dismiss:focus-visible {
+  color: var(--neon-pink);
+  outline: none;
+}
+
 /* Gallery */
 
 .gallery {
