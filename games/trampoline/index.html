@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Trampoline! — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.6rem;
+      border-bottom: 2px solid #2a1b4d;
+      background: rgba(12, 4, 35, 0.95);
+      z-index: 5;
+    }
+    a.back { color: #00f0ff; text-decoration: none; white-space: nowrap; }
+    a.back:hover { text-shadow: 0 0 8px #00f0ff; }
+    .hud { display: flex; gap: 0.9rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .hud span strong { color: #ffe600; }
+    .hud .lvl { color: #ff2e88; }
+
+    .timerbar {
+      height: 10px;
+      background: #1a0f38;
+      position: relative;
+      flex: none;
+    }
+    .timerbar .fill {
+      position: absolute;
+      inset: 0;
+      transform-origin: left;
+      background: linear-gradient(90deg, #00f0ff, #ff2e88);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+    }
+
+    #stage {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      text-align: center;
+      padding: 1.5rem;
+      background: rgba(13, 2, 33, 0.82);
+      z-index: 4;
+    }
+    .overlay.hidden { display: none; }
+    .overlay h1 {
+      color: #ff2e88;
+      font-size: clamp(1.1rem, 5vw, 2rem);
+      text-shadow: 0 0 18px rgba(255, 46, 136, 0.8);
+      line-height: 1.5;
+    }
+    .overlay h2 {
+      color: #ffe600;
+      font-size: clamp(0.65rem, 3vw, 1rem);
+      line-height: 1.7;
+    }
+    .overlay p {
+      color: #00f0ff;
+      font-size: clamp(0.55rem, 2.6vw, 0.75rem);
+      line-height: 1.9;
+      max-width: 34rem;
+    }
+    .overlay .tap {
+      color: #e8e6f0;
+      font-size: clamp(0.55rem, 2.6vw, 0.7rem);
+      animation: blink 1.1s steps(2) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .banner {
+      position: absolute;
+      top: 18%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: clamp(1rem, 5vw, 1.8rem);
+      color: #ffe600;
+      text-shadow: 0 0 16px rgba(255, 230, 0, 0.8);
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      line-height: 1.6;
+    }
+    .banner.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../../">&larr; ARCADE</a>
+    <div class="hud">
+      <span class="lvl">LVL <strong id="hud-level">1</strong></span>
+      <span>LEFT <strong id="hud-left">3</strong></span>
+      <span>&#9201; <strong id="hud-time">10.0</strong></span>
+      <span>SCORE <strong id="hud-score">0</strong></span>
+    </div>
+  </div>
+  <div class="timerbar"><div class="fill" id="timer-fill"></div></div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div class="banner" id="banner"></div>
+
+    <div class="overlay" id="overlay">
+      <h1 id="ov-title">TRAMPOLINE!</h1>
+      <h2 id="ov-sub">&hellip;is where people NEVER belong!</h2>
+      <p id="ov-body">
+        Get everyone off the trampoline!<br><br>
+        DRAG them DOWN and let go to<br>
+        sling-shot them into the sky.<br><br>
+        Beat the clock &mdash; every person you<br>
+        launch gives you some more time!
+      </p>
+      <p class="tap" id="ov-tap">TAP OR PRESS SPACE TO START</p>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      this.moveTo(x + r, y);
+      this.arcTo(x + w, y, x + w, y + h, r);
+      this.arcTo(x + w, y + h, x, y + h, r);
+      this.arcTo(x, y + h, x, y, r);
+      this.arcTo(x, y, x + w, y, r);
+      this.closePath();
+    };
+  }
+
+  // ---- The design (from the paper) -------------------------------------
+  // 3 people on level 1 (10 seconds), 5 on level 2 (7s),
+  // 7 on level 3 (5s), 10 on level 4 (3s).
+  // Launching a person up gives some more time.
+  const LEVELS = [
+    { people: 3, time: 10 },
+    { people: 5, time: 7 },
+    { people: 7, time: 5 },
+    { people: 10, time: 3 },
+  ];
+  const BONUS_TIME = 2.0;   // seconds added per launched person
+  const MIN_PULL = 0.15;    // fraction of max pull needed to launch
+
+  // ---- DOM --------------------------------------------------------------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ov-title');
+  const ovSub = document.getElementById('ov-sub');
+  const ovBody = document.getElementById('ov-body');
+  const ovTap = document.getElementById('ov-tap');
+  const banner = document.getElementById('banner');
+  const hudLevel = document.getElementById('hud-level');
+  const hudLeft = document.getElementById('hud-left');
+  const hudTime = document.getElementById('hud-time');
+  const hudScore = document.getElementById('hud-score');
+  const timerFill = document.getElementById('timer-fill');
+
+  let W = 0, H = 0, DPR = 1;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = stage.clientWidth;
+    H = stage.clientHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layout();
+  }
+
+  // ---- Layout -----------------------------------------------------------
+  const T = {}; // trampoline geometry
+  function layout() {
+    T.cx = W / 2;
+    T.matY = H * 0.66;
+    T.half = Math.max(90, Math.min(W * 0.26, 230));
+    T.maxPull = Math.min(H * 0.24, 220);
+    T.legH = Math.min(H * 0.18, 130);
+    T.ledgeY = T.matY;
+  }
+
+  // ---- Audio ------------------------------------------------------------
+  let audio = null;
+  function ac() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+    }
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function tone(freq, dur, type, vol, slideTo) {
+    const a = ac();
+    if (!a) return;
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.08, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start();
+    o.stop(a.currentTime + dur);
+  }
+  const sfx = {
+    stretch: () => tone(160, 0.12, 'triangle', 0.05, 90),
+    boing: (p) => { tone(90 + 60 * p, 0.28, 'triangle', 0.12, 500 + 700 * p); },
+    whoosh: () => tone(900, 0.22, 'sawtooth', 0.03, 200),
+    step: () => tone(300, 0.05, 'square', 0.025),
+    tick: () => tone(1100, 0.06, 'square', 0.05),
+    fail: () => { tone(220, 0.4, 'sawtooth', 0.1, 60); },
+    clear: () => { tone(523, 0.12, 'square', 0.08); setTimeout(() => tone(659, 0.12, 'square', 0.08), 120); setTimeout(() => tone(784, 0.25, 'square', 0.09), 240); },
+    win: () => { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'square', 0.09), i * 130)); },
+  };
+
+  // ---- Game state ---------------------------------------------------------
+  const SHIRTS = ['#ff2e88', '#00f0ff', '#ffe600', '#9d4edd', '#3dff8b', '#ff8c42'];
+  const SKINS = ['#ffd5a6', '#e8a86c', '#b07444', '#7c4a24'];
+
+  let mode = 'menu'; // menu | ready | playing | clear | fail | won
+  let levelIndex = 0;
+  let timeLeft = 0;
+  let launchedCount = 0;
+  let score = 0;
+  let best = Number(localStorage.getItem('flocade-trampoline-best') || 0);
+  let readyTimer = 0;
+  let modeTimer = 0;
+  let lastTickSecond = -1;
+  let shakeT = 0;
+
+  let people = [];     // waiting + active + flying
+  let active = null;   // the person on the mat
+  let pull = 0;        // current pull distance in px
+  let pulling = false; // pointer/key held
+  let keyCharge = false;
+  const particles = [];
+  const floaters = [];
+  const stars = [];
+
+  function makeStars() {
+    stars.length = 0;
+    for (let i = 0; i < 70; i++) {
+      stars.push({ x: Math.random(), y: Math.random() * 0.85, r: Math.random() * 1.6 + 0.4, tw: Math.random() * 6 });
+    }
+  }
+  makeStars();
+
+  function makePerson(i, total) {
+    const side = i % 2 === 0 ? -1 : 1;
+    const rank = Math.floor(i / 2);
+    return {
+      side, rank,
+      state: 'waiting', // waiting | walking | ready | flying | gone
+      x: 0, y: 0, vx: 0, vy: 0, rot: 0, vrot: 0,
+      walkT: 0, bob: Math.random() * 6,
+      shirt: SHIRTS[i % SHIRTS.length],
+      skin: SKINS[(i * 7 + rank) % SKINS.length],
+      flip: Math.random() < 0.5,
+    };
+  }
+
+  function queueSpot(p) {
+    // Waiting people stand on the side ledges, spaced outwards.
+    const edge = p.side < 0 ? T.cx - T.half - 26 : T.cx + T.half + 26;
+    const x = edge + p.side * p.rank * 34;
+    return { x: Math.max(18, Math.min(W - 18, x)), y: T.ledgeY };
+  }
+
+  function startLevel(idx) {
+    levelIndex = idx;
+    const lv = LEVELS[idx];
+    timeLeft = lv.time;
+    launchedCount = 0;
+    people = [];
+    for (let i = 0; i < lv.people; i++) people.push(makePerson(i, lv.people));
+    people.forEach((p) => { const s = queueSpot(p); p.x = s.x; p.y = s.y; });
+    active = null;
+    pull = 0;
+    pulling = false;
+    lastTickSecond = -1;
+    callNext();
+    mode = 'ready';
+    readyTimer = 1.3;
+    showBanner('LEVEL ' + (idx + 1) + '  READY&hellip;');
+    updateHud();
+  }
+
+  function callNext() {
+    const next = people.find((p) => p.state === 'waiting');
+    if (next) {
+      next.state = 'walking';
+      next.walkT = 0;
+      active = next;
+    } else {
+      active = null;
+    }
+  }
+
+  function updateHud() {
+    hudLevel.textContent = String(levelIndex + 1);
+    hudLeft.textContent = String(LEVELS[levelIndex].people - launchedCount);
+    hudTime.textContent = Math.max(0, timeLeft).toFixed(1);
+    hudScore.textContent = String(score);
+    const frac = Math.max(0, Math.min(1, timeLeft / (LEVELS[levelIndex].time + BONUS_TIME * 2)));
+    timerFill.style.transform = 'scaleX(' + frac + ')';
+  }
+
+  let bannerTimeout = null;
+  function showBanner(html, ms) {
+    banner.innerHTML = html;
+    banner.classList.add('show');
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(() => banner.classList.remove('show'), ms || 1100);
+  }
+
+  function showOverlay(title, sub, body, tap) {
+    ovTitle.innerHTML = title;
+    ovSub.innerHTML = sub;
+    ovBody.innerHTML = body;
+    ovTap.innerHTML = tap;
+    overlay.classList.remove('hidden');
+  }
+  function hideOverlay() { overlay.classList.add('hidden'); }
+
+  // ---- Launch! ------------------------------------------------------------
+  function launch() {
+    if (!active || active.state !== 'ready') { pull = 0; pulling = false; return; }
+    const p = pull / T.maxPull;
+    if (p < MIN_PULL) {
+      // Not enough oomph — spring back with a little wobble.
+      pull = 0;
+      pulling = false;
+      return;
+    }
+    const person = active;
+    person.state = 'flying';
+    person.x = T.cx;
+    person.y = T.matY + pull;
+    person.vy = -(650 + 1500 * p);
+    person.vx = (Math.random() - 0.5) * 90;
+    person.vrot = (Math.random() < 0.5 ? -1 : 1) * (2 + 8 * p);
+    launchedCount++;
+    timeLeft += BONUS_TIME;
+    const pts = 100 * (levelIndex + 1) + Math.round(150 * p);
+    score += pts;
+    sfx.boing(p);
+    setTimeout(sfx.whoosh, 90);
+    burst(T.cx, T.matY, 14 + Math.round(20 * p));
+    floaters.push({ x: T.cx + 40, y: T.matY - 60, t: 0, text: '+' + BONUS_TIME.toFixed(0) + 's', color: '#3dff8b' });
+    floaters.push({ x: T.cx - 60, y: T.matY - 90, t: 0, text: '+' + pts, color: '#ffe600' });
+    shakeT = 0.18 * p + 0.06;
+    pull = 0;
+    pulling = false;
+    updateHud();
+    if (launchedCount >= LEVELS[levelIndex].people) {
+      mode = 'clear';
+      modeTimer = 1.7;
+      sfx.clear();
+      showBanner(levelIndex + 1 < LEVELS.length ? 'LEVEL CLEAR!' : 'ALL LAUNCHED!', 1600);
+    } else {
+      callNext();
+    }
+  }
+
+  function burst(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+      const sp = 120 + Math.random() * 320;
+      particles.push({
+        x, y,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+        life: 0.5 + Math.random() * 0.5,
+        t: 0,
+        color: SHIRTS[Math.floor(Math.random() * SHIRTS.length)],
+        r: 2 + Math.random() * 3,
+      });
+    }
+  }
+
+  function failLevel() {
+    mode = 'fail';
+    sfx.fail();
+    showOverlay(
+      'TIME&rsquo;S UP!',
+      (LEVELS[levelIndex].people - launchedCount) + ' still on the trampoline!',
+      'And people NEVER belong there&hellip;',
+      'TAP TO RETRY LEVEL ' + (levelIndex + 1)
+    );
+  }
+
+  function winGame() {
+    mode = 'won';
+    sfx.win();
+    if (score > best) { best = score; localStorage.setItem('flocade-trampoline-best', String(best)); }
+    showOverlay(
+      'YOU DID IT!',
+      'Everybody got launched!',
+      'The trampoline is finally empty.<br>Because people never belong there!<br><br>SCORE ' + score + '<br>BEST ' + best,
+      'TAP TO PLAY AGAIN'
+    );
+  }
+
+  // ---- Input ----------------------------------------------------------------
+  let pointerStartY = 0;
+  let pointerId = null;
+
+  function pressStart(y) {
+    if (mode === 'menu' || mode === 'won') { score = 0; hideOverlay(); startLevel(0); return; }
+    if (mode === 'fail') { hideOverlay(); startLevel(levelIndex); return; }
+    if (mode !== 'playing' && mode !== 'ready') return;
+    if (!active || active.state !== 'ready') return;
+    pulling = true;
+    pointerStartY = y;
+    sfx.stretch();
+  }
+  function pressMove(y) {
+    if (!pulling || keyCharge) return;
+    pull = Math.max(0, Math.min(T.maxPull, y - pointerStartY));
+  }
+  function pressEnd() {
+    if (!pulling) return;
+    launch();
+  }
+
+  stage.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (pointerId !== null) return;
+    pointerId = e.pointerId;
+    stage.setPointerCapture(pointerId);
+    pressStart(e.clientY);
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pointerId) return;
+    pressMove(e.clientY);
+  });
+  function endPointer(e) {
+    if (e.pointerId !== pointerId) return;
+    pointerId = null;
+    pressEnd();
+  }
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    if (e.code === 'Space' || e.code === 'ArrowDown') {
+      e.preventDefault();
+      if (mode === 'menu' || mode === 'won' || mode === 'fail') { pressStart(0); return; }
+      if ((mode === 'playing' || mode === 'ready') && active && active.state === 'ready') {
+        pulling = true;
+        keyCharge = true;
+        sfx.stretch();
+      }
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowDown') {
+      e.preventDefault();
+      keyCharge = false;
+      pressEnd();
+    }
+  });
+
+  // ---- Update -----------------------------------------------------------------
+  function update(dt) {
+    // Stars twinkle & particles run in every mode.
+    particles.forEach((pt) => {
+      pt.t += dt;
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      pt.vy += 500 * dt;
+    });
+    for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
+    floaters.forEach((f) => { f.t += dt; f.y -= 50 * dt; });
+    for (let i = floaters.length - 1; i >= 0; i--) if (floaters[i].t > 1.1) floaters.splice(i, 1);
+    if (shakeT > 0) shakeT -= dt;
+
+    if (mode === 'ready') {
+      readyTimer -= dt;
+      if (readyTimer <= 0) {
+        mode = 'playing';
+        showBanner('GO!', 600);
+      }
+    }
+
+    if (mode === 'clear') {
+      modeTimer -= dt;
+      if (modeTimer <= 0) {
+        if (levelIndex + 1 < LEVELS.length) startLevel(levelIndex + 1);
+        else winGame();
+      }
+    }
+
+    if (mode === 'playing') {
+      timeLeft -= dt;
+      const s = Math.ceil(timeLeft);
+      if (timeLeft > 0 && timeLeft < 3.2 && s !== lastTickSecond) { lastTickSecond = s; sfx.tick(); }
+      if (timeLeft <= 0) { timeLeft = 0; failLevel(); }
+      updateHud();
+    }
+
+    if (mode !== 'playing' && mode !== 'ready' && mode !== 'clear') return;
+
+    // Keyboard charging pulls down over time.
+    if (keyCharge && pulling) pull = Math.min(T.maxPull, pull + T.maxPull * dt / 0.7);
+
+    // People.
+    people.forEach((p) => {
+      if (p.state === 'walking') {
+        p.walkT += dt;
+        const spot = queueSpot(p);
+        const dir = Math.sign(T.cx - p.x);
+        p.x += dir * Math.max(320, Math.abs(T.cx - spot.x) / 0.45) * dt;
+        p.y = T.ledgeY - Math.abs(Math.sin(p.walkT * 18)) * 5;
+        if ((dir > 0 && p.x >= T.cx) || (dir < 0 && p.x <= T.cx) || dir === 0) {
+          p.x = T.cx;
+          p.y = T.matY;
+          p.state = 'ready';
+          sfx.step();
+        }
+      } else if (p.state === 'ready') {
+        p.x = T.cx;
+        p.y = T.matY + (p === active ? pull : 0);
+      } else if (p.state === 'flying') {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.rot += p.vrot * dt;
+        if (p.y < -80) p.state = 'gone';
+      } else if (p.state === 'waiting') {
+        const spot = queueSpot(p);
+        p.x = spot.x;
+        p.y = spot.y;
+      }
+    });
+  }
+
+  // ---- Draw ----------------------------------------------------------------------
+  function drawPerson(p, t) {
+    const squash = p === active && p.state === 'ready' ? pull / T.maxPull : 0;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    if (p.state === 'flying') ctx.rotate(p.rot);
+    const s = 1 + squash * 0.15;
+    ctx.scale(1 + squash * 0.25, 1 - squash * 0.2);
+
+    const bob = p.state === 'waiting' ? Math.sin(t * 2.4 + p.bob) * 1.5 : 0;
+    ctx.translate(0, bob);
+
+    // Legs
+    ctx.strokeStyle = '#2a1b4d';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    const legSpread = p.state === 'flying' ? 9 : 5;
+    ctx.beginPath();
+    ctx.moveTo(0, -14); ctx.lineTo(-legSpread, 0);
+    ctx.moveTo(0, -14); ctx.lineTo(legSpread, 0);
+    ctx.stroke();
+    // Body
+    ctx.fillStyle = p.shirt;
+    ctx.beginPath();
+    ctx.roundRect(-7, -30, 14, 18, 4);
+    ctx.fill();
+    // Arms — up in the air when flying or being pulled (wheee / uh oh)
+    ctx.strokeStyle = p.shirt;
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    if (p.state === 'flying' || squash > 0.05) {
+      ctx.moveTo(-6, -27); ctx.lineTo(-13, -38);
+      ctx.moveTo(6, -27); ctx.lineTo(13, -38);
+    } else {
+      ctx.moveTo(-6, -27); ctx.lineTo(-11, -18);
+      ctx.moveTo(6, -27); ctx.lineTo(11, -18);
+    }
+    ctx.stroke();
+    // Head
+    ctx.fillStyle = p.skin;
+    ctx.beginPath();
+    ctx.arc(0, -38, 7.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Face
+    ctx.fillStyle = '#0d0221';
+    const wide = p.state === 'flying' || squash > 0.4;
+    const eyeR = wide ? 1.8 : 1.1;
+    ctx.beginPath();
+    ctx.arc(-2.5, -39, eyeR, 0, Math.PI * 2);
+    ctx.moveTo(2.5 + eyeR, -39);
+    ctx.arc(2.5, -39, eyeR, 0, Math.PI * 2);
+    ctx.fill();
+    if (wide) {
+      ctx.beginPath();
+      ctx.arc(0, -35, 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillRect(-2, -34.5, 4, 1.4);
+    }
+    ctx.restore();
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+
+    // Sky
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#0d0221');
+    sky.addColorStop(0.7, '#160a35');
+    sky.addColorStop(1, '#1d0f42');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    stars.forEach((s) => {
+      const a = 0.35 + 0.65 * Math.abs(Math.sin(t * 0.8 + s.tw));
+      ctx.fillStyle = 'rgba(232, 230, 240, ' + a.toFixed(2) + ')';
+      ctx.fillRect(s.x * W, s.y * H, s.r, s.r);
+    });
+
+    // Moon
+    ctx.fillStyle = '#ffe600';
+    ctx.shadowColor = '#ffe600';
+    ctx.shadowBlur = 24;
+    ctx.beginPath();
+    ctx.arc(W * 0.84, H * 0.13, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Ground
+    ctx.fillStyle = '#12063a';
+    ctx.fillRect(0, T.matY + T.legH, W, H - T.matY - T.legH);
+    ctx.strokeStyle = '#ff2e88';
+    ctx.shadowColor = '#ff2e88';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.moveTo(0, T.matY + T.legH);
+    ctx.lineTo(W, T.matY + T.legH);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Side ledges the queue stands on
+    ctx.fillStyle = '#241155';
+    ctx.strokeStyle = '#9d4edd';
+    ctx.lineWidth = 2;
+    const ledgeL = T.cx - T.half - 14;
+    const ledgeR = T.cx + T.half + 14;
+    ctx.fillRect(0, T.ledgeY, ledgeL, 12);
+    ctx.strokeRect(-2, T.ledgeY, ledgeL + 2, 12);
+    ctx.fillRect(ledgeR, T.ledgeY, W - ledgeR, 12);
+    ctx.strokeRect(ledgeR, T.ledgeY, W - ledgeR + 4, 12);
+    // Ledge pillars
+    ctx.fillStyle = '#1a0c44';
+    for (let x = 30; x < ledgeL; x += 90) ctx.fillRect(x, T.ledgeY + 12, 10, T.matY + T.legH - T.ledgeY - 12);
+    for (let x = ledgeR + 40; x < W - 20; x += 90) ctx.fillRect(x, T.ledgeY + 12, 10, T.matY + T.legH - T.ledgeY - 12);
+
+    // Trampoline legs
+    ctx.strokeStyle = '#3d2a6d';
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(T.cx - T.half + 8, T.matY + 4); ctx.lineTo(T.cx - T.half + 26, T.matY + T.legH);
+    ctx.moveTo(T.cx + T.half - 8, T.matY + 4); ctx.lineTo(T.cx + T.half - 26, T.matY + T.legH);
+    ctx.stroke();
+
+    // Mat — bends down through the pulled person like a slingshot
+    const dip = active && active.state === 'ready' ? pull : 0;
+    ctx.strokeStyle = '#00f0ff';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 14;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(T.cx - T.half, T.matY);
+    ctx.quadraticCurveTo(T.cx, T.matY + dip * 2, T.cx + T.half, T.matY);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    // Frame pads
+    ctx.fillStyle = '#ff2e88';
+    ctx.beginPath();
+    ctx.arc(T.cx - T.half, T.matY, 6, 0, Math.PI * 2);
+    ctx.moveTo(T.cx + T.half + 6, T.matY);
+    ctx.arc(T.cx + T.half, T.matY, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pull hint arrow
+    if (active && active.state === 'ready' && pull < 4 && (mode === 'playing' || mode === 'ready')) {
+      const a = 0.5 + 0.5 * Math.sin(t * 4);
+      ctx.strokeStyle = 'rgba(255, 230, 0, ' + a.toFixed(2) + ')';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(T.cx, T.matY + 26);
+      ctx.lineTo(T.cx, T.matY + 62);
+      ctx.moveTo(T.cx - 10, T.matY + 50);
+      ctx.lineTo(T.cx, T.matY + 62);
+      ctx.lineTo(T.cx + 10, T.matY + 50);
+      ctx.stroke();
+    }
+
+    // People
+    people.forEach((p) => { if (p.state !== 'gone') drawPerson(p, t); });
+
+    // Particles
+    particles.forEach((pt) => {
+      ctx.globalAlpha = Math.max(0, 1 - pt.t / pt.life);
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(pt.x - pt.r / 2, pt.y - pt.r / 2, pt.r, pt.r);
+    });
+    ctx.globalAlpha = 1;
+
+    // Floating texts
+    ctx.font = '14px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    floaters.forEach((f) => {
+      ctx.globalAlpha = Math.max(0, 1 - f.t / 1.1);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    });
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  // ---- Main loop ----------------------------------------------------------------------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw(now / 1000);
+    requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('resize', resize);
+  resize();
+  startLevel(0);
+  mode = 'menu';
+  banner.classList.remove('show');
+  updateHud();
+  requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
