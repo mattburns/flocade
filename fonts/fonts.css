@@ -1,0 +1,18 @@
+/* Self-hosted fonts so the arcade works offline (no requests to fonts.googleapis.com).
+   inter-latin.woff2 is Google's variable build of Inter — one file serves every weight. */
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('press-start-2p-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('inter-latin.woff2') format('woff2');
+}

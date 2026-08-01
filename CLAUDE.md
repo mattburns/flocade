@@ -17,8 +17,9 @@ There are no tests or linters configured.
 ## Architecture
 
 - `index.html` + `js/main.js` render the homepage gallery from `games.json` (the game registry), fetched with `cache: 'no-store'` so new games appear immediately despite GitHub Pages' fixed 10-minute `max-age` caching.
-- Each game lives at `games/<slug>/index.html` and must be **fully self-contained** — its own HTML/CSS/JS in one file or folder, no shared code with the gallery or other games. Games link back to the gallery with `../../`.
-- To add a game: create `games/<slug>/index.html`, then add a `{ slug, title, icon, description }` entry to `games.json`. The `slug` must match the folder name.
+- Each game lives at `games/<slug>/index.html` and must be **fully self-contained** — its own HTML/CSS/JS in one file or folder, no shared code with the gallery or other games. Games link back to the gallery with `../../`. (Fonts are the one shared asset: pages load `fonts/fonts.css` — `../../fonts/fonts.css` from a game — instead of Google Fonts, so everything works offline.)
+- The site is an installable PWA (`manifest.json`, `icons/`) and `sw.js` precaches the entire arcade on first visit so every game works offline afterwards. The service worker derives the precache list from `games.json`, serves cached content stale-while-revalidate, and keeps `games.json` itself network-first.
+- To add a game: create `games/<slug>/index.html`, then add a `{ slug, title, icon, description }` entry to `games.json`. The `slug` must match the folder name. Then **bump `CACHE_VERSION` in `sw.js`** so existing visitors precache the new game, and if the game has any files beyond `index.html`, list them in `EXTRA_GAME_ASSETS` in `sw.js`.
 
 ## Conventions
 
