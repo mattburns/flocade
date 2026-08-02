@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Stuck At The Store — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+      --ink: #4a3b5c;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.9rem 0.3rem;
+      flex: 0 0 auto;
+    }
+    header a {
+      color: var(--cyan);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 0.4rem 0.2rem;
+    }
+    header h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.6rem, 2.4vw, 0.95rem);
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 var(--pink);
+      flex: 1;
+      text-align: center;
+      line-height: 1.5;
+    }
+    header .spacer { min-width: 4.5rem; }
+    #status {
+      flex: 0 0 auto;
+      text-align: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem;
+      color: var(--dim);
+      padding: 0.15rem 1rem 0.4rem;
+      line-height: 1.7;
+    }
+    #status b { color: var(--cyan); }
+
+    /* ---------- the boutique ---------- */
+    #shop {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      cursor: grab;
+      border-top: 2px solid var(--card);
+    }
+    #shop.dragging { cursor: grabbing; }
+    #shopInner {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      gap: clamp(0.4rem, 2vw, 1.6rem);
+      padding: 0 2rem 2.5%;
+      width: max-content;
+      min-width: 100%;
+      justify-content: center;
+      background: linear-gradient(#160834 0%, #241048 58%, #2f1b56 72%, #4a3b5c 72.5%, #3a2d4a 100%);
+    }
+    #sign {
+      position: absolute;
+      top: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.7rem, 2.6vw, 1.1rem);
+      color: var(--pink);
+      text-shadow: 0 0 8px var(--pink), 0 0 22px var(--pink);
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 2;
+      animation: buzz 3.5s infinite;
+    }
+    @keyframes buzz {
+      0%, 100% { opacity: 1; }
+      92% { opacity: 1; }
+      93% { opacity: 0.55; }
+      94% { opacity: 1; }
+      96% { opacity: 0.7; }
+      97% { opacity: 1; }
+    }
+    .window {
+      position: relative;
+      flex: 0 0 auto;
+      width: clamp(90px, 14vh, 150px);
+      margin-bottom: 12%;
+      pointer-events: none;
+    }
+    .window svg { display: block; width: 100%; height: auto; }
+    #door {
+      position: relative;
+      flex: 0 0 auto;
+      width: clamp(90px, 15vh, 150px);
+      margin-bottom: 2.5%;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+    }
+    #door svg { display: block; width: 100%; height: auto; }
+    @keyframes doorShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    #door.shake { animation: doorShake 0.35s; }
+
+    .mann {
+      position: relative;
+      flex: 0 0 auto;
+      width: clamp(84px, 16vh, 132px);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .mann svg { display: block; width: 100%; height: auto; }
+    .mann.sel { filter: drop-shadow(0 0 9px var(--cyan)); }
+    .mann.sel::after {
+      content: '▼';
+      position: absolute;
+      top: -1.15rem;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-shadow: 0 0 6px var(--cyan);
+    }
+    @keyframes bounce { 0% { scale: 1; } 40% { scale: 1.07 0.94; } 70% { scale: 0.96 1.05; } 100% { scale: 1; } }
+    .mann.bounce { animation: bounce 0.3s; }
+    @keyframes tada { 0% { rotate: 0deg; } 25% { rotate: -5deg; } 50% { rotate: 5deg; } 75% { rotate: -3deg; } 100% { rotate: 0deg; } }
+    .mann.done-pop { animation: tada 0.45s; }
+
+    /* ---------- the rack ---------- */
+    #rack {
+      flex: 0 0 auto;
+      background: var(--card);
+      border-top: 3px solid var(--pink);
+      padding: 0.5rem 0.6rem 0.65rem;
+    }
+    #tabs { display: flex; justify-content: center; gap: 8px; margin-bottom: 0.5rem; }
+    .tab {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: var(--dim);
+      background: none;
+      border: 2px solid var(--dim);
+      border-radius: 8px;
+      padding: 0.45rem 0.8rem;
+      cursor: pointer;
+    }
+    .tab.on { color: #1a0b3d; background: var(--cyan); border-color: var(--cyan); }
+    #rackItems {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 2px 6px;
+      touch-action: pan-x;
+    }
+    .rackItem {
+      flex: 0 0 auto;
+      width: clamp(64px, 11vh, 86px);
+      height: clamp(64px, 11vh, 86px);
+      background: #fff;
+      border: 3px solid #c9c0d8;
+      border-radius: 12px;
+      cursor: grab;
+      padding: 6px;
+      touch-action: none;
+    }
+    .rackItem:active { border-color: var(--pink); }
+    .rackItem svg { width: 100%; height: 100%; pointer-events: none; }
+
+    #ghost {
+      position: fixed;
+      width: 76px;
+      height: 76px;
+      pointer-events: none;
+      z-index: 500;
+      display: none;
+      filter: drop-shadow(0 6px 8px rgba(0,0,0,0.4));
+    }
+    #ghost svg { width: 100%; height: 100%; }
+
+    /* ---------- win! ---------- */
+    #winOverlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.1rem;
+      background: linear-gradient(#2b1a55 0%, #7a2a8f 30%, #c74e8a 55%, #ff9d5c 78%, #ffe98a 100%);
+      z-index: 800;
+      overflow: hidden;
+      text-align: center;
+      padding: 1rem;
+    }
+    #winOverlay.show { display: flex; }
+    #winOverlay h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1.2rem, 6vw, 2.4rem);
+      color: #fff;
+      text-shadow: 3px 3px 0 var(--pink), 0 0 24px #fff;
+      animation: bounce 0.8s infinite;
+    }
+    #winOverlay p {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      line-height: 2;
+      color: #4a2040;
+    }
+    #openDoors { width: min(46vw, 240px); }
+    #openDoors svg { display: block; width: 100%; height: auto; }
+    #again {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem;
+      color: #fff;
+      background: var(--pink);
+      border: 3px solid #fff;
+      border-radius: 12px;
+      padding: 0.9rem 1.3rem;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+    .confetti {
+      position: absolute;
+      top: -20px;
+      width: 10px;
+      height: 16px;
+      border-radius: 3px;
+      animation: fall linear infinite;
+    }
+    @keyframes fall {
+      to { transform: translateY(110vh) rotate(720deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../">&larr; ARCADE</a>
+    <h1>STUCK AT THE STORE</h1>
+    <span class="spacer"></span>
+  </header>
+  <div id="status"></div>
+
+  <div id="shop">
+    <div id="shopInner">
+      <div id="sign">✦ BOUTIQUE ✦</div>
+    </div>
+  </div>
+
+  <div id="rack">
+    <div id="tabs"></div>
+    <div id="rackItems"></div>
+  </div>
+
+  <div id="ghost"></div>
+
+  <div id="winOverlay">
+    <div id="openDoors"></div>
+    <h2>RELEASED!</h2>
+    <p id="winText"></p>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+
+<script>
+'use strict';
+
+/* ---------------- tiny sounds ---------------- */
+let AC = null;
+function blip(freq = 600, dur = 0.07, type = 'square', vol = 0.035) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start();
+    o.stop(AC.currentTime + dur);
+  } catch (e) { /* sound is optional */ }
+}
+function jingle(notes, gap = 0.09) {
+  notes.forEach((n, i) => setTimeout(() => blip(n, 0.14, 'triangle', 0.05), i * gap * 1000));
+}
+
+/* ---------------- clothes (drawn in mannequin coordinates, 0 0 140 300) ---------------- */
+const OUT = `stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'`;
+const OUT3 = `stroke='#4a3b5c' stroke-width='3' stroke-linejoin='round'`;
+
+/* kawaii motifs, centered around (70, 102) */
+const MOTIFS = {
+  cat: `<circle cx='70' cy='103' r='15' fill='#fffdf5' ${OUT3}/>` +
+    `<polygon points='58,93 62,81 68,91' fill='#fffdf5' ${OUT3}/>` +
+    `<polygon points='82,93 78,81 72,91' fill='#fffdf5' ${OUT3}/>` +
+    `<circle cx='64' cy='101' r='1.8' fill='#26223a'/><circle cx='76' cy='101' r='1.8' fill='#26223a'/>` +
+    `<path d='M67 108 q3 3 6 0' fill='none' stroke='#26223a' stroke-width='2' stroke-linecap='round'/>` +
+    `<path d='M52 100 l-8 -2 M52 105 l-8 2 M88 100 l8 -2 M88 105 l8 2' stroke='#26223a' stroke-width='1.6' stroke-linecap='round'/>`,
+  bunny: `<ellipse cx='63' cy='84' rx='4.5' ry='13' fill='#fffdf5' ${OUT3}/>` +
+    `<ellipse cx='77' cy='84' rx='4.5' ry='13' fill='#fffdf5' ${OUT3}/>` +
+    `<ellipse cx='63' cy='86' rx='2' ry='8' fill='#ffb3d1'/>` +
+    `<ellipse cx='77' cy='86' rx='2' ry='8' fill='#ffb3d1'/>` +
+    `<circle cx='70' cy='105' r='14' fill='#fffdf5' ${OUT3}/>` +
+    `<circle cx='64' cy='103' r='1.8' fill='#26223a'/><circle cx='76' cy='103' r='1.8' fill='#26223a'/>` +
+    `<path d='M70 107 l-2 3 h4 z' fill='#ffb3d1'/>`,
+  heart: `<path d='M70 116 C52 104 50 90 60 86 C66 83 70 88 70 92 C70 88 74 83 80 86 C90 90 88 104 70 116 z' fill='#e05252' ${OUT3}/>` +
+    `<circle cx='63' cy='92' r='2.5' fill='#fff' opacity='0.8'/>`,
+  star: `<path d='M70 84 l5.5 12 13 1.5 -9.5 9 2.5 13 -11.5 -6.5 -11.5 6.5 2.5 -13 -9.5 -9 13 -1.5 z' fill='#ffe600' ${OUT3}/>`,
+  berry: `<path d='M70 92 C82 92 86 100 84 107 C82 115 76 120 70 120 C64 120 58 115 56 107 C54 100 58 92 70 92 z' fill='#e05252' ${OUT3}/>` +
+    `<path d='M62 88 q8 -5 16 0 l-4 5 h-8 z' fill='#4e9c38' ${OUT3}/>` +
+    `<circle cx='64' cy='103' r='1.3' fill='#ffe98a'/><circle cx='72' cy='108' r='1.3' fill='#ffe98a'/><circle cx='77' cy='100' r='1.3' fill='#ffe98a'/><circle cx='66' cy='112' r='1.3' fill='#ffe98a'/>`,
+  rainbow: `<path d='M52 112 a18 18 0 0 1 36 0' fill='none' stroke='#e05252' stroke-width='5'/>` +
+    `<path d='M57 112 a13 13 0 0 1 26 0' fill='none' stroke='#ffd23d' stroke-width='5'/>` +
+    `<path d='M62 112 a8 8 0 0 1 16 0' fill='none' stroke='#6ec48a' stroke-width='5'/>` +
+    `<circle cx='51' cy='112' r='4' fill='#fff' ${OUT3}/><circle cx='89' cy='112' r='4' fill='#fff' ${OUT3}/>`,
+  bolt: `<polygon points='74,84 58,106 68,106 64,122 82,100 71,100' fill='#ffd23d' ${OUT3}/>`,
+  flower: `<g fill='#fffdf5' ${OUT3}><circle cx='70' cy='92' r='6.5'/><circle cx='60' cy='99' r='6.5'/><circle cx='80' cy='99' r='6.5'/><circle cx='63' cy='110' r='6.5'/><circle cx='77' cy='110' r='6.5'/></g>` +
+    `<circle cx='70' cy='102' r='5.5' fill='#ffe600' ${OUT3}/>`,
+};
+
+function topInner(c, motif) {
+  return `<path d='M34 62 Q70 50 106 62 L112 136 Q70 150 28 136 Z' fill='${c}' ${OUT}/>` +
+    `<path d='M36 68 C30 82 28 94 29 106' fill='none' stroke='#4a3b5c' stroke-width='21' stroke-linecap='round'/>` +
+    `<path d='M36 68 C30 82 28 94 29 106' fill='none' stroke='${c}' stroke-width='15' stroke-linecap='round'/>` +
+    `<path d='M104 68 C110 82 112 94 111 106' fill='none' stroke='#4a3b5c' stroke-width='21' stroke-linecap='round'/>` +
+    `<path d='M104 68 C110 82 112 94 111 106' fill='none' stroke='${c}' stroke-width='15' stroke-linecap='round'/>` +
+    `<path d='M57 58 Q70 68 83 58' fill='none' ${OUT3}/>` +
+    (motif ? MOTIFS[motif] : '');
+}
+
+function shortsInner(c, d, opts = {}) {
+  let s = `<rect x='42' y='140' width='56' height='12' rx='5' fill='${d}' ${OUT}/>` +
+    `<rect x='42' y='150' width='26' height='34' rx='8' fill='${c}' ${OUT}/>` +
+    `<rect x='72' y='150' width='26' height='34' rx='8' fill='${c}' ${OUT}/>`;
+  if (opts.frill) {
+    s += `<g fill='${c}' ${OUT3}>` +
+      `<circle cx='47' cy='184' r='5'/><circle cx='56' cy='186' r='5'/><circle cx='64' cy='184' r='5'/>` +
+      `<circle cx='76' cy='184' r='5'/><circle cx='84' cy='186' r='5'/><circle cx='93' cy='184' r='5'/></g>`;
+  }
+  if (opts.dots) {
+    s += `<g fill='#fffdf5'><circle cx='51' cy='160' r='3'/><circle cx='61' cy='172' r='3'/>` +
+      `<circle cx='79' cy='162' r='3'/><circle cx='90' cy='174' r='3'/></g>`;
+  }
+  return s;
+}
+
+function skirtInner(c, d) {
+  return `<rect x='44' y='140' width='52' height='11' rx='5' fill='${d}' ${OUT}/>` +
+    `<path d='M44 150 L32 206 Q70 218 108 206 L96 150 Z' fill='${c}' ${OUT}/>` +
+    `<path d='M53 153 L45 206 M62 154 L57 211 M70 155 L70 213 M78 154 L83 211 M87 153 L95 206' fill='none' stroke='${d}' stroke-width='2.5'/>`;
+}
+
+function sneakerInner(c) {
+  return `<g><rect x='38' y='238' width='34' height='22' rx='10' fill='${c}' ${OUT}/>` +
+    `<rect x='36' y='254' width='38' height='9' rx='4.5' fill='#fffdf5' ${OUT}/>` +
+    `<path d='M46 244 l8 5 M46 250 l8 -4' stroke='#fffdf5' stroke-width='2.5' stroke-linecap='round'/>` +
+    `<rect x='68' y='238' width='34' height='22' rx='10' fill='${c}' ${OUT}/>` +
+    `<rect x='66' y='254' width='38' height='9' rx='4.5' fill='#fffdf5' ${OUT}/>` +
+    `<path d='M86 244 l8 5 M86 250 l8 -4' stroke='#fffdf5' stroke-width='2.5' stroke-linecap='round'/></g>`;
+}
+
+function bootInner(c, d) {
+  return `<g><rect x='40' y='214' width='28' height='40' rx='7' fill='${c}' ${OUT}/>` +
+    `<rect x='38' y='208' width='32' height='11' rx='5' fill='${d}' ${OUT}/>` +
+    `<rect x='38' y='250' width='36' height='12' rx='6' fill='${d}' ${OUT}/>` +
+    `<rect x='72' y='214' width='28' height='40' rx='7' fill='${c}' ${OUT}/>` +
+    `<rect x='70' y='208' width='32' height='11' rx='5' fill='${d}' ${OUT}/>` +
+    `<rect x='66' y='250' width='36' height='12' rx='6' fill='${d}' ${OUT}/></g>`;
+}
+
+function maryjaneInner(c) {
+  return `<g><rect x='38' y='242' width='34' height='20' rx='9' fill='${c}' ${OUT}/>` +
+    `<path d='M42 246 h26' stroke='#4a3b5c' stroke-width='3.5' stroke-linecap='round'/>` +
+    `<circle cx='55' cy='246' r='2.6' fill='#ffe600'/>` +
+    `<rect x='68' y='242' width='34' height='20' rx='9' fill='${c}' ${OUT}/>` +
+    `<path d='M72 246 h26' stroke='#4a3b5c' stroke-width='3.5' stroke-linecap='round'/>` +
+    `<circle cx='85' cy='246' r='2.6' fill='#ffe600'/></g>`;
+}
+
+/* bounding boxes for showing garments on their own in the rack */
+const BB = { top: '16 44 110 114', shorts: '34 134 72 62', skirt: '26 134 88 88', shoe: '30 230 78 38', boot: '32 202 76 66' };
+
+const ITEMS = {
+  top: [
+    { id: 'catTee',    inner: topInner('#ff9dc2', 'cat'),     bb: BB.top },
+    { id: 'bunnyTee',  inner: topInner('#a8d0f0', 'bunny'),   bb: BB.top },
+    { id: 'heartTee',  inner: topInner('#ffe98a', 'heart'),   bb: BB.top },
+    { id: 'starTee',   inner: topInner('#a678e0', 'star'),    bb: BB.top },
+    { id: 'berryTee',  inner: topInner('#a8e8c0', 'berry'),   bb: BB.top },
+    { id: 'rainbowTee',inner: topInner('#fffdf5', 'rainbow'), bb: BB.top },
+    { id: 'boltTee',   inner: topInner('#7de8f0', 'bolt'),    bb: BB.top },
+    { id: 'flowerTee', inner: topInner('#ffc9a3', 'flower'),  bb: BB.top },
+  ],
+  bottom: [
+    { id: 'frillPink', inner: shortsInner('#ff9dc2', '#e05a8f', { frill: true }), bb: BB.shorts },
+    { id: 'shortsBlue',inner: shortsInner('#7ab8e8', '#4a76a8'),                  bb: BB.shorts },
+    { id: 'dotShorts', inner: shortsInner('#ffd23d', '#d6a41a', { dots: true }),  bb: BB.shorts },
+    { id: 'frillMint', inner: shortsInner('#a8e8c0', '#3f9c68', { frill: true }), bb: BB.shorts },
+    { id: 'skirtPurp', inner: skirtInner('#a678e0', '#7c4fc9'), bb: BB.skirt },
+    { id: 'skirtPink', inner: skirtInner('#ff6ea6', '#d14a80'), bb: BB.skirt },
+    { id: 'skirtCyan', inner: skirtInner('#7de8f0', '#3d9ca8'), bb: BB.skirt },
+    { id: 'skirtOran', inner: skirtInner('#ffc9a3', '#d6642e'), bb: BB.skirt },
+  ],
+  shoes: [
+    { id: 'snkRed',   inner: sneakerInner('#e05252'),             bb: BB.shoe },
+    { id: 'snkCyan',  inner: sneakerInner('#7de8f0'),             bb: BB.shoe },
+    { id: 'bootBrown',inner: bootInner('#c98a5b', '#8a5a2e'),     bb: BB.boot },
+    { id: 'bootPink', inner: bootInner('#ff9dc2', '#d14a80'),     bb: BB.boot },
+    { id: 'mjPurple', inner: maryjaneInner('#a678e0'),            bb: BB.shoe },
+    { id: 'snkYellow',inner: sneakerInner('#ffd23d'),             bb: BB.shoe },
+  ],
+};
+const ITEM_BY_ID = {};
+Object.entries(ITEMS).forEach(([kind, list]) => list.forEach((it) => { ITEM_BY_ID[it.id] = { ...it, kind }; }));
+
+/* ---------------- mannequin ---------------- */
+function mannequinSVG(m) {
+  const shoes = m.shoes ? ITEM_BY_ID[m.shoes].inner : '';
+  const bottom = m.bottom ? ITEM_BY_ID[m.bottom].inner : '';
+  const top = m.top ? ITEM_BY_ID[m.top].inner : '';
+  return `<svg viewBox='0 0 140 300' style='aspect-ratio:140/300'>` +
+    `<ellipse cx='70' cy='284' rx='44' ry='10' fill='#3a2d4a' ${OUT}/>` +
+    // arms
+    `<path d='M36 68 C26 96 24 120 28 142' fill='none' stroke='#4a3b5c' stroke-width='17' stroke-linecap='round'/>` +
+    `<path d='M36 68 C26 96 24 120 28 142' fill='none' stroke='#efe9f6' stroke-width='11' stroke-linecap='round'/>` +
+    `<path d='M104 68 C114 96 116 120 112 142' fill='none' stroke='#4a3b5c' stroke-width='17' stroke-linecap='round'/>` +
+    `<path d='M104 68 C114 96 116 120 112 142' fill='none' stroke='#efe9f6' stroke-width='11' stroke-linecap='round'/>` +
+    // legs + feet
+    `<path d='M56 160 V250' stroke='#4a3b5c' stroke-width='20' stroke-linecap='round'/>` +
+    `<path d='M56 160 V250' stroke='#efe9f6' stroke-width='14' stroke-linecap='round'/>` +
+    `<path d='M84 160 V250' stroke='#4a3b5c' stroke-width='20' stroke-linecap='round'/>` +
+    `<path d='M84 160 V250' stroke='#efe9f6' stroke-width='14' stroke-linecap='round'/>` +
+    `<ellipse cx='55' cy='256' rx='13' ry='8' fill='#efe9f6' ${OUT}/>` +
+    `<ellipse cx='85' cy='256' rx='13' ry='8' fill='#efe9f6' ${OUT}/>` +
+    // head + neck + body
+    `<circle cx='70' cy='28' r='20' fill='#efe9f6' ${OUT}/>` +
+    `<path d='M60 28 q3 -4 6 0 M74 28 q3 -4 6 0' fill='none' stroke='#4a3b5c' stroke-width='2.5' stroke-linecap='round'/>` +
+    `<path d='M65 35 q5 4 10 0' fill='none' stroke='#4a3b5c' stroke-width='2.5' stroke-linecap='round'/>` +
+    `<rect x='63' y='45' width='14' height='16' rx='5' fill='#efe9f6' ${OUT}/>` +
+    `<path d='M40 60 Q70 50 100 60 L106 128 Q104 152 100 164 Q70 174 40 164 Q36 152 34 128 Z' fill='#efe9f6' ${OUT}/>` +
+    // clothes: shoes under bottoms under tops
+    shoes + bottom + top +
+    `</svg>`;
+}
+
+function itemCardSVG(item) {
+  return `<svg viewBox='${item.bb}'>${item.inner}</svg>`;
+}
+
+/* ---------------- scenery ---------------- */
+const WINDOW_SVG =
+  `<svg viewBox='0 0 150 190'>` +
+  `<rect x='6' y='6' width='138' height='178' rx='10' fill='#0d0221' stroke='#6a5f85' stroke-width='7'/>` +
+  `<path d='M75 10 V180 M10 95 H140' stroke='#6a5f85' stroke-width='5'/>` +
+  `<circle cx='45' cy='50' r='16' fill='#ffe600'/>` +
+  `<circle cx='52' cy='45' r='13' fill='#0d0221'/>` +
+  `<g fill='#fffdf5'><circle cx='108' cy='36' r='2.5'/><circle cx='120' cy='64' r='2'/><circle cx='96' cy='70' r='1.7'/>` +
+  `<circle cx='34' cy='130' r='2.2'/><circle cx='60' cy='150' r='1.8'/><circle cx='114' cy='128' r='2.4'/><circle cx='94' cy='160' r='1.9'/></g>` +
+  `</svg>`;
+
+const DOOR_SVG =
+  `<svg viewBox='0 0 150 250'>` +
+  `<rect x='10' y='8' width='130' height='236' rx='8' fill='#2b1a55' stroke='#6a5f85' stroke-width='7'/>` +
+  `<rect x='26' y='24' width='98' height='120' rx='6' fill='#160834' stroke='#6a5f85' stroke-width='5'/>` +
+  `<path d='M26 144 L124 24' stroke='#3a2d4a' stroke-width='4'/>` +
+  `<circle cx='118' cy='176' r='7' fill='#ffe600' stroke='#4a3b5c' stroke-width='4'/>` +
+  `<path d='M60 168 q15 -22 30 0' fill='none' stroke='#8a839e' stroke-width='9'/>` +
+  `<rect x='52' y='168' width='46' height='36' rx='7' fill='#ffd23d' stroke='#4a3b5c' stroke-width='5'/>` +
+  `<circle cx='75' cy='183' r='5' fill='#4a3b5c'/>` +
+  `<rect x='72' y='183' width='6' height='12' rx='3' fill='#4a3b5c'/>` +
+  `</svg>`;
+
+const OPEN_DOORS_SVG =
+  `<svg viewBox='0 0 240 200'>` +
+  `<g stroke='#4a3b5c' stroke-width='5' stroke-linejoin='round'>` +
+  `<circle cx='120' cy='86' r='50' fill='#ffe600'/>` +
+  `<g stroke='#ffe600' stroke-width='7' stroke-linecap='round'>` +
+  `<path d='M120 14 V-2 M120 158 V174 M48 86 H32 M192 86 H208 M70 36 L58 24 M170 36 L182 24 M70 136 L58 148 M170 136 L182 148'/></g>` +
+  `<rect x='14' y='30' width='60' height='150' rx='7' fill='#2b1a55' transform='rotate(14 14 180)'/>` +
+  `<rect x='166' y='30' width='60' height='150' rx='7' fill='#2b1a55' transform='rotate(-14 226 180)'/>` +
+  `</g></svg>`;
+
+/* ---------------- game state ---------------- */
+const MANN_COUNT = 7;
+const HOURS = ['11PM', '12AM', '1AM', '2AM', '3AM', '4AM', '5AM', '6AM'];
+let mannequins = [];
+let selected = 0;
+let currentTab = 'top';
+let won = false;
+
+const $ = (id) => document.getElementById(id);
+const shop = $('shop'), shopInner = $('shopInner');
+const statusEl = $('status');
+const tabsEl = $('tabs'), rackItemsEl = $('rackItems');
+const ghost = $('ghost');
+const winOverlay = $('winOverlay');
+
+/* ---------------- build the shop ---------------- */
+const mannEls = [];
+function buildShop() {
+  const win1 = document.createElement('div');
+  win1.className = 'window';
+  win1.innerHTML = WINDOW_SVG;
+  shopInner.appendChild(win1);
+
+  for (let i = 0; i < MANN_COUNT; i++) {
+    const b = document.createElement('button');
+    b.className = 'mann';
+    b.addEventListener('click', () => { if (!won) { selectMann(i); blip(520, 0.05, 'triangle'); } });
+    shopInner.appendChild(b);
+    mannEls.push(b);
+  }
+
+  const door = document.createElement('button');
+  door.id = 'door';
+  door.innerHTML = DOOR_SVG;
+  door.addEventListener('click', () => {
+    door.classList.remove('shake');
+    void door.offsetWidth;
+    door.classList.add('shake');
+    blip(150, 0.2, 'sawtooth', 0.05);
+    setHint('LOCKED! Dress <b>all the mannequins</b> to get out!');
+  });
+  shopInner.appendChild(door);
+}
+
+function selectMann(i) {
+  selected = i;
+  mannEls.forEach((el, j) => el.classList.toggle('sel', j === selected));
+}
+
+function renderMann(i) {
+  mannEls[i].innerHTML = mannequinSVG(mannequins[i]);
+}
+
+function dressedCount() {
+  return mannequins.filter((m) => m.top && m.bottom && m.shoes).length;
+}
+function isComplete(m) { return !!(m.top && m.bottom && m.shoes); }
+
+function setHint(html) {
+  statusEl.innerHTML = html;
+}
+function updateStatus() {
+  const n = dressedCount();
+  const hour = HOURS[Math.min(n, HOURS.length - 1)];
+  setHint(`🌙 ${hour} · <b>${n}/${MANN_COUNT}</b> DRESSED`);
+}
+
+/* ---------------- rack ---------------- */
+const TABS = [
+  { key: 'top', label: 'TOPS' },
+  { key: 'bottom', label: 'BOTTOMS' },
+  { key: 'shoes', label: 'SHOES' },
+];
+TABS.forEach((t) => {
+  const b = document.createElement('button');
+  b.className = 'tab';
+  b.textContent = t.label;
+  b.addEventListener('click', () => { currentTab = t.key; blip(700, 0.05); renderRack(); });
+  tabsEl.appendChild(b);
+});
+
+function renderRack() {
+  [...tabsEl.children].forEach((b, i) => b.classList.toggle('on', TABS[i].key === currentTab));
+  rackItemsEl.innerHTML = '';
+  ITEMS[currentTab].forEach((raw) => {
+    const item = ITEM_BY_ID[raw.id]; // includes its kind (top/bottom/shoes)
+    const b = document.createElement('button');
+    b.className = 'rackItem';
+    b.innerHTML = itemCardSVG(item);
+    b.addEventListener('pointerdown', (e) => onRackDown(e, item));
+    rackItemsEl.appendChild(b);
+  });
+}
+
+/* drag an item out of the rack — or just tap it to dress the chosen mannequin */
+function onRackDown(e, item) {
+  if (won) return;
+  const startX = e.clientX, startY = e.clientY;
+  let dragging = false;
+  const target = e.currentTarget;
+  target.setPointerCapture(e.pointerId);
+
+  const onMove = (ev) => {
+    if (!dragging && Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 10) {
+      dragging = true;
+      ghost.innerHTML = itemCardSVG(item);
+      ghost.style.display = 'block';
+    }
+    if (dragging) {
+      ghost.style.left = ev.clientX - 38 + 'px';
+      ghost.style.top = ev.clientY - 38 + 'px';
+    }
+  };
+  const onUp = (ev) => {
+    target.removeEventListener('pointermove', onMove);
+    target.removeEventListener('pointerup', onUp);
+    target.removeEventListener('pointercancel', onUp);
+    ghost.style.display = 'none';
+    if (dragging) {
+      const hit = mannEls.findIndex((el) => {
+        const r = el.getBoundingClientRect();
+        return ev.clientX > r.left - 8 && ev.clientX < r.right + 8 &&
+               ev.clientY > r.top - 8 && ev.clientY < r.bottom + 8;
+      });
+      if (hit >= 0) { selectMann(hit); dress(hit, item); }
+      else blip(200, 0.08, 'sawtooth');
+    } else {
+      dress(selected, item); // tap = dress the chosen mannequin
+    }
+  };
+  target.addEventListener('pointermove', onMove);
+  target.addEventListener('pointerup', onUp);
+  target.addEventListener('pointercancel', onUp);
+}
+
+function dress(i, item) {
+  const m = mannequins[i];
+  const wasComplete = isComplete(m);
+  m[item.kind] = item.id;
+  renderMann(i);
+  const el = mannEls[i];
+  el.classList.remove('bounce');
+  void el.offsetWidth;
+  el.classList.add('bounce');
+  blip(660 + Math.random() * 200, 0.08, 'triangle', 0.05);
+  updateStatus();
+
+  if (!wasComplete && isComplete(m)) {
+    el.classList.add('done-pop');
+    setTimeout(() => el.classList.remove('done-pop'), 500);
+    jingle([660, 880, 990]);
+    // move the pointer on to the next mannequin who still needs clothes
+    const next = mannequins.findIndex((mm) => !isComplete(mm));
+    if (next >= 0) selectMann(next);
+  }
+  if (dressedCount() === MANN_COUNT && !won) setTimeout(win, 700);
+}
+
+/* ---------------- win ---------------- */
+function win() {
+  won = true;
+  setHint('☀️ 6AM — <b>THE DOORS OPEN!</b>');
+  $('openDoors').innerHTML = OPEN_DOORS_SVG;
+  $('winText').innerHTML = `ALL ${MANN_COUNT} MANNEQUINS DRESSED!<br>THE SUN IS UP — YOU&rsquo;RE FREE!`;
+  winOverlay.classList.add('show');
+  jingle([523, 659, 784, 1047, 784, 1047], 0.13);
+  const colors = ['#ff2e88', '#00f0ff', '#ffe600', '#6ec48a', '#a678e0', '#ff9d5c'];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = colors[i % colors.length];
+    c.style.animationDuration = 2.5 + Math.random() * 3 + 's';
+    c.style.animationDelay = Math.random() * 2 + 's';
+    winOverlay.appendChild(c);
+  }
+}
+
+$('again').addEventListener('click', () => {
+  won = false;
+  winOverlay.classList.remove('show');
+  [...winOverlay.querySelectorAll('.confetti')].forEach((c) => c.remove());
+  mannequins = Array.from({ length: MANN_COUNT }, () => ({ top: null, bottom: null, shoes: null }));
+  mannequins.forEach((_, i) => renderMann(i));
+  selectMann(0);
+  updateStatus();
+  blip(700, 0.08, 'triangle');
+});
+
+/* ---------------- shop panning (mouse; touch scrolls natively) ---------------- */
+let panning = false, panX = 0, panScroll = 0, panMoved = false;
+shop.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  panning = true; panMoved = false;
+  panX = e.clientX; panScroll = shop.scrollLeft;
+  shop.classList.add('dragging');
+});
+window.addEventListener('pointermove', (e) => {
+  if (!panning) return;
+  const dx = e.clientX - panX;
+  if (Math.abs(dx) > 4) panMoved = true;
+  shop.scrollLeft = panScroll - dx;
+});
+window.addEventListener('pointerup', () => { panning = false; shop.classList.remove('dragging'); });
+shopInner.addEventListener('click', (e) => { if (panMoved) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' && !won) selectMann(Math.min(MANN_COUNT - 1, selected + 1));
+  if (e.key === 'ArrowLeft' && !won) selectMann(Math.max(0, selected - 1));
+});
+
+/* ---------------- go! ---------------- */
+buildShop();
+mannequins = Array.from({ length: MANN_COUNT }, () => ({ top: null, bottom: null, shoes: null }));
+mannequins.forEach((_, i) => renderMann(i));
+selectMann(0);
+renderRack();
+updateStatus();
+setTimeout(() => setHint('🌙 11PM · You&rsquo;re <b>LOCKED IN!</b> Dress every mannequin to escape!'), 100);
+setTimeout(updateStatus, 4500);
+</script>
+</body>
+</html>
