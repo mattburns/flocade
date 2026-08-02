@@ -166,18 +166,32 @@
       overflow: hidden;
       touch-action: none;
       box-shadow: 0 0 24px rgba(0, 240, 255, 0.12);
+      background: #fff;
     }
-    #wall  { position: absolute; left: 0; right: 0; top: 0; height: 58%; background: #fff; }
-    #floor { position: absolute; left: 0; right: 0; top: 58%; bottom: 0; background: #fff; }
-    #skirting {
-      position: absolute; left: 0; right: 0; top: 58%;
+    .wallSeg { position: absolute; top: 0; height: 58%; background: #fff; }
+    .floorSeg { position: absolute; top: 58%; bottom: 0; background: #fff; }
+    .skirt {
+      position: absolute; top: 58%;
       height: 8px; margin-top: -4px;
       background: #d8d2e0;
       border-top: 2px solid #b9b1c9;
       border-bottom: 2px solid #b9b1c9;
       pointer-events: none;
+      z-index: 2;
     }
-    #room.painting #wall, #room.painting #floor { cursor: crosshair; }
+    /* the small walls between rooms */
+    .partition {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: clamp(10px, 2.4%, 20px);
+      transform: translateX(-50%);
+      background: #f2eef7;
+      border-left: 3px solid #b9b1c9;
+      border-right: 3px solid #b9b1c9;
+      z-index: 4;
+      pointer-events: none;
+    }
+    #room.painting .wallSeg, #room.painting .floorSeg { cursor: crosshair; }
 
     /* wastepaper bin (drag furniture here to throw it away) */
     #bin {
@@ -188,6 +202,7 @@
       opacity: 0.85;
       transition: transform 0.15s;
       pointer-events: none;
+      z-index: 6;
     }
     #bin svg { display: block; width: 100%; height: auto; }
     #bin.hot { transform: scale(1.25) rotate(-8deg); }
@@ -259,13 +274,13 @@
     .tool svg { width: 100%; height: 100%; }
     .tool.roller { background: var(--yellow); }
 
-    /* swatch panel */
-    #swatchPanel {
+    /* side panel: furniture catalogs + paint swatches */
+    #sidePanel {
       position: absolute;
       top: 3%;
       right: 0;
       bottom: 3%;
-      width: min(46%, 220px);
+      width: min(50%, 250px);
       background: #f4f0fa;
       border: 3px solid var(--ink);
       border-right: none;
@@ -277,8 +292,8 @@
       transform: translateX(110%);
       transition: transform 0.25s ease-out;
     }
-    #swatchPanel.open { transform: translateX(0); }
-    #swatchClose {
+    #sidePanel.open { transform: translateX(0); }
+    #panelClose {
       flex: 0 0 34px;
       border: none;
       background: none;
@@ -287,13 +302,13 @@
       font-size: 1rem;
       color: var(--ink);
     }
-    #swatchScroll {
+    #panelScroll {
       flex: 1;
       overflow-y: auto;
       touch-action: pan-y;
       padding: 12px 12px 12px 0;
     }
-    #swatchScroll p {
+    #panelTitle {
       font-family: 'Press Start 2P', monospace;
       font-size: 0.45rem;
       line-height: 1.7;
@@ -301,7 +316,7 @@
       text-align: center;
       margin-bottom: 10px;
     }
-    #swatchGrid {
+    #panelGrid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
@@ -314,6 +329,16 @@
       padding: 0;
     }
     .swatch.sel { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 46, 136, 0.4); }
+    .itemBtn {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      border: 3px solid #c9c0d8;
+      background: #fff;
+      cursor: pointer;
+      padding: 5px;
+    }
+    .itemBtn:active { background: #ffe9f3; }
+    .itemBtn svg { width: 100%; height: 100%; }
   </style>
 </head>
 <body>
@@ -336,16 +361,14 @@
   <div id="roomView">
     <div id="roomWrap">
       <div id="room">
-        <div id="wall"></div>
-        <div id="floor"></div>
-        <div id="skirting"></div>
+        <div id="surfaces"></div>
         <div id="bin"></div>
         <div id="items"></div>
-        <div id="swatchPanel">
-          <button id="swatchClose" aria-label="Close swatches">&gt;</button>
-          <div id="swatchScroll">
-            <p>PICK A STYLE,<br>THEN TAP THE<br>WALL OR FLOOR!</p>
-            <div id="swatchGrid"></div>
+        <div id="sidePanel">
+          <button id="panelClose" aria-label="Close panel">&gt;</button>
+          <div id="panelScroll">
+            <p id="panelTitle"></p>
+            <div id="panelGrid"></div>
           </div>
         </div>
         <div id="toolbar"></div>
@@ -437,6 +460,7 @@ const PATTERNS = {
 /* ---------------- furniture ---------------- */
 const OUT = `stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'`;
 const FURNITURE = {
+  /* --- bedroom --- */
   bed: { w: 27, vw: 220, vh: 130, svg:
     `<rect x='8' y='12' width='28' height='96' rx='9' fill='#c98a5b' ${OUT}/>` +
     `<rect x='192' y='58' width='20' height='50' rx='7' fill='#c98a5b' ${OUT}/>` +
@@ -446,12 +470,99 @@ const FURNITURE = {
     `<rect x='30' y='62' width='168' height='30' rx='11' fill='#fffdf5' ${OUT}/>` +
     `<path d='M96 62 h102 v30 h-102 q14 -15 0 -30 z' fill='#ff8fb8' ${OUT}/>` +
     `<rect x='38' y='46' width='50' height='26' rx='11' fill='#fff' ${OUT}/>` },
+  bedBlue: { w: 30, vw: 240, vh: 135, svg:
+    `<rect x='8' y='8' width='30' height='102' rx='9' fill='#6ea8dc' ${OUT}/>` +
+    `<rect x='212' y='60' width='20' height='52' rx='7' fill='#6ea8dc' ${OUT}/>` +
+    `<rect x='26' y='90' width='190' height='22' rx='6' fill='#4a76a8' ${OUT}/>` +
+    `<rect x='32' y='110' width='14' height='14' fill='#35577d' ${OUT}/>` +
+    `<rect x='196' y='110' width='14' height='14' fill='#35577d' ${OUT}/>` +
+    `<rect x='32' y='62' width='176' height='30' rx='11' fill='#fffdf5' ${OUT}/>` +
+    `<path d='M116 62 h92 v30 h-92 q14 -15 0 -30 z' fill='#8fc0ea' ${OUT}/>` +
+    `<rect x='38' y='44' width='36' height='24' rx='10' fill='#fff' ${OUT}/>` +
+    `<rect x='80' y='44' width='36' height='24' rx='10' fill='#fff' ${OUT}/>` },
+  wardrobe: { w: 15, vw: 120, vh: 175, svg:
+    `<rect x='10' y='8' width='100' height='152' rx='8' fill='#c98a5b' ${OUT}/>` +
+    `<path d='M60 8 V160' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<rect x='48' y='72' width='6' height='24' rx='3' fill='#4a3b5c'/>` +
+    `<rect x='66' y='72' width='6' height='24' rx='3' fill='#4a3b5c'/>` +
+    `<rect x='18' y='160' width='14' height='10' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='88' y='160' width='14' height='10' fill='#8a5a2e' ${OUT}/>` },
+  drawers: { w: 14, vw: 115, vh: 125, svg:
+    `<rect x='8' y='10' width='99' height='100' rx='7' fill='#d9a05f' ${OUT}/>` +
+    `<path d='M8 43 H107 M8 76 H107' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<rect x='45' y='22' width='25' height='7' rx='3.5' fill='#4a3b5c'/>` +
+    `<rect x='45' y='55' width='25' height='7' rx='3.5' fill='#4a3b5c'/>` +
+    `<rect x='45' y='88' width='25' height='7' rx='3.5' fill='#4a3b5c'/>` +
+    `<rect x='16' y='110' width='13' height='10' fill='#b07a3f' ${OUT}/>` +
+    `<rect x='86' y='110' width='13' height='10' fill='#b07a3f' ${OUT}/>` },
+  bedside: { w: 12, vw: 100, vh: 115, svg:
+    `<polygon points='34,14 66,14 72,34 28,34' fill='#ff9dc2' ${OUT}/>` +
+    `<rect x='47' y='34' width='6' height='18' fill='#8a839e'/>` +
+    `<rect x='8' y='52' width='84' height='10' rx='4' fill='#c98a5b' ${OUT}/>` +
+    `<rect x='20' y='62' width='60' height='26' rx='5' fill='#b0713f' ${OUT}/>` +
+    `<circle cx='50' cy='75' r='4' fill='#4a3b5c'/>` +
+    `<rect x='16' y='88' width='9' height='22' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='75' y='88' width='9' height='22' fill='#8a5a2e' ${OUT}/>` },
+  lamp: { w: 10, vw: 80, vh: 165, svg:
+    `<polygon points='22,10 58,10 68,52 12,52' fill='#ffe600' ${OUT}/>` +
+    `<rect x='37' y='52' width='6' height='94' fill='#8a839e' ${OUT}/>` +
+    `<ellipse cx='40' cy='150' rx='27' ry='9' fill='#8a839e' ${OUT}/>` },
+  rug: { w: 22, vw: 170, vh: 55, svg:
+    `<ellipse cx='85' cy='27' rx='78' ry='22' fill='#ff9dc2' ${OUT}/>` +
+    `<ellipse cx='85' cy='27' rx='55' ry='14' fill='#ffd9e8' stroke='#4a3b5c' stroke-width='3'/>` },
+  teddy: { w: 8, vw: 78, vh: 88, svg:
+    `<circle cx='22' cy='14' r='7' fill='#b0713f' ${OUT}/>` +
+    `<circle cx='54' cy='14' r='7' fill='#b0713f' ${OUT}/>` +
+    `<circle cx='38' cy='26' r='17' fill='#c98a5b' ${OUT}/>` +
+    `<ellipse cx='38' cy='32' rx='8' ry='5.5' fill='#e8c49a'/>` +
+    `<circle cx='31' cy='22' r='2.2' fill='#26223a'/><circle cx='45' cy='22' r='2.2' fill='#26223a'/>` +
+    `<ellipse cx='38' cy='60' rx='21' ry='22' fill='#c98a5b' ${OUT}/>` +
+    `<ellipse cx='38' cy='62' rx='11' ry='13' fill='#e8c49a'/>` +
+    `<ellipse cx='18' cy='78' rx='9' ry='7' fill='#b0713f' ${OUT}/>` +
+    `<ellipse cx='58' cy='78' rx='9' ry='7' fill='#b0713f' ${OUT}/>` },
+  /* --- bathroom --- */
   toilet: { w: 12, vw: 100, vh: 125, svg:
     `<rect x='24' y='10' width='52' height='36' rx='7' fill='#fff' ${OUT}/>` +
     `<rect x='42' y='2' width='16' height='9' rx='4' fill='#cfd8e3' ${OUT}/>` +
     `<path d='M18 56 h64 c3 26 -13 42 -32 42 s-35 -16 -32 -42 z' fill='#fff' ${OUT}/>` +
     `<ellipse cx='50' cy='55' rx='33' ry='11' fill='#e8eef5' ${OUT}/>` +
     `<rect x='30' y='108' width='40' height='12' rx='5' fill='#cfd8e3' ${OUT}/>` },
+  sink: { w: 11, vw: 95, vh: 125, svg:
+    `<rect x='43' y='28' width='8' height='24' fill='#8a839e' ${OUT}/>` +
+    `<path d='M47 30 q0 -12 14 -12' fill='none' stroke='#8a839e' stroke-width='7' stroke-linecap='round'/>` +
+    `<path d='M10 50 h75 c0 20 -15 32 -38 32 s-37 -12 -37 -32 z' fill='#fff' ${OUT}/>` +
+    `<rect x='36' y='82' width='22' height='32' fill='#fff' ${OUT}/>` +
+    `<rect x='26' y='112' width='42' height='10' rx='4' fill='#cfd8e3' ${OUT}/>` },
+  bath: { w: 24, vw: 185, vh: 105, svg:
+    `<rect x='18' y='10' width='8' height='24' fill='#8a839e' ${OUT}/>` +
+    `<path d='M22 12 q0 -8 12 -8' fill='none' stroke='#8a839e' stroke-width='6' stroke-linecap='round'/>` +
+    `<rect x='8' y='32' width='168' height='56' rx='24' fill='#fff' ${OUT}/>` +
+    `<ellipse cx='92' cy='36' rx='80' ry='9' fill='#e8eef5' ${OUT}/>` +
+    `<circle cx='38' cy='94' r='7' fill='#ffe600' ${OUT}/>` +
+    `<circle cx='148' cy='94' r='7' fill='#ffe600' ${OUT}/>` },
+  shower: { w: 16, vw: 130, vh: 180, svg:
+    `<rect x='94' y='36' width='28' height='126' rx='4' fill='#cfe8f5' fill-opacity='0.75' ${OUT}/>` +
+    `<rect x='18' y='14' width='7' height='64' fill='#8a839e' ${OUT}/>` +
+    `<path d='M22 16 h34' stroke='#8a839e' stroke-width='7' stroke-linecap='round'/>` +
+    `<rect x='46' y='12' width='26' height='13' rx='5' fill='#8a839e' ${OUT}/>` +
+    `<path d='M50 32 v14 M59 32 v18 M68 32 v14' stroke='#7ab8e8' stroke-width='4' stroke-linecap='round'/>` +
+    `<circle cx='50' cy='56' r='3' fill='#7ab8e8'/><circle cx='59' cy='60' r='3' fill='#7ab8e8'/><circle cx='68' cy='56' r='3' fill='#7ab8e8'/>` +
+    `<rect x='8' y='158' width='114' height='15' rx='7' fill='#cfd8e3' ${OUT}/>` },
+  mirror: { w: 10, vw: 85, vh: 110, svg:
+    `<ellipse cx='42' cy='54' rx='35' ry='46' fill='#ffe600' ${OUT}/>` +
+    `<ellipse cx='42' cy='54' rx='25' ry='36' fill='#cfe8f5' stroke='#4a3b5c' stroke-width='3'/>` +
+    `<path d='M32 40 L46 26 M28 56 L52 32' stroke='#fff' stroke-width='5' stroke-linecap='round'/>` },
+  towel: { w: 10, vw: 85, vh: 105, svg:
+    `<rect x='6' y='12' width='73' height='7' rx='3.5' fill='#8a839e' ${OUT}/>` +
+    `<rect x='22' y='19' width='34' height='62' rx='5' fill='#ff9dc2' ${OUT}/>` +
+    `<path d='M22 62 h34' stroke='#e05a8f' stroke-width='5'/>` },
+  duck: { w: 7, vw: 66, vh: 62, svg:
+    `<ellipse cx='30' cy='42' rx='25' ry='16' fill='#ffe600' ${OUT}/>` +
+    `<circle cx='46' cy='21' r='13' fill='#ffe600' ${OUT}/>` +
+    `<polygon points='57,19 70,23 57,28' fill='#ffa53d' ${OUT}/>` +
+    `<circle cx='47' cy='17' r='2.4' fill='#26223a'/>` +
+    `<path d='M14 40 q10 -8 18 0' fill='none' stroke='#4a3b5c' stroke-width='3.5' stroke-linecap='round'/>` },
+  /* --- kitchen --- */
   fridge: { w: 14, vw: 100, vh: 160, svg:
     `<rect x='14' y='6' width='72' height='142' rx='11' fill='#dff3f7' ${OUT}/>` +
     `<path d='M14 58 h72' stroke='#4a3b5c' stroke-width='4'/>` +
@@ -459,6 +570,43 @@ const FURNITURE = {
     `<rect x='72' y='68' width='7' height='46' rx='3.5' fill='#4a3b5c'/>` +
     `<rect x='20' y='148' width='12' height='9' fill='#9bb8c0' ${OUT}/>` +
     `<rect x='68' y='148' width='12' height='9' fill='#9bb8c0' ${OUT}/>` },
+  fridgeBig: { w: 16, vw: 125, vh: 170, svg:
+    `<rect x='8' y='8' width='108' height='150' rx='10' fill='#d8dde3' ${OUT}/>` +
+    `<path d='M62 8 V158' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<rect x='50' y='36' width='6' height='52' rx='3' fill='#4a3b5c'/>` +
+    `<rect x='68' y='36' width='6' height='52' rx='3' fill='#4a3b5c'/>` +
+    `<rect x='20' y='48' width='22' height='30' rx='4' fill='#a8b2bc' ${OUT}/>` +
+    `<rect x='16' y='158' width='12' height='9' fill='#9ba4ad' ${OUT}/>` +
+    `<rect x='96' y='158' width='12' height='9' fill='#9ba4ad' ${OUT}/>` },
+  kitchenSink: { w: 18, vw: 140, vh: 115, svg:
+    `<rect x='64' y='14' width='7' height='24' fill='#8a839e' ${OUT}/>` +
+    `<path d='M68 16 q0 -10 14 -10' fill='none' stroke='#8a839e' stroke-width='6' stroke-linecap='round'/>` +
+    `<rect x='42' y='36' width='56' height='9' rx='3' fill='#cfd8e3' ${OUT}/>` +
+    `<rect x='6' y='44' width='128' height='11' rx='4' fill='#d9a05f' ${OUT}/>` +
+    `<rect x='12' y='55' width='116' height='52' rx='5' fill='#c98a5b' ${OUT}/>` +
+    `<path d='M70 55 V107' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<circle cx='58' cy='80' r='4' fill='#4a3b5c'/><circle cx='82' cy='80' r='4' fill='#4a3b5c'/>` },
+  table: { w: 22, vw: 170, vh: 105, svg:
+    `<rect x='6' y='28' width='158' height='13' rx='6' fill='#c98a5b' ${OUT}/>` +
+    `<rect x='20' y='41' width='11' height='58' fill='#b0713f' ${OUT}/>` +
+    `<rect x='139' y='41' width='11' height='58' fill='#b0713f' ${OUT}/>` },
+  pendant: { w: 9, vw: 80, vh: 130, svg:
+    `<rect x='37' y='0' width='6' height='46' fill='#4a3b5c'/>` +
+    `<polygon points='18,46 62,46 72,86 8,86' fill='#3d9ca8' ${OUT}/>` +
+    `<circle cx='40' cy='94' r='9' fill='#ffe600' ${OUT}/>` },
+  cake: { w: 10, vw: 85, vh: 92, svg:
+    `<circle cx='42' cy='18' r='5' fill='#ff2e88' ${OUT}/>` +
+    `<rect x='21' y='26' width='42' height='19' rx='6' fill='#ffd9e8' ${OUT}/>` +
+    `<rect x='14' y='44' width='56' height='24' rx='6' fill='#ff9dc2' ${OUT}/>` +
+    `<ellipse cx='42' cy='72' rx='31' ry='6' fill='#d8dde3' ${OUT}/>` +
+    `<rect x='38' y='76' width='8' height='8' fill='#d8dde3' ${OUT}/>` +
+    `<ellipse cx='42' cy='86' rx='14' ry='4' fill='#d8dde3' ${OUT}/>` },
+  fruit: { w: 11, vw: 95, vh: 65, svg:
+    `<circle cx='28' cy='24' r='10' fill='#e05252' ${OUT}/>` +
+    `<circle cx='48' cy='19' r='10' fill='#ffa53d' ${OUT}/>` +
+    `<circle cx='67' cy='24' r='10' fill='#7ecb5f' ${OUT}/>` +
+    `<path d='M8 32 h78 c0 17 -16 27 -39 27 s-39 -10 -39 -27 z' fill='#7aa8d8' ${OUT}/>` },
+  /* --- living room --- */
   sofa: { w: 23, vw: 180, vh: 115, svg:
     `<rect x='20' y='14' width='140' height='64' rx='15' fill='#ff6ea6' ${OUT}/>` +
     `<rect x='34' y='58' width='54' height='32' rx='9' fill='#ff9dc2' ${OUT}/>` +
@@ -467,12 +615,69 @@ const FURNITURE = {
     `<rect x='144' y='44' width='32' height='54' rx='13' fill='#ff6ea6' ${OUT}/>` +
     `<rect x='24' y='96' width='12' height='14' fill='#8a5a2e' ${OUT}/>` +
     `<rect x='144' y='96' width='12' height='14' fill='#8a5a2e' ${OUT}/>` },
+  armchair: { w: 14, vw: 115, vh: 115, svg:
+    `<rect x='18' y='12' width='79' height='62' rx='14' fill='#7ab8e8' ${OUT}/>` +
+    `<rect x='27' y='58' width='61' height='30' rx='9' fill='#a8d0f0' ${OUT}/>` +
+    `<rect x='5' y='44' width='25' height='52' rx='11' fill='#7ab8e8' ${OUT}/>` +
+    `<rect x='85' y='44' width='25' height='52' rx='11' fill='#7ab8e8' ${OUT}/>` +
+    `<rect x='20' y='94' width='11' height='14' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='84' y='94' width='11' height='14' fill='#8a5a2e' ${OUT}/>` },
   tv: { w: 17, vw: 150, vh: 118, svg:
     `<rect x='8' y='8' width='134' height='76' rx='9' fill='#26223a' ${OUT}/>` +
     `<rect x='18' y='18' width='114' height='56' rx='5' fill='#3d3660'/>` +
     `<path d='M28 66 L74 24 M42 70 L88 28' stroke='#5e548e' stroke-width='7' stroke-linecap='round'/>` +
     `<rect x='67' y='84' width='16' height='16' fill='#8a839e' ${OUT}/>` +
     `<rect x='45' y='100' width='60' height='11' rx='5' fill='#4a3b5c'/>` },
+  plant: { w: 11, vw: 95, vh: 135, svg:
+    `<path d='M47 88 C20 66 20 34 47 14 C74 34 74 66 47 88 z' fill='#7ecb5f' ${OUT}/>` +
+    `<path d='M47 88 C30 78 14 74 8 52 C30 52 44 64 47 88 z' fill='#4e9c38' ${OUT}/>` +
+    `<path d='M47 88 C64 78 80 74 86 52 C64 52 50 64 47 88 z' fill='#4e9c38' ${OUT}/>` +
+    `<rect x='24' y='86' width='46' height='12' rx='4' fill='#e07a3d' ${OUT}/>` +
+    `<polygon points='28,98 66,98 60,128 34,128' fill='#d6642e' ${OUT}/>` },
+  music: { w: 14, vw: 120, vh: 88, svg:
+    `<path d='M32 24 v-10 h56 v10' fill='none' stroke='#4a3b5c' stroke-width='6' stroke-linecap='round'/>` +
+    `<rect x='6' y='24' width='108' height='54' rx='9' fill='#7c4fc9' ${OUT}/>` +
+    `<circle cx='30' cy='51' r='16' fill='#d4b8ff' ${OUT}/>` +
+    `<circle cx='30' cy='51' r='6' fill='#4a3b5c'/>` +
+    `<circle cx='90' cy='51' r='16' fill='#d4b8ff' ${OUT}/>` +
+    `<circle cx='90' cy='51' r='6' fill='#4a3b5c'/>` +
+    `<rect x='51' y='42' width='18' height='13' rx='3' fill='#d4b8ff' ${OUT}/>` },
+  pillow: { w: 9, vw: 85, vh: 65, svg:
+    `<rect x='8' y='9' width='69' height='47' rx='17' fill='#ffe600' ${OUT}/>` +
+    `<path d='M22 20 q20 8 41 0 M22 45 q20 -8 41 0' fill='none' stroke='#e0c500' stroke-width='4' stroke-linecap='round'/>` +
+    `<circle cx='42' cy='32' r='4' fill='#e0c500'/>` },
+  /* --- tv & tech --- */
+  tvRetro: { w: 14, vw: 115, vh: 105, svg:
+    `<path d='M50 28 L28 6 M64 28 L86 8' stroke='#4a3b5c' stroke-width='5' stroke-linecap='round'/>` +
+    `<rect x='8' y='28' width='99' height='64' rx='10' fill='#c98a5b' ${OUT}/>` +
+    `<rect x='17' y='37' width='57' height='46' rx='6' fill='#26223a' ${OUT}/>` +
+    `<path d='M26 70 L52 46' stroke='#5e548e' stroke-width='6' stroke-linecap='round'/>` +
+    `<circle cx='90' cy='48' r='6' fill='#ffe600' ${OUT}/>` +
+    `<circle cx='90' cy='68' r='6' fill='#ffe600' ${OUT}/>` +
+    `<rect x='18' y='92' width='12' height='9' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='84' y='92' width='12' height='9' fill='#8a5a2e' ${OUT}/>` },
+  console: { w: 12, vw: 105, vh: 78, svg:
+    `<rect x='10' y='12' width='84' height='26' rx='7' fill='#26223a' ${OUT}/>` +
+    `<path d='M24 25 h30' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<circle cx='80' cy='25' r='3.5' fill='#00f0ff'/>` +
+    `<path d='M52 38 q-14 12 -14 20' fill='none' stroke='#4a3b5c' stroke-width='3.5'/>` +
+    `<rect x='24' y='52' width='56' height='21' rx='10' fill='#8a839e' ${OUT}/>` +
+    `<circle cx='38' cy='62' r='3.5' fill='#26223a'/><circle cx='66' cy='60' r='3' fill='#ff2e88'/><circle cx='72' cy='66' r='3' fill='#ffe600'/>` },
+  speaker: { w: 9, vw: 75, vh: 140, svg:
+    `<rect x='10' y='8' width='55' height='122' rx='9' fill='#26223a' ${OUT}/>` +
+    `<circle cx='37' cy='38' r='11' fill='#8a839e' ${OUT}/>` +
+    `<circle cx='37' cy='38' r='4' fill='#26223a'/>` +
+    `<circle cx='37' cy='92' r='19' fill='#8a839e' ${OUT}/>` +
+    `<circle cx='37' cy='92' r='7' fill='#26223a'/>` },
+};
+
+/* what each toolbar button opens — straight from Flo's spec */
+const CATALOGS = {
+  bed:    { title: 'BEDROOM STUFF',  items: ['bed', 'bedBlue', 'wardrobe', 'drawers', 'bedside', 'lamp', 'rug', 'teddy'] },
+  toilet: { title: 'BATHROOM STUFF', items: ['toilet', 'sink', 'bath', 'shower', 'mirror', 'towel', 'duck'] },
+  fridge: { title: 'KITCHEN STUFF',  items: ['fridge', 'fridgeBig', 'kitchenSink', 'table', 'pendant', 'cake', 'fruit'] },
+  sofa:   { title: 'LIVING ROOM',    items: ['sofa', 'armchair', 'tv', 'plant', 'music', 'pillow', 'rug', 'lamp'] },
+  tv:     { title: 'TV &amp; TECH',  items: ['tv', 'tvRetro', 'console', 'speaker', 'music'] },
 };
 
 const ICON_ROLLER =
@@ -493,19 +698,21 @@ const BIN_SVG =
   `<path d='M22 24 L27 70 M35 24 L35 70 M48 24 L43 70' fill='none' stroke-width='3'/>` +
   `<rect x='8' y='10' width='54' height='9' rx='4' fill='#cfc7dd'/></g></svg>`;
 
-function itemSVG(type) {
+function itemSVG(type, fit) {
   const f = FURNITURE[type];
-  return `<svg viewBox='0 0 ${f.vw} ${f.vh}' style='aspect-ratio:${f.vw}/${f.vh}'>${f.svg}</svg>`;
+  const style = fit ? 'width:100%;height:100%' : `aspect-ratio:${f.vw}/${f.vh}`;
+  return `<svg viewBox='0 0 ${f.vw} ${f.vh}' style='${style}'>${f.svg}</svg>`;
 }
 
 /* ---------------- houses ---------------- */
+/* rooms: widths (%) of each room, left to right — small walls sit between them */
 const HOUSES = [
-  { id: 'rose',   name: 'ROSE COTTAGE', body: '#ffb3d1', roof: '#c94f7c', door: '#8a2e55' },
-  { id: 'blue',   name: 'BLUE BUNGALOW', body: '#9dd6ff', roof: '#3d6fa8', door: '#26456b' },
-  { id: 'sunny',  name: 'SUNNY VILLA', body: '#ffe08a', roof: '#d68a2e', door: '#8a5a1a' },
-  { id: 'mint',   name: 'MINT MANOR', body: '#a8e8c0', roof: '#3f9c68', door: '#25603f' },
-  { id: 'lilac',  name: 'LILAC LODGE', body: '#d4b8ff', roof: '#7c4fc9', door: '#4d2e8a' },
-  { id: 'peach',  name: 'PEACH PLACE', body: '#ffc9a3', roof: '#d6642e', door: '#8a3d1a' },
+  { id: 'rose',   name: 'ROSE COTTAGE',  body: '#ffb3d1', roof: '#c94f7c', door: '#8a2e55', rooms: [38, 34, 28] },
+  { id: 'blue',   name: 'BLUE BUNGALOW', body: '#9dd6ff', roof: '#3d6fa8', door: '#26456b', rooms: [55, 45] },
+  { id: 'sunny',  name: 'SUNNY VILLA',   body: '#ffe08a', roof: '#d68a2e', door: '#8a5a1a', rooms: [30, 40, 30] },
+  { id: 'mint',   name: 'MINT MANOR',    body: '#a8e8c0', roof: '#3f9c68', door: '#25603f', rooms: [25, 25, 25, 25] },
+  { id: 'lilac',  name: 'LILAC LODGE',   body: '#d4b8ff', roof: '#7c4fc9', door: '#4d2e8a', rooms: [45, 55] },
+  { id: 'peach',  name: 'PEACH PLACE',   body: '#ffc9a3', roof: '#d6642e', door: '#8a3d1a', rooms: [33, 34, 33] },
 ];
 
 function houseSVG(h, i) {
@@ -537,18 +744,33 @@ function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
 }
 function houseState(id) {
-  if (!state.houses[id]) state.houses[id] = { wall: 'white', floor: 'white', items: [] };
-  return state.houses[id];
+  const roomCount = HOUSES.find((h) => h.id === id).rooms.length;
+  let hs = state.houses[id];
+  if (!hs) {
+    hs = state.houses[id] = { rooms: [], items: [] };
+  }
+  // migrate old saves that had one wall/floor for the whole house
+  if (!Array.isArray(hs.rooms)) {
+    hs.rooms = [];
+    if (hs.wall || hs.floor) {
+      for (let i = 0; i < roomCount; i++) hs.rooms.push({ wall: hs.wall || 'white', floor: hs.floor || 'white' });
+    }
+    delete hs.wall;
+    delete hs.floor;
+  }
+  while (hs.rooms.length < roomCount) hs.rooms.push({ wall: 'white', floor: 'white' });
+  if (!Array.isArray(hs.items)) hs.items = [];
+  return hs;
 }
 
 /* ---------------- elements ---------------- */
 const $ = (id) => document.getElementById(id);
 const worldView = $('worldView'), roomView = $('roomView');
 const street = $('street'), streetInner = $('streetInner');
-const room = $('room'), wall = $('wall'), floor = $('floor');
+const room = $('room'), surfaces = $('surfaces');
 const itemsLayer = $('items'), bin = $('bin');
 const toolbar = $('toolbar'), fab = $('fab');
-const swatchPanel = $('swatchPanel'), swatchGrid = $('swatchGrid');
+const sidePanel = $('sidePanel'), panelTitle = $('panelTitle'), panelGrid = $('panelGrid');
 const hint = $('hint'), title = $('title');
 const exitRoom = $('exitRoom'), backArcade = $('backArcade');
 
@@ -556,6 +778,7 @@ let currentHouse = null;
 let editMode = false;
 let paintSel = null;
 let zTop = 10;
+let wallEls = [], floorEls = [];
 
 /* ---------------- world / street ---------------- */
 bin.innerHTML = BIN_SVG;
@@ -624,27 +847,69 @@ function leaveHouse() {
 }
 exitRoom.addEventListener('click', leaveHouse);
 
+/* build one wall + floor segment per room, with small walls between them */
+function buildSurfaces() {
+  surfaces.innerHTML = '';
+  wallEls = []; floorEls = [];
+  let x = 0;
+  currentHouse.rooms.forEach((w, i) => {
+    const wallSeg = document.createElement('div');
+    wallSeg.className = 'wallSeg';
+    wallSeg.style.left = x + '%';
+    wallSeg.style.width = w + '%';
+    wallSeg.addEventListener('click', () => paintSurface(i, 'wall'));
+
+    const floorSeg = document.createElement('div');
+    floorSeg.className = 'floorSeg';
+    floorSeg.style.left = x + '%';
+    floorSeg.style.width = w + '%';
+    floorSeg.addEventListener('click', () => paintSurface(i, 'floor'));
+
+    const skirt = document.createElement('div');
+    skirt.className = 'skirt';
+    skirt.style.left = x + '%';
+    skirt.style.width = w + '%';
+
+    surfaces.append(wallSeg, floorSeg, skirt);
+    wallEls.push(wallSeg);
+    floorEls.push(floorSeg);
+    x += w;
+
+    if (i < currentHouse.rooms.length - 1) {
+      const part = document.createElement('div');
+      part.className = 'partition';
+      part.style.left = x + '%';
+      surfaces.appendChild(part);
+    }
+  });
+}
+
 function applySurfaces() {
   const hs = houseState(currentHouse.id);
-  wall.style.background = (PATTERNS[hs.wall] || PATTERNS.white).css;
-  floor.style.background = (PATTERNS[hs.floor] || PATTERNS.white).css;
+  hs.rooms.forEach((r, i) => {
+    if (wallEls[i]) wallEls[i].style.background = (PATTERNS[r.wall] || PATTERNS.white).css;
+    if (floorEls[i]) floorEls[i].style.background = (PATTERNS[r.floor] || PATTERNS.white).css;
+  });
 }
 
 function renderRoom() {
+  buildSurfaces();
   applySurfaces();
   itemsLayer.innerHTML = '';
-  houseState(currentHouse.id).items.forEach((it) => itemsLayer.appendChild(makeItemEl(it)));
+  houseState(currentHouse.id).items.forEach((it) => {
+    if (FURNITURE[it.t]) itemsLayer.appendChild(makeItemEl(it));
+  });
 }
 
 /* ---------------- edit mode / toolbar ---------------- */
 const TOOL_ORDER = ['bed', 'toilet', 'fridge', 'sofa', 'tv'];
-TOOL_ORDER.forEach((type, i) => {
+TOOL_ORDER.forEach((cat, i) => {
   const b = document.createElement('button');
   b.className = 'tool';
   b.style.setProperty('--d', i * 0.04 + 's');
-  b.innerHTML = itemSVG(type);
-  b.title = type;
-  b.addEventListener('click', () => spawnItem(type));
+  b.innerHTML = itemSVG(cat, true);
+  b.title = cat;
+  b.addEventListener('click', () => openCatalog(cat));
   toolbar.appendChild(b);
 });
 const rollerBtn = document.createElement('button');
@@ -652,11 +917,7 @@ rollerBtn.className = 'tool roller';
 rollerBtn.style.setProperty('--d', TOOL_ORDER.length * 0.04 + 's');
 rollerBtn.innerHTML = ICON_ROLLER;
 rollerBtn.title = 'paint';
-rollerBtn.addEventListener('click', () => {
-  blip(760, 0.07);
-  swatchPanel.classList.add('open');
-  setHint('Pick a style, then tap the <b>wall</b> or <b>floor</b>!');
-});
+rollerBtn.addEventListener('click', openSwatches);
 toolbar.appendChild(rollerBtn);
 
 fab.addEventListener('click', () => setEditMode(!editMode));
@@ -666,54 +927,77 @@ function setEditMode(on) {
   room.classList.toggle('edit', on);
   if (on) {
     blip(880, 0.09, 'triangle');
-    setHint('Add furniture, <b>drag</b> it around, <b>tap</b> it to flip — drag onto the <b>bin</b> to bin it!');
+    setHint('Tap a button for furniture, or the <b>roller</b> to paint!');
   } else {
-    closeSwatches();
+    closePanel();
   }
 }
 
-/* ---------------- swatches / painting ---------------- */
-Object.keys(PATTERNS).forEach((id) => {
-  const b = document.createElement('button');
-  b.className = 'swatch';
-  b.style.background = PATTERNS[id].css;
-  b.addEventListener('click', () => {
-    paintSel = id;
-    blip(920, 0.06);
-    [...swatchGrid.children].forEach((c) => c.classList.remove('sel'));
-    b.classList.add('sel');
-    room.classList.add('painting');
-    setHint('Now tap the <b>wall</b> or the <b>floor</b>!');
-  });
-  swatchGrid.appendChild(b);
-});
-
-function closeSwatches() {
-  swatchPanel.classList.remove('open');
+/* ---------------- side panel (catalogs + swatches) ---------------- */
+function openCatalog(cat) {
+  blip(760, 0.07);
   paintSel = null;
   room.classList.remove('painting');
-  [...swatchGrid.children].forEach((c) => c.classList.remove('sel'));
+  const c = CATALOGS[cat];
+  panelTitle.innerHTML = c.title;
+  panelGrid.innerHTML = '';
+  c.items.forEach((type) => {
+    const b = document.createElement('button');
+    b.className = 'itemBtn';
+    b.innerHTML = itemSVG(type, true);
+    b.addEventListener('click', () => spawnItem(type));
+    panelGrid.appendChild(b);
+  });
+  sidePanel.classList.add('open');
+  setHint('Tap things to add them, then <b>drag</b> them where you like!');
 }
-$('swatchClose').addEventListener('click', () => { blip(440, 0.06); closeSwatches(); });
 
-function paintSurface(which) {
+function openSwatches() {
+  blip(760, 0.07);
+  panelTitle.innerHTML = 'PICK A STYLE,<br>THEN TAP A ROOM&rsquo;S<br>WALL OR FLOOR!';
+  panelGrid.innerHTML = '';
+  Object.keys(PATTERNS).forEach((id) => {
+    const b = document.createElement('button');
+    b.className = 'swatch' + (paintSel === id ? ' sel' : '');
+    b.style.background = PATTERNS[id].css;
+    b.addEventListener('click', () => {
+      paintSel = id;
+      blip(920, 0.06);
+      [...panelGrid.children].forEach((c) => c.classList.remove('sel'));
+      b.classList.add('sel');
+      room.classList.add('painting');
+      setHint('Now tap a room&rsquo;s <b>wall</b> or <b>floor</b> — it only paints that room!');
+    });
+    panelGrid.appendChild(b);
+  });
+  sidePanel.classList.add('open');
+  setHint('Pick a style, then tap a room&rsquo;s <b>wall</b> or <b>floor</b>!');
+}
+
+function closePanel() {
+  sidePanel.classList.remove('open');
+  paintSel = null;
+  room.classList.remove('painting');
+}
+$('panelClose').addEventListener('click', () => { blip(440, 0.06); closePanel(); });
+
+function paintSurface(roomIdx, which) {
   if (!paintSel || !currentHouse) return;
-  houseState(currentHouse.id)[which] = paintSel;
+  houseState(currentHouse.id).rooms[roomIdx][which] = paintSel;
   applySurfaces();
   save();
   blip(which === 'wall' ? 990 : 660, 0.12, 'sine', 0.05);
 }
-wall.addEventListener('click', () => paintSurface('wall'));
-floor.addEventListener('click', () => paintSurface('floor'));
 
 /* ---------------- furniture: spawn / drag / flip / bin ---------------- */
 function spawnItem(type) {
   const hs = houseState(currentHouse.id);
-  if (hs.items.length >= 30) { blip(160, 0.15, 'sawtooth'); setHint('This house is FULL! Bin something first.'); return; }
+  if (hs.items.length >= 40) { blip(160, 0.15, 'sawtooth'); setHint('This house is FULL! Bin something first.'); return; }
+  const hangs = type === 'pendant' || type === 'mirror' || type === 'towel' || type === 'tv';
   const it = {
     t: type,
-    x: 30 + Math.random() * 40,
-    y: type === 'tv' ? 30 + Math.random() * 15 : 70 + Math.random() * 22,
+    x: 25 + Math.random() * 50,
+    y: hangs ? 28 + Math.random() * 18 : 68 + Math.random() * 24,
     f: 1,
     z: ++zTop,
   };
@@ -806,7 +1090,7 @@ function onItemDown(e, el, it) {
 /* ---------------- keyboard ---------------- */
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (swatchPanel.classList.contains('open')) closeSwatches();
+    if (sidePanel.classList.contains('open')) closePanel();
     else if (editMode) setEditMode(false);
     else if (currentHouse) leaveHouse();
   }
