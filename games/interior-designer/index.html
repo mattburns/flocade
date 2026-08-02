@@ -193,8 +193,9 @@
     }
     #room.painting .wallSeg, #room.painting .floorSeg { cursor: crosshair; }
 
-    /* wastepaper bin (drag furniture here to throw it away) */
+    /* wastepaper bin — only out when you want it there (there is an option) */
     #bin {
+      display: none;
       position: absolute;
       left: 2%;
       top: 38%;
@@ -204,6 +205,7 @@
       pointer-events: none;
       z-index: 6;
     }
+    #room.binOn #bin { display: block; }
     #bin svg { display: block; width: 100%; height: auto; }
     #bin.hot { transform: scale(1.25) rotate(-8deg); }
     #bin.hot .binBody { fill: #ffb3c9; }
@@ -236,7 +238,7 @@
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
       display: flex; align-items: center; justify-content: center;
       transition: transform 0.2s;
-      z-index: 30;
+      z-index: 950;
     }
     #fab svg { width: 34px; height: 34px; }
     #room.edit #fab { transform: rotate(-20deg) scale(1.08); background: var(--cyan); }
@@ -250,7 +252,7 @@
       justify-content: center;
       align-items: flex-end;
       gap: 8px;
-      z-index: 25;
+      z-index: 900;
       pointer-events: none;
     }
     .tool {
@@ -273,6 +275,26 @@
     .tool:active { transform: scale(0.9) !important; }
     .tool svg { width: 100%; height: 100%; }
     .tool.roller { background: var(--yellow); }
+    .tool.binTool.on { background: var(--cyan); }
+
+    /* colour dots — everything comes in different colours! */
+    #colorRow {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    #colorRow:empty { display: none; }
+    .dot {
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      border: 3px solid #c9c0d8;
+      cursor: pointer;
+      padding: 0;
+    }
+    .dot.sel { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 46, 136, 0.4); }
 
     /* side panel: furniture catalogs + paint swatches */
     #sidePanel {
@@ -288,7 +310,8 @@
       box-shadow: -4px 4px 14px rgba(0, 0, 0, 0.25);
       display: flex;
       align-items: stretch;
-      z-index: 40;
+      /* anything behind the panel stays behind it — furniture z-indexes never reach this */
+      z-index: 1000;
       transform: translateX(110%);
       transition: transform 0.25s ease-out;
     }
@@ -368,6 +391,7 @@
           <button id="panelClose" aria-label="Close panel">&gt;</button>
           <div id="panelScroll">
             <p id="panelTitle"></p>
+            <div id="colorRow"></div>
             <div id="panelGrid"></div>
           </div>
         </div>
@@ -671,6 +695,50 @@ const FURNITURE = {
     `<circle cx='37' cy='92' r='7' fill='#26223a'/>` },
 };
 
+/* everything comes in different colours! Each palette has a main,
+   light and dark shade; RECOLOR says which of an item's fills to swap. */
+const VARIANTS = {
+  pink:   { m: '#ff6ea6', l: '#ffb3d1', d: '#d14a80' },
+  blue:   { m: '#6ea8dc', l: '#a8d0f0', d: '#4a76a8' },
+  yellow: { m: '#ffd23d', l: '#ffe98a', d: '#d6a41a' },
+  green:  { m: '#6ec48a', l: '#a8e8c0', d: '#3f9c68' },
+  purple: { m: '#a678e0', l: '#d4b8ff', d: '#7c4fc9' },
+  orange: { m: '#ff9d5c', l: '#ffc9a3', d: '#d6642e' },
+};
+const RECOLOR = {
+  bed:        { '#ff8fb8': 'm' },
+  bedBlue:    { '#6ea8dc': 'm', '#8fc0ea': 'l', '#4a76a8': 'd', '#35577d': 'd' },
+  wardrobe:   { '#c98a5b': 'm', '#8a5a2e': 'd' },
+  drawers:    { '#d9a05f': 'm', '#b07a3f': 'd' },
+  bedside:    { '#ff9dc2': 'm' },
+  lamp:       { '#ffe600': 'm' },
+  rug:        { '#ff9dc2': 'm', '#ffd9e8': 'l' },
+  teddy:      { '#c98a5b': 'm', '#b0713f': 'd', '#e8c49a': 'l' },
+  toilet:     { '#cfd8e3': 'l' },
+  sink:       { '#cfd8e3': 'l' },
+  bath:       { '#ffe600': 'm' },
+  shower:     { '#cfd8e3': 'l' },
+  mirror:     { '#ffe600': 'm' },
+  towel:      { '#ff9dc2': 'm', '#e05a8f': 'd' },
+  duck:       { '#ffe600': 'm' },
+  fridge:     { '#dff3f7': 'l' },
+  fridgeBig:  { '#d8dde3': 'l', '#a8b2bc': 'm' },
+  kitchenSink:{ '#c98a5b': 'm', '#d9a05f': 'l' },
+  table:      { '#c98a5b': 'm', '#b0713f': 'd' },
+  pendant:    { '#3d9ca8': 'm' },
+  cake:       { '#ff9dc2': 'm', '#ffd9e8': 'l', '#ff2e88': 'd' },
+  fruit:      { '#7aa8d8': 'm' },
+  sofa:       { '#ff6ea6': 'm', '#ff9dc2': 'l' },
+  armchair:   { '#7ab8e8': 'm', '#a8d0f0': 'l' },
+  tv:         { '#26223a': 'm' },
+  plant:      { '#d6642e': 'm', '#e07a3d': 'l' },
+  music:      { '#7c4fc9': 'm', '#d4b8ff': 'l' },
+  pillow:     { '#ffe600': 'm', '#e0c500': 'd' },
+  tvRetro:    { '#c98a5b': 'm' },
+  console:    { '#8a839e': 'l' },
+  speaker:    { '#26223a': 'm', '#8a839e': 'l' },
+};
+
 /* what each toolbar button opens — straight from Flo's spec */
 const CATALOGS = {
   bed:    { title: 'BEDROOM STUFF',  items: ['bed', 'bedBlue', 'wardrobe', 'drawers', 'bedside', 'lamp', 'rug', 'teddy'] },
@@ -698,10 +766,15 @@ const BIN_SVG =
   `<path d='M22 24 L27 70 M35 24 L35 70 M48 24 L43 70' fill='none' stroke-width='3'/>` +
   `<rect x='8' y='10' width='54' height='9' rx='4' fill='#cfc7dd'/></g></svg>`;
 
-function itemSVG(type, fit) {
+function itemSVG(type, fit, colour) {
   const f = FURNITURE[type];
+  let body = f.svg;
+  const re = RECOLOR[type];
+  if (colour && VARIANTS[colour] && re) {
+    for (const [hex, slot] of Object.entries(re)) body = body.split(hex).join(VARIANTS[colour][slot]);
+  }
   const style = fit ? 'width:100%;height:100%' : `aspect-ratio:${f.vw}/${f.vh}`;
-  return `<svg viewBox='0 0 ${f.vw} ${f.vh}' style='${style}'>${f.svg}</svg>`;
+  return `<svg viewBox='0 0 ${f.vw} ${f.vh}' style='${style}'>${body}</svg>`;
 }
 
 /* ---------------- houses ---------------- */
@@ -739,6 +812,7 @@ try {
   if (raw) state = JSON.parse(raw);
   if (!state || typeof state !== 'object' || !state.houses) state = { houses: {} };
 } catch (e) { state = { houses: {} }; }
+if (typeof state.binOn !== 'boolean') state.binOn = false;
 
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
@@ -771,12 +845,15 @@ const room = $('room'), surfaces = $('surfaces');
 const itemsLayer = $('items'), bin = $('bin');
 const toolbar = $('toolbar'), fab = $('fab');
 const sidePanel = $('sidePanel'), panelTitle = $('panelTitle'), panelGrid = $('panelGrid');
+const colorRow = $('colorRow');
 const hint = $('hint'), title = $('title');
 const exitRoom = $('exitRoom'), backArcade = $('backArcade');
 
 let currentHouse = null;
 let editMode = false;
 let paintSel = null;
+let colourSel = null;
+let currentCat = null;
 let zTop = 10;
 let wallEls = [], floorEls = [];
 
@@ -896,9 +973,14 @@ function renderRoom() {
   buildSurfaces();
   applySurfaces();
   itemsLayer.innerHTML = '';
-  houseState(currentHouse.id).items.forEach((it) => {
+  const hs = houseState(currentHouse.id);
+  // renormalize z so item z-indexes never creep up towards the UI layers
+  zTop = 10;
+  [...hs.items].sort((a, b) => (a.z || 0) - (b.z || 0)).forEach((it) => { it.z = ++zTop; });
+  hs.items.forEach((it) => {
     if (FURNITURE[it.t]) itemsLayer.appendChild(makeItemEl(it));
   });
+  syncBin();
 }
 
 /* ---------------- edit mode / toolbar ---------------- */
@@ -920,6 +1002,31 @@ rollerBtn.title = 'paint';
 rollerBtn.addEventListener('click', openSwatches);
 toolbar.appendChild(rollerBtn);
 
+/* the bin is only on when you want it there — this is the option */
+const binBtn = document.createElement('button');
+binBtn.className = 'tool binTool';
+binBtn.style.setProperty('--d', (TOOL_ORDER.length + 1) * 0.04 + 's');
+binBtn.innerHTML = BIN_SVG;
+binBtn.title = 'bin on/off';
+binBtn.addEventListener('click', () => {
+  state.binOn = !state.binOn;
+  syncBin();
+  save();
+  if (state.binOn) {
+    blip(660, 0.09, 'triangle');
+    setHint('The <b>bin</b> is out! Drag things onto it to throw them away.');
+  } else {
+    blip(330, 0.09, 'triangle');
+    setHint('Bin put away.');
+  }
+});
+toolbar.appendChild(binBtn);
+
+function syncBin() {
+  room.classList.toggle('binOn', !!state.binOn);
+  binBtn.classList.toggle('on', !!state.binOn);
+}
+
 fab.addEventListener('click', () => setEditMode(!editMode));
 
 function setEditMode(on) {
@@ -938,23 +1045,45 @@ function openCatalog(cat) {
   blip(760, 0.07);
   paintSel = null;
   room.classList.remove('painting');
-  const c = CATALOGS[cat];
+  currentCat = cat;
+  renderCatalog();
+  sidePanel.classList.add('open');
+  setHint('Tap things to add them, then <b>drag</b> them where you like!');
+}
+
+function renderCatalog() {
+  const c = CATALOGS[currentCat];
   panelTitle.innerHTML = c.title;
+  // colour dots: first dot = the classic colours, the rest recolour everything
+  colorRow.innerHTML = '';
+  [null, ...Object.keys(VARIANTS)].forEach((key) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (colourSel === key ? ' sel' : '');
+    d.style.background = key
+      ? VARIANTS[key].m
+      : 'conic-gradient(#ff6ea6, #ffd23d, #6ec48a, #6ea8dc, #a678e0, #ff6ea6)';
+    d.title = key || 'classic';
+    d.addEventListener('click', () => {
+      colourSel = key;
+      blip(880, 0.05);
+      renderCatalog();
+    });
+    colorRow.appendChild(d);
+  });
   panelGrid.innerHTML = '';
   c.items.forEach((type) => {
     const b = document.createElement('button');
     b.className = 'itemBtn';
-    b.innerHTML = itemSVG(type, true);
+    b.innerHTML = itemSVG(type, true, colourSel);
     b.addEventListener('click', () => spawnItem(type));
     panelGrid.appendChild(b);
   });
-  sidePanel.classList.add('open');
-  setHint('Tap things to add them, then <b>drag</b> them where you like!');
 }
 
 function openSwatches() {
   blip(760, 0.07);
   panelTitle.innerHTML = 'PICK A STYLE,<br>THEN TAP A ROOM&rsquo;S<br>WALL OR FLOOR!';
+  colorRow.innerHTML = '';
   panelGrid.innerHTML = '';
   Object.keys(PATTERNS).forEach((id) => {
     const b = document.createElement('button');
@@ -999,6 +1128,7 @@ function spawnItem(type) {
     x: 25 + Math.random() * 50,
     y: hangs ? 28 + Math.random() * 18 : 68 + Math.random() * 24,
     f: 1,
+    c: colourSel,
     z: ++zTop,
   };
   hs.items.push(it);
@@ -1013,7 +1143,7 @@ function makeItemEl(it) {
   const el = document.createElement('div');
   el.className = 'item';
   el.style.width = FURNITURE[it.t].w + '%';
-  el.innerHTML = itemSVG(it.t);
+  el.innerHTML = itemSVG(it.t, false, it.c);
   it.z = it.z || ++zTop;
   zTop = Math.max(zTop, it.z);
   positionItem(el, it);
@@ -1029,6 +1159,7 @@ function positionItem(el, it) {
 }
 
 function overBin(e) {
+  if (!state.binOn) return false;
   const r = bin.getBoundingClientRect();
   return e.clientX > r.left - 20 && e.clientX < r.right + 20 &&
          e.clientY > r.top - 20 && e.clientY < r.bottom + 20;
