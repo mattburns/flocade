@@ -196,5 +196,11 @@
     "title": "Babysitter",
     "icon": "👶",
     "description": "Babies are crawling all over the baby-proofed house! Pick up a crying one, fetch the milk or teddy it wants, and earn hearts — 5 hearts brings a new baby. Can you get all 10 happy at once?"
+  },
+  {
+    "slug": "when-i-grow-up",
+    "title": "When I Grow Up",
+    "icon": "🎓",
+    "description": "What do you want to be? Do work experience in ten jobs — prime minister, security guard, shopkeeper, astronaut, artist, guitarist, pianist, drummer, singer, dancer — and win by getting employed!"
   }
 ]
