@@ -6,7 +6,7 @@
 // bumps, anything already cached is served cache-first and silently
 // re-fetched in the background (stale-while-revalidate), so updates still
 // flow to players one visit late.
-const CACHE_VERSION = 'flocade-v3';
+const CACHE_VERSION = 'flocade-v4';
 
 // Files the gallery itself needs.
 const SHELL_ASSETS = [
@@ -29,6 +29,30 @@ const EXTRA_GAME_ASSETS = [
   'games/asmr/three.core.min.js',
   'games/asmr/three.module.min.js',
   'games/growing-gardens/three.module.min.js',
+  // Kiddo Wordo loads one file per language on demand — precache them all so
+  // every language works offline.
+  'games/kiddo-wordo/languages/ar.js',
+  'games/kiddo-wordo/languages/cy.js',
+  'games/kiddo-wordo/languages/de.js',
+  'games/kiddo-wordo/languages/el.js',
+  'games/kiddo-wordo/languages/es.js',
+  'games/kiddo-wordo/languages/fr.js',
+  'games/kiddo-wordo/languages/gd.js',
+  'games/kiddo-wordo/languages/haw.js',
+  'games/kiddo-wordo/languages/hr.js',
+  'games/kiddo-wordo/languages/it.js',
+  'games/kiddo-wordo/languages/ja.js',
+  'games/kiddo-wordo/languages/ko.js',
+  'games/kiddo-wordo/languages/la.js',
+  'games/kiddo-wordo/languages/nl.js',
+  'games/kiddo-wordo/languages/pt.js',
+  'games/kiddo-wordo/languages/ru.js',
+  'games/kiddo-wordo/languages/si.js',
+  'games/kiddo-wordo/languages/so.js',
+  'games/kiddo-wordo/languages/th.js',
+  'games/kiddo-wordo/languages/tr.js',
+  'games/kiddo-wordo/languages/uk.js',
+  'games/kiddo-wordo/languages/zh.js',
   'games/lego-smash/three.module.min.js',
   'games/mini-life/three.module.min.js',
   'games/my-world/three.module.min.js',

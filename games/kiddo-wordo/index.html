@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kids Thai — Flocade</title>
+  <title>Kiddo Wordo — Flocade</title>
   <link rel="stylesheet" href="../../fonts/fonts.css">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,10 +17,22 @@
       justify-content: center;
       padding: 1rem;
     }
-    .thai {
-      font-family: 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', 'Tahoma', sans-serif;
+    /* Native-script text never uses the arcade font — Press Start 2P is
+       Latin-only, so anything else would fall back glyph-by-glyph and look a
+       mess. Each language picks a script class that swaps --nat. */
+    .nat {
+      font-family: var(--nat, 'Inter', system-ui, sans-serif);
       font-weight: 700;
+      direction: var(--natdir, ltr);
+      unicode-bidi: isolate;
     }
+    body.sc-thai { --nat: 'Noto Sans Thai', 'Leelawadee UI', 'Thonburi', 'Tahoma', sans-serif; }
+    body.sc-jp   { --nat: 'Hiragino Sans', 'Yu Gothic', 'Meiryo', 'Noto Sans JP', sans-serif; }
+    body.sc-zh   { --nat: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif; }
+    body.sc-ko   { --nat: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif; }
+    body.sc-ar   { --nat: 'Geeza Pro', 'Noto Naskh Arabic', 'Segoe UI', 'Arial', sans-serif; --natdir: rtl; }
+    body.sc-si   { --nat: 'Iskoola Pota', 'Noto Sans Sinhala', 'Nirmala UI', sans-serif; }
+
     .wrap {
       width: min(760px, 100%);
       border: 2px solid #ff2e88;
@@ -52,7 +64,7 @@
     .screen { display: none; }
     .screen.active { display: grid; gap: 1rem; }
 
-    /* ---------- Home ---------- */
+    /* ---------- Titles ---------- */
     .title {
       text-align: center;
       color: #ffe600;
@@ -61,7 +73,7 @@
       text-shadow: 0 0 12px rgba(255, 230, 0, 0.5);
       padding-top: 0.5rem;
     }
-    .title .thai {
+    .title .nat {
       display: block;
       color: #00f0ff;
       font-size: clamp(1.3rem, 6vw, 2.2rem);
@@ -74,6 +86,57 @@
       font-size: 0.55rem;
       line-height: 1.9;
     }
+    .heading {
+      text-align: center;
+      color: #ffe600;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+    .hint {
+      text-align: center;
+      color: #9b93b8;
+      font-size: 0.48rem;
+      line-height: 1.9;
+    }
+
+    /* ---------- Language pick ---------- */
+    .langs {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+      gap: 0.6rem;
+    }
+    .lang-card {
+      border: 2px solid #00f0ff;
+      border-radius: 12px;
+      background: rgba(0, 240, 255, 0.08);
+      color: #e8e6f0;
+      font: inherit;
+      padding: 0.8rem 0.4rem;
+      cursor: pointer;
+      display: grid;
+      gap: 0.45rem;
+      justify-items: center;
+      align-content: start;
+      touch-action: manipulation;
+      transition: transform 80ms ease, background 150ms ease;
+    }
+    .lang-card:hover, .lang-card:focus-visible {
+      background: rgba(0, 240, 255, 0.2);
+      outline: none;
+    }
+    .lang-card:active { transform: scale(0.97); }
+    .lang-card.sel { border-color: #ffe600; box-shadow: 0 0 14px rgba(255, 230, 0, 0.35); }
+    .lang-card .flag { font-size: 1.5rem; line-height: 1; font-family: 'Inter', system-ui, sans-serif; }
+    .lang-card .name { font-size: 0.52rem; color: #ffe600; text-align: center; line-height: 1.5; }
+    .lang-card .own {
+      font-size: 0.8rem;
+      color: #9b93b8;
+      text-align: center;
+      line-height: 1.4;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    /* ---------- Menus ---------- */
     .menu {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -90,6 +153,7 @@
       display: grid;
       gap: 0.7rem;
       justify-items: center;
+      align-content: start;
       touch-action: manipulation;
       transition: transform 80ms ease, background 150ms ease;
     }
@@ -98,11 +162,12 @@
       outline: none;
     }
     .menu button:active { transform: scale(0.97); }
-    .menu button.quiz-btn {
+    .menu button.quiz-btn, .menu button.girl-btn {
       border-color: #ff2e88;
       background: rgba(255, 46, 136, 0.12);
     }
-    .menu button.quiz-btn:hover, .menu button.quiz-btn:focus-visible {
+    .menu button.quiz-btn:hover, .menu button.quiz-btn:focus-visible,
+    .menu button.girl-btn:hover, .menu button.girl-btn:focus-visible {
       background: rgba(255, 46, 136, 0.22);
     }
     .menu .big { font-size: 1.6rem; }
@@ -114,13 +179,6 @@
       text-align: center;
     }
     .menu button.sel { border-color: #ffe600; box-shadow: 0 0 14px rgba(255, 230, 0, 0.3); }
-    .menu button.girl-btn {
-      border-color: #ff2e88;
-      background: rgba(255, 46, 136, 0.12);
-    }
-    .menu button.girl-btn:hover, .menu button.girl-btn:focus-visible {
-      background: rgba(255, 46, 136, 0.22);
-    }
     .gender-note {
       border: 2px solid #3e2f65;
       border-radius: 10px;
@@ -131,14 +189,13 @@
       line-height: 2;
       text-align: center;
     }
-    .gender-note .thai { color: #00f0ff; font-size: 0.85rem; }
     .who-line {
       text-align: center;
       font-size: 0.55rem;
       color: #9b93b8;
       line-height: 1.9;
     }
-    .who-line .thai { color: #00f0ff; font-size: 0.85rem; }
+    .who-line .nat { color: #00f0ff; font-size: 0.85rem; }
     .who-line button {
       border: 1px solid #3e2f65;
       border-radius: 999px;
@@ -195,6 +252,7 @@
       display: grid;
       gap: 0.5rem;
       justify-items: center;
+      align-content: center;
       touch-action: manipulation;
       transition: transform 80ms ease, background 150ms ease;
     }
@@ -204,7 +262,7 @@
     }
     .word-card:active { transform: scale(0.97); }
     .word-card .en { font-size: 0.55rem; line-height: 1.5; text-align: center; }
-    .word-card .thai { font-size: 1.15rem; color: #00f0ff; }
+    .word-card .nat { font-size: 1.15rem; color: #00f0ff; text-align: center; }
 
     /* ---------- Word detail ---------- */
     .detail {
@@ -218,7 +276,7 @@
       text-align: center;
     }
     .detail .en-word { font-size: 0.8rem; color: #ffe600; line-height: 1.6; }
-    .detail .thai-word { font-size: 2.2rem; color: #00f0ff; }
+    .detail .nat-word { font-size: clamp(1.5rem, 8vw, 2.2rem); color: #00f0ff; }
     .detail .phon {
       font-size: 0.7rem;
       color: #ff2e88;
@@ -245,7 +303,7 @@
       gap: 0.55rem;
     }
     .example .lbl { font-size: 0.5rem; color: #9b93b8; }
-    .example .thai { font-size: 1.1rem; color: #e8e6f0; line-height: 1.6; }
+    .example .nat { font-size: 1.1rem; color: #e8e6f0; line-height: 1.6; }
     .example .phon { font-size: 0.55rem; color: #ff2e88; line-height: 1.8; }
     .example .en { font-size: 0.55rem; color: #ffe600; line-height: 1.8; }
     .detail-nav {
@@ -341,7 +399,7 @@
     }
     .q-prompt .ask { font-size: 0.55rem; color: #9b93b8; line-height: 1.8; }
     .q-prompt .word { font-size: clamp(0.9rem, 4.5vw, 1.4rem); color: #ffe600; line-height: 1.6; }
-    .q-prompt .word .thai { font-size: clamp(1.3rem, 6vw, 2rem); color: #00f0ff; }
+    .q-prompt .word .nat { font-size: clamp(1.3rem, 6vw, 2rem); color: #00f0ff; }
     .q-answers {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -365,7 +423,7 @@
       justify-items: center;
       align-content: center;
     }
-    .q-answers button .thai { font-size: 1.2rem; color: #00f0ff; }
+    .q-answers button .nat { font-size: 1.2rem; color: #00f0ff; }
     .q-answers button .phon { font-size: 0.48rem; color: #ff8ab9; }
     .q-answers button:hover, .q-answers button:focus-visible {
       background: rgba(255, 46, 136, 0.22);
@@ -422,18 +480,7 @@
       background: rgba(0, 240, 255, 0.22);
       outline: none;
     }
-    .hint {
-      text-align: center;
-      color: #9b93b8;
-      font-size: 0.48rem;
-      line-height: 1.9;
-    }
-    .heading {
-      text-align: center;
-      color: #ffe600;
-      font-size: 0.8rem;
-      line-height: 1.6;
-    }
+    .loading { text-align: center; color: #00f0ff; font-size: 0.7rem; line-height: 2; padding: 2rem 0; }
     @media (max-width: 480px) {
       .q-answers { grid-template-columns: 1fr; }
       .menu { grid-template-columns: 1fr; }
@@ -447,29 +494,42 @@
       <button class="linky" id="home-btn" hidden>&larr; MENU</button>
     </div>
 
+    <!-- LANGUAGE PICK -->
+    <section class="screen active" id="screen-lang">
+      <h1 class="title">KIDDO WORDO</h1>
+      <p class="subtitle">First — which language do you want to learn?</p>
+      <div class="langs" id="langs"></div>
+      <p class="hint">Pick any one. You can swap language whenever you like — your stars are saved for each.</p>
+    </section>
+
+    <!-- LOADING -->
+    <section class="screen" id="screen-loading">
+      <p class="loading" id="loading-msg">Loading words…</p>
+    </section>
+
     <!-- GENDER PICK -->
-    <section class="screen active" id="screen-gender">
-      <h1 class="title">KIDS THAI<span class="thai">ภาษาไทย</span></h1>
-      <p class="subtitle">First — are you a girl or a boy?</p>
+    <section class="screen" id="screen-gender">
+      <h1 class="title" id="g-title">KIDDO WORDO</h1>
+      <p class="subtitle">Now — are you a girl or a boy?</p>
       <div class="menu">
         <button type="button" id="pick-girl" class="girl-btn">
           <span class="big">👧</span>
           <span class="label">GIRL</span>
-          <span class="desc">Girls say ฉัน "chan" for I, and end polite sentences with ค่ะ "kha".</span>
+          <span class="desc" id="girl-desc"></span>
         </button>
         <button type="button" id="pick-boy">
           <span class="big">👦</span>
           <span class="label">BOY</span>
-          <span class="desc">Boys say ผม "phom" for I, and end polite sentences with ครับ "khrap".</span>
+          <span class="desc" id="boy-desc"></span>
         </button>
       </div>
-      <p class="gender-note">In Thai, girls and boys speak a little differently — so your words and sentences will match you! You can change this any time.</p>
+      <p class="gender-note" id="gender-note"></p>
     </section>
 
     <!-- HOME -->
     <section class="screen" id="screen-home">
-      <h1 class="title">KIDS THAI<span class="thai">ภาษาไทย</span></h1>
-      <p class="subtitle">Learn Thai words, then beat the quiz!</p>
+      <h1 class="title" id="h-title">KIDDO WORDO</h1>
+      <p class="subtitle" id="h-sub"></p>
       <p class="who-line" id="who-line"></p>
       <div class="menu">
         <button type="button" id="go-learn">
@@ -483,6 +543,7 @@
           <span class="desc">Lots of questions on what you learnt. Starts easy — every lesson gets harder!</span>
         </button>
       </div>
+      <p class="who-line" id="lang-line"></p>
     </section>
 
     <!-- LEARN -->
@@ -497,12 +558,12 @@
     <section class="screen" id="screen-word">
       <div class="detail">
         <p class="en-word" id="d-en"></p>
-        <p class="thai-word thai" id="d-thai"></p>
+        <p class="nat-word nat" id="d-nat"></p>
         <p class="phon" id="d-phon"></p>
         <button type="button" class="say-btn" id="d-say">🔊 SAY IT</button>
         <div class="example">
           <p class="lbl">IN A SENTENCE:</p>
-          <p class="thai" id="d-ex-thai"></p>
+          <p class="nat" id="d-ex-nat"></p>
           <p class="phon" id="d-ex-phon"></p>
           <p class="en" id="d-ex-en"></p>
         </div>
@@ -556,150 +617,210 @@
   <script>
     'use strict';
 
-    // ---------- Word bank ----------
-    // tier controls when a word enters the quiz pool (higher tier = later lessons)
+    // ---------- The languages on offer (Flo's list, in Flo's order) ----------
+    // Each entry is just the menu card plus how to speak it; the words
+    // themselves live in languages/<code>.js and are only fetched once that
+    // language is picked. `script` names a body class that swaps the font used
+    // for native text.
+    const LANGS = [
+      { code: 'th',  name: 'Thai',       own: 'ภาษาไทย',        flag: '🇹🇭', speech: 'th-TH', script: 'sc-thai' },
+      { code: 'es',  name: 'Spanish',    own: 'Español',        flag: '🇪🇸', speech: 'es-ES' },
+      { code: 'fr',  name: 'French',     own: 'Français',       flag: '🇫🇷', speech: 'fr-FR' },
+      { code: 'ja',  name: 'Japanese',   own: '日本語',          flag: '🇯🇵', speech: 'ja-JP', script: 'sc-jp' },
+      { code: 'it',  name: 'Italian',    own: 'Italiano',       flag: '🇮🇹', speech: 'it-IT' },
+      { code: 'zh',  name: 'Chinese',    own: '中文',            flag: '🇨🇳', speech: 'zh-CN', script: 'sc-zh' },
+      { code: 'ru',  name: 'Russian',    own: 'Русский',        flag: '🇷🇺', speech: 'ru-RU' },
+      { code: 'nl',  name: 'Dutch',      own: 'Nederlands',     flag: '🇳🇱', speech: 'nl-NL' },
+      { code: 'cy',  name: 'Welsh',      own: 'Cymraeg',        flag: '🐉',  speech: 'cy-GB' },
+      { code: 'pt',  name: 'Portuguese', own: 'Português',      flag: '🇵🇹', speech: 'pt-PT' },
+      { code: 'gd',  name: 'Scottish',   own: 'Gàidhlig',       flag: '🏴',  speech: 'gd-GB' },
+      { code: 'so',  name: 'Somali',     own: 'Soomaali',       flag: '🇸🇴', speech: 'so-SO' },
+      { code: 'ar',  name: 'Arabic',     own: 'العربية',         flag: '🇸🇦', speech: 'ar-SA', script: 'sc-ar' },
+      { code: 'tr',  name: 'Turkish',    own: 'Türkçe',         flag: '🇹🇷', speech: 'tr-TR' },
+      { code: 'de',  name: 'German',     own: 'Deutsch',        flag: '🇩🇪', speech: 'de-DE' },
+      { code: 'el',  name: 'Greek',      own: 'Ελληνικά',       flag: '🇬🇷', speech: 'el-GR' },
+      { code: 'la',  name: 'Latin',      own: 'Latina',         flag: '🏛️',  speech: 'it-IT' },
+      { code: 'haw', name: 'Hawaiian',   own: 'ʻŌlelo Hawaiʻi', flag: '🌺',  speech: 'haw-US' },
+      { code: 'si',  name: 'Sri Lankan', own: 'සිංහල',          flag: '🇱🇰', speech: 'si-LK', script: 'sc-si' },
+      { code: 'uk',  name: 'Ukrainian',  own: 'Українська',     flag: '🇺🇦', speech: 'uk-UA' },
+      { code: 'hr',  name: 'Croatian',   own: 'Hrvatski',       flag: '🇭🇷', speech: 'hr-HR' },
+      { code: 'ko',  name: 'Korean',     own: '한국어',           flag: '🇰🇷', speech: 'ko-KR', script: 'sc-ko' },
+    ];
+    const LANG_BY_CODE = Object.fromEntries(LANGS.map(l => [l.code, l]));
+
+    // Categories are the same in every language; tier controls when a word
+    // joins the quiz pool (higher tier = later lessons).
     const CATEGORIES = [
       { id: 'basics', label: '👋 BASICS', tier: 1 },
       { id: 'numbers', label: '🔢 NUMBERS', tier: 1 },
       { id: 'animals', label: '🐘 ANIMALS', tier: 2 },
-      { id: 'food', label: '🍚 FOOD', tier: 2 },
+      { id: 'food', label: '🍎 FOOD', tier: 2 },
       { id: 'colors', label: '🌈 COLOURS', tier: 3 },
       { id: 'family', label: '👨‍👩‍👧 PEOPLE', tier: 3 },
     ];
+    const CAT_TIER = Object.fromEntries(CATEGORIES.map(c => [c.id, c.tier]));
 
-    const WORDS = [
-      // --- Basics (tier 1) ---
-      // {I}/{i} = I-pronoun (ผม phom / ฉัน chan), {P}/{p} = polite particle (ครับ khrap / ค่ะ kha)
-      { cat: 'basics', en: 'Hello', th: 'สวัสดี', phon: 'sa-wat-dee',
-        ex: { th: 'สวัสดี{P} คุณครู', phon: 'sa-wat-dee {p}, khun khruu', en: 'Hello, teacher!' } },
-      { cat: 'basics', en: 'The polite word', th: '{P}', phon: '{p}',
-        ex: { th: 'ขอบคุณ{P}', phon: 'khop-khun {p}', en: 'Thank you (said politely!)' } },
-      { cat: 'basics', en: 'Thank you', th: 'ขอบคุณ', phon: 'khop-khun',
-        ex: { th: 'ขอบคุณมาก{P}', phon: 'khop-khun maak {p}', en: 'Thank you very much!' } },
-      { cat: 'basics', en: 'Yes', th: 'ใช่', phon: 'chai',
-        ex: { th: 'ใช่ {I}ชอบช้าง', phon: 'chai, {i} chop chaang', en: 'Yes, I like elephants.' } },
-      { cat: 'basics', en: 'No', th: 'ไม่', phon: 'mai',
-        ex: { th: 'ไม่ ขอบคุณ{P}', phon: 'mai, khop-khun {p}', en: 'No, thank you.' } },
-      { cat: 'basics', en: 'Sorry', th: 'ขอโทษ', phon: 'khor-thoht',
-        ex: { th: 'ขอโทษ{P}', phon: 'khor-thoht {p}', en: 'I’m sorry!' } },
-      { cat: 'basics', en: 'My name is…', th: '{I}ชื่อ…', phon: '{i} chuue…',
-        ex: { th: '{I}ชื่อโฟล', phon: '{i} chuue Flo', en: 'My name is Flo.' } },
-      { cat: 'basics', en: 'How are you?', th: 'สบายดีไหม', phon: 'sa-baai-dee mai',
-        ex: { th: 'สวัสดี{P} สบายดีไหม', phon: 'sa-wat-dee {p}, sa-baai-dee mai', en: 'Hello, how are you?' } },
-      { cat: 'basics', en: 'Goodbye', th: 'ลาก่อน', phon: 'laa-gorn',
-        ex: { th: 'ลาก่อน เจอกันใหม่', phon: 'laa-gorn, jer-gan-mai', en: 'Goodbye, see you again!' } },
-
-      // --- Numbers (tier 1) ---
-      { cat: 'numbers', en: 'One', th: 'หนึ่ง', phon: 'neung',
-        ex: { th: 'ช้างหนึ่งตัว', phon: 'chaang neung dtua', en: 'One elephant.' } },
-      { cat: 'numbers', en: 'Two', th: 'สอง', phon: 'song',
-        ex: { th: 'หมาสองตัว', phon: 'maa song dtua', en: 'Two dogs.' } },
-      { cat: 'numbers', en: 'Three', th: 'สาม', phon: 'saam',
-        ex: { th: 'แมวสามตัว', phon: 'maew saam dtua', en: 'Three cats.' } },
-      { cat: 'numbers', en: 'Four', th: 'สี่', phon: 'see',
-        ex: { th: 'นกสี่ตัว', phon: 'nok see dtua', en: 'Four birds.' } },
-      { cat: 'numbers', en: 'Five', th: 'ห้า', phon: 'haa',
-        ex: { th: 'ปลาห้าตัว', phon: 'bplaa haa dtua', en: 'Five fish.' } },
-      { cat: 'numbers', en: 'Six', th: 'หก', phon: 'hok',
-        ex: { th: 'ไข่หกฟอง', phon: 'khai hok fong', en: 'Six eggs.' } },
-      { cat: 'numbers', en: 'Seven', th: 'เจ็ด', phon: 'jet',
-        ex: { th: 'กล้วยเจ็ดลูก', phon: 'gluay jet luuk', en: 'Seven bananas.' } },
-      { cat: 'numbers', en: 'Eight', th: 'แปด', phon: 'bpaet',
-        ex: { th: 'ลิงแปดตัว', phon: 'ling bpaet dtua', en: 'Eight monkeys.' } },
-      { cat: 'numbers', en: 'Nine', th: 'เก้า', phon: 'gao',
-        ex: { th: 'ไก่เก้าตัว', phon: 'gai gao dtua', en: 'Nine chickens.' } },
-      { cat: 'numbers', en: 'Ten', th: 'สิบ', phon: 'sip',
-        ex: { th: 'หมูสิบตัว', phon: 'muu sip dtua', en: 'Ten pigs.' } },
-
-      // --- Animals (tier 2) ---
-      { cat: 'animals', en: 'Dog', th: 'หมา', phon: 'maa',
-        ex: { th: 'หมาตัวใหญ่', phon: 'maa dtua yai', en: 'A big dog.' } },
-      { cat: 'animals', en: 'Cat', th: 'แมว', phon: 'maew',
-        ex: { th: 'แมวชอบนม', phon: 'maew chop nom', en: 'The cat likes milk.' } },
-      { cat: 'animals', en: 'Elephant', th: 'ช้าง', phon: 'chaang',
-        ex: { th: 'ช้างตัวใหญ่มาก', phon: 'chaang dtua yai maak', en: 'The elephant is very big.' } },
-      { cat: 'animals', en: 'Fish', th: 'ปลา', phon: 'bplaa',
-        ex: { th: 'ปลาอยู่ในน้ำ', phon: 'bplaa yuu nai naam', en: 'Fish live in the water.' } },
-      { cat: 'animals', en: 'Bird', th: 'นก', phon: 'nok',
-        ex: { th: 'นกบินได้', phon: 'nok bin dai', en: 'Birds can fly.' } },
-      { cat: 'animals', en: 'Monkey', th: 'ลิง', phon: 'ling',
-        ex: { th: 'ลิงชอบกล้วย', phon: 'ling chop gluay', en: 'Monkeys like bananas.' } },
-      { cat: 'animals', en: 'Chicken', th: 'ไก่', phon: 'gai',
-        ex: { th: 'ไก่กินข้าว', phon: 'gai gin khaao', en: 'The chicken eats rice.' } },
-      { cat: 'animals', en: 'Pig', th: 'หมู', phon: 'muu',
-        ex: { th: 'หมูสีชมพู', phon: 'muu see chom-puu', en: 'A pink pig.' } },
-
-      // --- Food (tier 2) ---
-      { cat: 'food', en: 'Rice', th: 'ข้าว', phon: 'khaao',
-        ex: { th: '{I}กินข้าว', phon: '{i} gin khaao', en: 'I eat rice.' } },
-      { cat: 'food', en: 'Water', th: 'น้ำ', phon: 'naam',
-        ex: { th: 'ขอน้ำหน่อย{P}', phon: 'khor naam noi {p}', en: 'Some water, please.' } },
-      { cat: 'food', en: 'Milk', th: 'นม', phon: 'nom',
-        ex: { th: '{I}ดื่มนม', phon: '{i} duuem nom', en: 'I drink milk.' } },
-      { cat: 'food', en: 'Egg', th: 'ไข่', phon: 'khai',
-        ex: { th: 'ไข่สองฟอง', phon: 'khai song fong', en: 'Two eggs.' } },
-      { cat: 'food', en: 'Banana', th: 'กล้วย', phon: 'gluay',
-        ex: { th: 'กล้วยสีเหลือง', phon: 'gluay see leuang', en: 'Bananas are yellow.' } },
-      { cat: 'food', en: 'Mango', th: 'มะม่วง', phon: 'ma-muang',
-        ex: { th: 'มะม่วงหวานมาก', phon: 'ma-muang waan maak', en: 'The mango is very sweet.' } },
-      { cat: 'food', en: 'Ice cream', th: 'ไอศกรีม', phon: 'ai-sa-kreem',
-        ex: { th: '{I}ชอบไอศกรีม', phon: '{i} chop ai-sa-kreem', en: 'I like ice cream.' } },
-      { cat: 'food', en: 'Delicious', th: 'อร่อย', phon: 'a-roi',
-        ex: { th: 'ข้าวอร่อยมาก', phon: 'khaao a-roi maak', en: 'The rice is delicious!' } },
-
-      // --- Colours (tier 3) ---
-      { cat: 'colors', en: 'Red', th: 'สีแดง', phon: 'see daeng',
-        ex: { th: 'รถสีแดง', phon: 'rot see daeng', en: 'A red car.' } },
-      { cat: 'colors', en: 'Blue', th: 'สีฟ้า', phon: 'see faa',
-        ex: { th: 'ท้องฟ้าสีฟ้า', phon: 'tong-faa see faa', en: 'The sky is blue.' } },
-      { cat: 'colors', en: 'Green', th: 'สีเขียว', phon: 'see khiaao',
-        ex: { th: 'ต้นไม้สีเขียว', phon: 'dton-mai see khiaao', en: 'The tree is green.' } },
-      { cat: 'colors', en: 'Yellow', th: 'สีเหลือง', phon: 'see leuang',
-        ex: { th: 'กล้วยสีเหลือง', phon: 'gluay see leuang', en: 'The banana is yellow.' } },
-      { cat: 'colors', en: 'Black', th: 'สีดำ', phon: 'see dam',
-        ex: { th: 'แมวสีดำ', phon: 'maew see dam', en: 'A black cat.' } },
-      { cat: 'colors', en: 'White', th: 'สีขาว', phon: 'see khaao',
-        ex: { th: 'นมสีขาว', phon: 'nom see khaao', en: 'Milk is white.' } },
-      { cat: 'colors', en: 'Pink', th: 'สีชมพู', phon: 'see chom-puu',
-        ex: { th: 'หมูสีชมพู', phon: 'muu see chom-puu', en: 'The pig is pink.' } },
-      { cat: 'colors', en: 'Orange', th: 'สีส้ม', phon: 'see som',
-        ex: { th: 'มะม่วงสีส้ม', phon: 'ma-muang see som', en: 'The mango is orange.' } },
-
-      // --- People (tier 3) ---
-      { cat: 'family', en: 'Mum', th: 'แม่', phon: 'mae',
-        ex: { th: 'แม่ทำข้าว', phon: 'mae tam khaao', en: 'Mum makes rice.' } },
-      { cat: 'family', en: 'Dad', th: 'พ่อ', phon: 'por',
-        ex: { th: 'พ่อชอบปลา', phon: 'por chop bplaa', en: 'Dad likes fish.' } },
-      { cat: 'family', en: 'Friend', th: 'เพื่อน', phon: 'peuuan',
-        ex: { th: 'เพื่อนของ{I}', phon: 'peuuan khong {i}', en: 'My friend.' } },
-      { cat: 'family', en: 'Teacher', th: 'ครู', phon: 'khruu',
-        ex: { th: 'คุณครูใจดีมาก', phon: 'khun khruu jai-dee maak', en: 'The teacher is very kind.' } },
-      { cat: 'family', en: 'Child', th: 'เด็ก', phon: 'dek',
-        ex: { th: 'เด็กสามคน', phon: 'dek saam khon', en: 'Three children.' } },
-      { cat: 'family', en: 'Big brother / sister', th: 'พี่', phon: 'pee',
-        ex: { th: 'พี่ของ{I}ใจดี', phon: 'pee khong {i} jai-dee', en: 'My big sibling is kind.' } },
-      { cat: 'family', en: 'Little brother / sister', th: 'น้อง', phon: 'nong',
-        ex: { th: 'น้องชอบไอศกรีม', phon: 'nong chop ai-sa-kreem', en: 'My little sibling likes ice cream.' } },
-      { cat: 'family', en: 'I / me', th: '{I}', phon: '{i}',
-        ex: { th: '{I}ชอบสีฟ้า', phon: '{i} chop see faa', en: 'I like blue.' } },
+    // ---------- Quiz lesson plan ----------
+    // Types: 'en2w' (easy), 'w2en' (medium), 'sentence' (hard — fill the blank).
+    const QUESTIONS_PER_LESSON = 8;
+    const PASS_SCORE = 6;
+    const LESSONS = [
+      { tiers: 1, types: ['en2w'], choices: 3 },
+      { tiers: 1, types: ['en2w', 'w2en'], choices: 3 },
+      { tiers: 2, types: ['en2w', 'w2en'], choices: 3 },
+      { tiers: 2, types: ['en2w', 'w2en'], choices: 4 },
+      { tiers: 2, types: ['w2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['en2w', 'w2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['w2en', 'sentence'], choices: 4 },
+      { tiers: 3, types: ['sentence', 'w2en'], choices: 4 },
+      { tiers: 3, types: ['sentence'], choices: 4 },
+      { tiers: 3, types: ['en2w', 'w2en', 'sentence'], choices: 4, boss: true },
+    ];
+    const LESSON_TAGS = [
+      'FIRST WORDS', 'BOTH WAYS', 'MORE WORDS', 'FOUR CHOICES', 'SENTENCES!',
+      'ALL WORDS', 'TRICKY MIX', 'HARD MODE', 'SENTENCE PRO', 'BOSS LESSON',
     ];
 
-    const CAT_TIER = Object.fromEntries(CATEGORIES.map(c => [c.id, c.tier]));
-    WORDS.forEach(w => { w.tier = CAT_TIER[w.cat]; });
+    const LANG_KEY = 'flocade-kiddo-wordo-lang';
+    const GENDER_KEY = 'flocade-kiddo-wordo-gender';
+    const STORAGE_KEY = 'flocade-kiddo-wordo-progress';
+
+    // ---------- State ----------
+    let langMeta = null;   // entry from LANGS
+    let langData = null;   // the loaded languages/<code>.js payload
+    let gender = loadStored(GENDER_KEY, v => v === 'girl' || v === 'boy');
+    let allProgress = loadProgress();
+    let progress = { unlocked: 1, stars: [] };
+    let currentCat = CATEGORIES[0].id;
+    let detailIndex = 0;
+    let quiz = null;
+
+    const $ = id => document.getElementById(id);
+    const screens = {
+      lang: $('screen-lang'), loading: $('screen-loading'), gender: $('screen-gender'),
+      home: $('screen-home'), learn: $('screen-learn'), word: $('screen-word'),
+      quiz: $('screen-quiz'), play: $('screen-play'), result: $('screen-result'),
+    };
+
+    function show(name) {
+      Object.entries(screens).forEach(([key, el]) => el.classList.toggle('active', key === name));
+      $('home-btn').hidden = name === 'home' || name === 'gender' || name === 'lang' || name === 'loading';
+      window.scrollTo(0, 0);
+    }
+
+    function loadStored(key, valid) {
+      try {
+        const v = localStorage.getItem(key);
+        return valid(v) ? v : null;
+      } catch (_) { return null; }
+    }
+
+    function save(key, value) {
+      try { localStorage.setItem(key, value); } catch (_) { /* ignore storage failures */ }
+    }
+
+    // ---------- Language loading ----------
+    const loaded = {};
+    function loadLanguage(code) {
+      if (loaded[code]) return Promise.resolve(loaded[code]);
+      return new Promise((resolve, reject) => {
+        const el = document.createElement('script');
+        el.src = 'languages/' + code + '.js';
+        el.addEventListener('load', () => {
+          const data = window.KIDDO_LANGS && window.KIDDO_LANGS[code];
+          if (!data) { reject(new Error('no data')); return; }
+          data.words.forEach(w => { w.tier = CAT_TIER[w.cat]; });
+          loaded[code] = data;
+          resolve(data);
+        });
+        el.addEventListener('error', () => reject(new Error('load failed')));
+        document.head.appendChild(el);
+      });
+    }
+
+    function renderLangs() {
+      const holder = $('langs');
+      holder.innerHTML = '';
+      LANGS.forEach(meta => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'lang-card' + (langMeta && langMeta.code === meta.code ? ' sel' : '');
+        const flag = document.createElement('span');
+        flag.className = 'flag';
+        flag.textContent = meta.flag;
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = meta.name.toUpperCase();
+        const own = document.createElement('span');
+        own.className = 'own';
+        own.textContent = meta.own;
+        btn.append(flag, name, own);
+        btn.addEventListener('click', () => chooseLanguage(meta.code));
+        holder.appendChild(btn);
+      });
+    }
+
+    function chooseLanguage(code, keepGender) {
+      const meta = LANG_BY_CODE[code];
+      if (!meta) return;
+      $('loading-msg').textContent = 'Loading ' + meta.name + ' words…';
+      show('loading');
+      loadLanguage(code).then(data => {
+        langMeta = meta;
+        langData = data;
+        save(LANG_KEY, code);
+        progress = allProgress[code] || { unlocked: 1, stars: [] };
+        currentCat = CATEGORIES[0].id;
+        applyScript(meta);
+        pickVoice();
+        paintTitles();
+        paintGenderScreen();
+        highlightGenderPick();
+        if (gender && keepGender) { updateWho(); show('home'); }
+        else show('gender');
+      }).catch(() => {
+        $('loading-msg').textContent = 'Could not load ' + meta.name + '. Check you are online, then try again.';
+      });
+    }
+
+    function applyScript(meta) {
+      LANGS.forEach(l => { if (l.script) document.body.classList.remove(l.script); });
+      if (meta.script) document.body.classList.add(meta.script);
+    }
+
+    function paintTitles() {
+      [$('g-title'), $('h-title')].forEach(el => {
+        el.innerHTML = '';
+        el.append(document.createTextNode('KIDDO WORDO'));
+        const own = document.createElement('span');
+        own.className = 'nat';
+        own.textContent = langMeta.own;
+        el.appendChild(own);
+      });
+      $('h-sub').textContent = 'Learn ' + langMeta.name + ' words, then beat the quiz!';
+      const line = $('lang-line');
+      line.innerHTML = '';
+      line.append(document.createTextNode(langMeta.flag + ' Learning ' + langMeta.name));
+      const change = document.createElement('button');
+      change.type = 'button';
+      change.textContent = 'CHANGE LANGUAGE';
+      change.addEventListener('click', () => { renderLangs(); show('lang'); });
+      line.appendChild(change);
+    }
+
+    function paintGenderScreen() {
+      $('girl-desc').textContent = langData.gender.girl.note;
+      $('boy-desc').textContent = langData.gender.boy.note;
+      $('gender-note').textContent = langData.genderNote;
+    }
 
     // ---------- Gender ----------
-    // Thai is spoken differently by girls and boys: the I-pronoun and the
-    // polite particle change. Words are stored with {I}/{i}/{P}/{p} tokens
-    // and resolved through the chosen gender before display or quizzing.
-    const GENDER = {
-      girl: { I: 'ฉัน', i: 'chan', P: 'ค่ะ', p: 'kha', emoji: '👧', label: 'GIRL' },
-      boy: { I: 'ผม', i: 'phom', P: 'ครับ', p: 'khrap', emoji: '👦', label: 'BOY' },
-    };
-    const GENDER_KEY = 'flocade-kids-thai-gender';
-
+    // Words are stored with {I}/{i} (I-pronoun), {P}/{p} (polite word) and
+    // {F}/{f} (friend) tokens; each language fills in whichever of those it
+    // actually says differently for girls and boys.
     function fill(str) {
-      const g = GENDER[gender] || GENDER.girl;
-      return str.replace(/\{(I|i|P|p)\}/g, (_, token) => g[token]);
+      const g = langData.gender[gender] || langData.gender.girl;
+      return str.replace(/\{(I|i|P|p|F|f)\}/g, (whole, token) => (token in g ? g[token] : whole));
     }
 
     function resolveWord(word) {
@@ -707,89 +828,37 @@
         cat: word.cat,
         tier: word.tier,
         en: word.en,
-        th: fill(word.th),
+        w: fill(word.w),
         phon: fill(word.phon),
-        ex: { th: fill(word.ex.th), phon: fill(word.ex.phon), en: word.ex.en },
+        ex: { w: fill(word.ex.w), phon: fill(word.ex.phon), en: word.ex.en },
       };
-    }
-
-    // ---------- Quiz lesson plan ----------
-    // Each lesson: which word tiers are in play, which question types, how many choices.
-    // Types: 'en2th' (easy), 'th2en' (medium), 'sentence' (hard — fill the blank).
-    const QUESTIONS_PER_LESSON = 8;
-    const PASS_SCORE = 6;
-    const LESSONS = [
-      { tiers: 1, types: ['en2th'], choices: 3 },
-      { tiers: 1, types: ['en2th', 'th2en'], choices: 3 },
-      { tiers: 2, types: ['en2th', 'th2en'], choices: 3 },
-      { tiers: 2, types: ['en2th', 'th2en'], choices: 4 },
-      { tiers: 2, types: ['th2en', 'sentence'], choices: 4 },
-      { tiers: 3, types: ['en2th', 'th2en', 'sentence'], choices: 4 },
-      { tiers: 3, types: ['th2en', 'sentence'], choices: 4 },
-      { tiers: 3, types: ['sentence', 'th2en'], choices: 4 },
-      { tiers: 3, types: ['sentence'], choices: 4 },
-      { tiers: 3, types: ['en2th', 'th2en', 'sentence'], choices: 4, boss: true },
-    ];
-    const LESSON_TAGS = [
-      'FIRST WORDS', 'BOTH WAYS', 'MORE WORDS', 'FOUR CHOICES', 'SENTENCES!',
-      'ALL WORDS', 'TRICKY MIX', 'HARD MODE', 'SENTENCE PRO', 'BOSS LESSON',
-    ];
-
-    const STORAGE_KEY = 'flocade-kids-thai-progress';
-
-    // ---------- State ----------
-    let progress = loadProgress();
-    let gender = loadGender();
-    let currentCat = CATEGORIES[0].id;
-    let detailIndex = 0;   // index into current category's word list
-    let quiz = null;       // active quiz run
-
-    // ---------- Elements ----------
-    const $ = id => document.getElementById(id);
-    const screens = {
-      gender: $('screen-gender'), home: $('screen-home'),
-      learn: $('screen-learn'), word: $('screen-word'),
-      quiz: $('screen-quiz'), play: $('screen-play'), result: $('screen-result'),
-    };
-
-    function show(name) {
-      Object.entries(screens).forEach(([key, el]) => el.classList.toggle('active', key === name));
-      $('home-btn').hidden = name === 'home' || name === 'gender';
-      window.scrollTo(0, 0);
-    }
-
-    function loadGender() {
-      const stored = localStorage.getItem(GENDER_KEY);
-      return GENDER[stored] ? stored : null;
     }
 
     function setGender(g) {
       gender = g;
-      try {
-        localStorage.setItem(GENDER_KEY, g);
-      } catch (_) { /* ignore storage failures */ }
+      save(GENDER_KEY, g);
+      highlightGenderPick();
       updateWho();
       show('home');
     }
 
     function updateWho() {
-      const g = GENDER[gender];
+      const g = langData.gender[gender];
       const line = $('who-line');
       line.innerHTML = '';
       if (!g) return;
-      line.append(document.createTextNode(g.emoji + ' You say '));
-      const th = document.createElement('span');
-      th.className = 'thai';
-      th.textContent = g.I + ' + ' + g.P;
-      line.appendChild(th);
-      line.append(document.createTextNode(' "' + g.i + '" + "' + g.p + '"'));
+      line.append(document.createTextNode((gender === 'girl' ? '👧' : '👦') + ' ' + g.say + ' '));
+      if (g.sayNat) {
+        const nat = document.createElement('span');
+        nat.className = 'nat';
+        nat.textContent = g.sayNat;
+        line.appendChild(nat);
+        if (g.sayPhon) line.append(document.createTextNode(' "' + g.sayPhon + '"'));
+      }
       const change = document.createElement('button');
       change.type = 'button';
       change.textContent = 'CHANGE';
-      change.addEventListener('click', () => {
-        highlightGenderPick();
-        show('gender');
-      });
+      change.addEventListener('click', () => { highlightGenderPick(); show('gender'); });
       line.appendChild(change);
     }
 
@@ -800,32 +869,35 @@
 
     $('pick-girl').addEventListener('click', () => setGender('girl'));
     $('pick-boy').addEventListener('click', () => setGender('boy'));
-    highlightGenderPick();
 
     // ---------- Speech ----------
-    let thaiVoice = null;
-    function pickThaiVoice() {
-      if (!('speechSynthesis' in window)) return;
+    let voice = null;
+    function pickVoice() {
+      voice = null;
+      if (!('speechSynthesis' in window) || !langMeta) return;
+      const want = langMeta.speech.toLowerCase();
+      const base = want.split('-')[0];
       const voices = window.speechSynthesis.getVoices();
-      thaiVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('th')) || null;
+      voice = voices.find(v => v.lang && v.lang.toLowerCase().replace('_', '-') === want)
+        || voices.find(v => v.lang && v.lang.toLowerCase().startsWith(base + '-'))
+        || null;
     }
     if ('speechSynthesis' in window) {
-      pickThaiVoice();
-      window.speechSynthesis.onvoiceschanged = pickThaiVoice;
+      window.speechSynthesis.onvoiceschanged = pickVoice;
     }
-    function speakThai(text) {
+    function speak(text) {
       if (!('speechSynthesis' in window)) return;
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = 'th-TH';
-      if (thaiVoice) utter.voice = thaiVoice;
+      utter.lang = langMeta.speech;
+      if (voice) utter.voice = voice;
       utter.rate = 0.8;
       window.speechSynthesis.speak(utter);
     }
 
     // ---------- Learn ----------
     function catWords(catId) {
-      return WORDS.filter(w => w.cat === catId).map(resolveWord);
+      return langData.words.filter(w => w.cat === catId).map(resolveWord);
     }
 
     function renderCats() {
@@ -855,10 +927,10 @@
         const en = document.createElement('span');
         en.className = 'en';
         en.textContent = word.en;
-        const th = document.createElement('span');
-        th.className = 'thai';
-        th.textContent = word.th;
-        btn.append(en, th);
+        const nat = document.createElement('span');
+        nat.className = 'nat';
+        nat.textContent = word.w;
+        btn.append(en, nat);
         btn.addEventListener('click', () => openWord(index));
         holder.appendChild(btn);
       });
@@ -869,37 +941,45 @@
       detailIndex = ((index % words.length) + words.length) % words.length;
       const word = words[detailIndex];
       $('d-en').textContent = word.en;
-      $('d-thai').textContent = word.th;
+      $('d-nat').textContent = word.w;
       $('d-phon').textContent = 'say: "' + word.phon + '"';
-      $('d-ex-thai').textContent = word.ex.th;
+      $('d-ex-nat').textContent = word.ex.w;
       $('d-ex-phon').textContent = word.ex.phon;
       $('d-ex-en').textContent = '= ' + word.ex.en;
       show('word');
-      speakThai(word.th);
+      speak(word.w);
     }
 
     $('d-say').addEventListener('click', () => {
       const word = catWords(currentCat)[detailIndex];
-      speakThai(word.th + '. ' + word.ex.th);
+      speak(word.w + '. ' + word.ex.w);
     });
     $('d-prev').addEventListener('click', () => openWord(detailIndex - 1));
     $('d-next').addEventListener('click', () => openWord(detailIndex + 1));
     $('d-list').addEventListener('click', () => show('learn'));
 
-    // ---------- Quiz level select ----------
+    // ---------- Progress (kept separately for each language) ----------
     function loadProgress() {
       try {
         const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
-        if (raw && typeof raw === 'object' && Array.isArray(raw.stars)) {
-          return { unlocked: Math.max(1, raw.unlocked | 0), stars: raw.stars.map(n => n | 0) };
+        if (raw && typeof raw === 'object') {
+          const out = {};
+          Object.keys(raw).forEach(code => {
+            const p = raw[code];
+            if (p && Array.isArray(p.stars)) {
+              out[code] = { unlocked: Math.max(1, p.unlocked | 0), stars: p.stars.map(n => n | 0) };
+            }
+          });
+          return out;
         }
       } catch (_) { /* fall through */ }
-      return { unlocked: 1, stars: [] };
+      return {};
     }
 
     function saveProgress() {
+      allProgress[langMeta.code] = progress;
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allProgress));
       } catch (_) { /* ignore storage failures */ }
     }
 
@@ -943,17 +1023,28 @@
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
+    // Fill-the-blank needs the word to appear in its own example sentence.
+    // It usually does verbatim, but a word that starts the sentence is
+    // capitalised there — so try that form too. Returns the exact text to
+    // blank out, or null when the word simply is not in the sentence.
+    function blankTarget(word) {
+      if (word.ex.w.includes(word.w)) return word.w;
+      const capped = word.w.charAt(0).toUpperCase() + word.w.slice(1);
+      if (capped !== word.w && word.ex.w.includes(capped)) return capped;
+      return null;
+    }
+
     function buildQuestions(lesson) {
-      const pool = WORDS.filter(w => w.tier <= lesson.tiers).map(resolveWord);
+      const pool = langData.words.filter(w => w.tier <= lesson.tiers).map(resolveWord);
       const chosen = shuffle(pool.slice()).slice(0, QUESTIONS_PER_LESSON);
       return chosen.map(word => {
         let type = pick(lesson.types);
-        // Sentence questions need the word to appear verbatim in its example.
-        if (type === 'sentence' && !word.ex.th.includes(word.th)) type = 'th2en';
-        const wrongPool = pool.filter(w => w !== word && w.th !== word.th && w.en !== word.en);
+        const blank = blankTarget(word);
+        if (type === 'sentence' && !blank) type = 'w2en';
+        const wrongPool = pool.filter(w => w !== word && w.w !== word.w && w.en !== word.en);
         const wrong = shuffle(wrongPool.slice()).slice(0, lesson.choices - 1);
         const options = shuffle([word, ...wrong]);
-        return { type, word, options };
+        return { type, word, options, blank };
       });
     }
 
@@ -986,22 +1077,22 @@
       const wordEl = $('q-word');
       wordEl.innerHTML = '';
 
-      if (q.type === 'en2th') {
-        ask.textContent = 'How do you say this in Thai?';
+      if (q.type === 'en2w') {
+        ask.textContent = 'How do you say this in ' + langMeta.name + '?';
         wordEl.textContent = q.word.en.toUpperCase();
-      } else if (q.type === 'th2en') {
+      } else if (q.type === 'w2en') {
         ask.textContent = 'What does this mean?';
-        const th = document.createElement('span');
-        th.className = 'thai';
-        th.textContent = q.word.th;
-        wordEl.append(th, document.createElement('br'), document.createTextNode('"' + q.word.phon + '"'));
+        const nat = document.createElement('span');
+        nat.className = 'nat';
+        nat.textContent = q.word.w;
+        wordEl.append(nat, document.createElement('br'), document.createTextNode('"' + q.word.phon + '"'));
       } else {
         ask.textContent = 'Fill in the blank! (' + q.word.ex.en + ')';
-        const blanked = q.word.ex.th.split(q.word.th).join(' ___ ');
-        const th = document.createElement('span');
-        th.className = 'thai';
-        th.textContent = blanked;
-        wordEl.appendChild(th);
+        const blanked = q.word.ex.w.split(q.blank).join(' ___ ');
+        const nat = document.createElement('span');
+        nat.className = 'nat';
+        nat.textContent = blanked;
+        wordEl.appendChild(nat);
       }
 
       const holder = $('q-answers');
@@ -1009,16 +1100,16 @@
       q.options.forEach((option, i) => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        if (q.type === 'th2en') {
+        if (q.type === 'w2en') {
           btn.textContent = option.en;
         } else {
-          const th = document.createElement('span');
-          th.className = 'thai';
-          th.textContent = option.th;
+          const nat = document.createElement('span');
+          nat.className = 'nat';
+          nat.textContent = option.w;
           const phon = document.createElement('span');
           phon.className = 'phon';
           phon.textContent = option.phon;
-          btn.append(th, phon);
+          btn.append(nat, phon);
         }
         btn.dataset.index = String(i);
         btn.addEventListener('click', () => answer(i));
@@ -1042,13 +1133,13 @@
       const feedback = $('q-feedback');
       if (correct) {
         quiz.score += 1;
-        feedback.textContent = pick(['เก่งมาก! (geng maak — well done!)', 'ใช่! (chai — yes!)', 'ถูกต้อง! (correct!)', 'ดีมาก! (dee maak — very good!)']);
+        feedback.textContent = pick(langData.cheers);
         feedback.className = 'q-feedback good';
       } else {
-        feedback.textContent = q.word.en + ' = ' + q.word.th + ' "' + q.word.phon + '"';
+        feedback.textContent = q.word.en + ' = ' + q.word.w + ' "' + q.word.phon + '"';
         feedback.className = 'q-feedback bad';
       }
-      speakThai(q.word.th);
+      speak(q.word.w);
       $('q-score').textContent = String(quiz.score);
       $('q-bar').style.width = ((quiz.index + 1) / QUESTIONS_PER_LESSON * 100) + '%';
 
@@ -1079,7 +1170,7 @@
       let msg = 'You scored ' + score + '/' + QUESTIONS_PER_LESSON + '.';
       if (!passed) msg += ' Get ' + PASS_SCORE + ' to pass — try a peek at LEARN first!';
       else if (level < LESSONS.length) msg += ' Lesson ' + (level + 1) + ' unlocked — it’s a bit harder!';
-      else msg += ' You beat the boss lesson — you’re a Thai star! เก่งมาก!';
+      else msg += ' You beat the boss lesson — you’re a ' + langMeta.name + ' star!';
       $('r-msg').textContent = msg;
       $('r-next').hidden = !(passed && level < LESSONS.length);
       show('result');
@@ -1112,6 +1203,12 @@
         }
       }
     });
+
+    // ---------- Boot ----------
+    renderLangs();
+    const savedLang = loadStored(LANG_KEY, v => !!LANG_BY_CODE[v]);
+    if (savedLang) chooseLanguage(savedLang, true);
+    else show('lang');
   </script>
 </body>
 </html>
