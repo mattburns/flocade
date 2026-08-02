@@ -196,5 +196,11 @@
     "title": "Babysitter",
     "icon": "👶",
     "description": "Babies are crawling all over the baby-proofed house! Pick up a crying one, fetch the milk or teddy it wants, and earn hearts — 5 hearts brings a new baby. Can you get all 10 happy at once?"
+  },
+  {
+    "slug": "sof-em-all",
+    "title": "Sof 'em all",
+    "icon": "💤",
+    "description": "Nobody's napping! Pick a beanbag colour, drag every person onto it and tap them so they nod off — the whole row asleep before 10 seconds run out."
   }
 ]

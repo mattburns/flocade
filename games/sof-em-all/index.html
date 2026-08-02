@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Sof 'em all — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.6rem;
+      border-bottom: 2px solid #2a1b4d;
+      background: rgba(12, 4, 35, 0.95);
+      z-index: 5;
+    }
+    a.back { color: #00f0ff; text-decoration: none; }
+    a.back:hover { text-shadow: 0 0 8px #00f0ff; }
+    .hud { display: flex; gap: 1rem; align-items: center; }
+    .hud span strong { color: #ffe600; }
+
+    .timerbar {
+      height: 10px;
+      background: #1a0f38;
+      position: relative;
+      flex: none;
+    }
+    .timerbar .fill {
+      position: absolute;
+      inset: 0;
+      transform-origin: left;
+      background: linear-gradient(90deg, #00f0ff, #ff2e88);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+    }
+
+    #arena {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% 28%, rgba(255, 46, 136, 0.09), transparent 45%),
+        radial-gradient(circle at 15% 85%, rgba(0, 240, 255, 0.07), transparent 40%),
+        #0d0221;
+    }
+
+    /* ---- the beanbag ---- */
+    #bag {
+      position: absolute;
+      left: 0; top: 0;
+      pointer-events: none;
+      transition: transform 180ms cubic-bezier(.34, 1.56, .64, 1);
+      will-change: transform;
+    }
+    #bag svg { width: 100%; height: 100%; display: block; }
+    #bag.squish { transform: translate(var(--bx), var(--by)) scale(1.04, 0.9); }
+    #bagLabel {
+      position: absolute;
+      left: 0; top: 0;
+      font-size: 0.5rem;
+      color: #6f6592;
+      letter-spacing: 1px;
+      text-align: center;
+      pointer-events: none;
+      transition: opacity 250ms ease;
+    }
+
+    /* ---- people ---- */
+    .person {
+      position: absolute;
+      left: 0; top: 0;
+      cursor: grab;
+      will-change: transform;
+      touch-action: none;
+    }
+    .person.moving { transition: transform 260ms cubic-bezier(.34, 1.3, .64, 1), width 200ms ease, height 200ms ease; }
+    .person .inner {
+      width: 100%;
+      height: 100%;
+      transform-origin: 50% 90%;
+      transition: transform 160ms ease, filter 160ms ease, opacity 300ms ease;
+    }
+    .person .inner svg { width: 100%; height: 100%; display: block; overflow: visible; }
+    .person.idle .inner { animation: bob 1.6s ease-in-out infinite; }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+      50%      { transform: translateY(-5px) rotate(1.5deg); }
+    }
+    .person.dragging { cursor: grabbing; }
+    .person.dragging .inner {
+      animation: none;
+      transform: scale(1.16) rotate(4deg);
+      filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.55));
+    }
+    .person.seated { cursor: pointer; }
+    .person.seated .inner { animation: none; }
+    .person.asleep { pointer-events: none; }
+    .person.gone .inner { opacity: 0; transform: scale(0.55) translateY(10px); }
+    .person.picked .inner { filter: drop-shadow(0 0 7px #00f0ff) drop-shadow(0 0 14px #00f0ff); }
+
+    .zzz {
+      position: absolute;
+      left: 0; top: 0;
+      font-size: 0.66rem;
+      color: #00f0ff;
+      text-shadow: 0 0 10px rgba(0, 240, 255, 0.8);
+      pointer-events: none;
+      animation: floatup 900ms ease-out forwards;
+    }
+    @keyframes floatup {
+      0%   { transform: translate(var(--zx), var(--zy)) scale(0.6); opacity: 0; }
+      25%  { opacity: 1; }
+      100% { transform: translate(calc(var(--zx) + 16px), calc(var(--zy) - 60px)) scale(1.15); opacity: 0; }
+    }
+
+    /* ---- overlays ---- */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.1rem;
+      text-align: center;
+      padding: 1rem;
+      background: rgba(13, 2, 33, 0.93);
+      z-index: 100;
+      overflow-y: auto;
+    }
+    .overlay.hidden { display: none; }
+    h1 {
+      font-size: clamp(1.1rem, 5.5vw, 1.9rem);
+      color: #ff2e88;
+      text-shadow: 0 0 16px rgba(255, 46, 136, 0.7);
+      line-height: 1.4;
+    }
+    .tagline { font-size: 0.58rem; color: #9b93b8; line-height: 1.9; max-width: 460px; }
+    .tagline strong { color: #ffe600; }
+    .pick { font-size: 0.6rem; color: #00f0ff; }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.55rem;
+      width: min(400px, 92vw);
+    }
+    button.swatch {
+      font: inherit;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 0.4rem 0.25rem 0.3rem;
+      cursor: pointer;
+      transition: transform 90ms ease, box-shadow 150ms ease, border-color 150ms ease;
+    }
+    button.swatch svg { width: 100%; height: auto; display: block; }
+    button.swatch:hover, button.swatch:focus-visible {
+      transform: translateY(-3px);
+      border-color: var(--c);
+      box-shadow: 0 0 16px var(--c);
+      outline: none;
+    }
+
+    button.action {
+      font: inherit;
+      font-size: 0.65rem;
+      color: #0d0221;
+      background: #00f0ff;
+      border: none;
+      border-radius: 10px;
+      padding: 0.85rem 1.2rem;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(0, 240, 255, 0.5);
+      transition: transform 90ms ease;
+    }
+    button.action.pink { background: #ff2e88; color: #fff; box-shadow: 0 0 14px rgba(255, 46, 136, 0.5); }
+    button.action.rainbow {
+      background: linear-gradient(90deg, #ff2e88, #ffe600, #7dff5e, #00f0ff, #b26bff);
+      color: #0d0221;
+      box-shadow: 0 0 18px rgba(255, 230, 0, 0.45);
+    }
+    button.action:hover, button.action:focus-visible { transform: translateY(-2px); outline: none; }
+    .btnrow { display: flex; gap: 0.8rem; flex-wrap: wrap; justify-content: center; }
+
+    .bigmsg {
+      font-size: clamp(1rem, 5vw, 1.7rem);
+      color: #ffe600;
+      text-shadow: 0 0 16px rgba(255, 230, 0, 0.7);
+      line-height: 1.5;
+    }
+    .submsg { font-size: 0.6rem; color: #9b93b8; line-height: 1.9; }
+    .submsg strong { color: #00f0ff; }
+    .newbest {
+      font-size: 0.7rem;
+      color: #ff2e88;
+      animation: flash 0.7s steps(2) infinite;
+    }
+    .newbest.hidden { display: none; }
+    @keyframes flash { 50% { opacity: 0.25; } }
+
+    .board {
+      border: 2px solid #3e2f65;
+      border-radius: 12px;
+      padding: 0.8rem 1.1rem;
+      background: rgba(0, 240, 255, 0.05);
+      font-size: 0.56rem;
+      line-height: 2.1;
+      min-width: min(300px, 85vw);
+    }
+    .board h2 { font-size: 0.6rem; color: #00f0ff; margin-bottom: 0.5rem; }
+    .board ol { list-style: none; counter-reset: rank; }
+    .board li { counter-increment: rank; display: flex; justify-content: space-between; gap: 1rem; }
+    .board li::before { content: counter(rank) "."; color: #9b93b8; margin-right: 0.5rem; }
+    .board li strong { color: #ffe600; }
+    .board .empty { color: #9b93b8; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../../">&larr; Flocade</a>
+    <div class="hud">
+      <span>LVL <strong id="hudLevel">-</strong></span>
+      <span>LEFT <strong id="hudLeft">-</strong></span>
+    </div>
+  </div>
+  <div class="timerbar"><div class="fill" id="timerFill" style="transform: scaleX(0)"></div></div>
+
+  <div id="arena">
+    <div id="bag"></div>
+    <div id="bagLabel"></div>
+
+    <div class="overlay" id="menuOverlay">
+      <h1>SOF 'EM ALL</h1>
+      <p class="tagline">Everybody's standing up and nobody's napping! <strong>Drag</strong> each person onto the beanbag, <strong>tap</strong> them so they nod off, and clear the whole row before <strong>10 seconds</strong> run out.</p>
+      <p class="pick">PICK YOUR BEANBAG</p>
+      <div class="swatches" id="swatches"></div>
+      <div class="btnrow">
+        <button class="action rainbow" id="btnRandom">RANDOM</button>
+      </div>
+      <p class="submsg" id="menuBest"></p>
+    </div>
+
+    <div class="overlay hidden" id="msgOverlay">
+      <div class="bigmsg" id="msgBig"></div>
+      <div class="submsg" id="msgSub"></div>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <div class="bigmsg" id="overTitle">TIME'S UP!</div>
+      <div class="submsg" id="overStats"></div>
+      <div class="newbest hidden" id="overNewBest">&#9733; NEW BEST! &#9733;</div>
+      <div class="board">
+        <h2>SLEEPY SCOREBOARD</h2>
+        <ol id="boardList"></ol>
+      </div>
+      <div class="btnrow">
+        <button class="action pink" id="btnRetry">PLAY AGAIN</button>
+        <button class="action" id="btnMenu">NEW BEANBAG</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const LEVEL_TIME = 10000;                  // 10 seconds, every level
+    const PEOPLE_FOR_LEVEL = lvl => lvl + 2;   // level 1 => 3 people
+    const STORE_KEY = 'flocade-sof-em-all-scores';
+
+    const BAG_COLORS = [
+      { name: 'PINK',   c: '#ff2e88' },
+      { name: 'CYAN',   c: '#00f0ff' },
+      { name: 'YELLOW', c: '#ffe600' },
+      { name: 'LIME',   c: '#7dff5e' },
+      { name: 'GRAPE',  c: '#b26bff' },
+      { name: 'ORANGE', c: '#ff8c3a' },
+      { name: 'BLUE',   c: '#3d7bff' },
+      { name: 'MINT',   c: '#4ff0c0' },
+      { name: 'RED',    c: '#ff4d4d' },
+      { name: 'CLOUD',  c: '#dcd6ff' },
+    ];
+
+    const SHIRTS   = ['#ff2e88', '#00f0ff', '#ffe600', '#7dff5e', '#b26bff', '#ff8c3a', '#3d7bff', '#4ff0c0'];
+    const TROUSERS = ['#2f2a5c', '#3f3170', '#4a3a2a', '#25406b', '#5c2a4a'];
+    const SKINS    = ['#f7d0b0', '#e8b48c', '#c98a5e', '#96603a', '#6b4226', '#ffe0c4'];
+    const HAIRS    = ['#2a1b12', '#6b3f1d', '#c9871f', '#e8e2ef', '#ff2e88', '#00c8d8', '#7a4bd0', '#111'];
+    const HAIRCUTS = ['short', 'bob', 'bun', 'spike'];
+
+    const arena = document.getElementById('arena');
+    const bagEl = document.getElementById('bag');
+    const bagLabel = document.getElementById('bagLabel');
+    const timerFill = document.getElementById('timerFill');
+    const hudLevel = document.getElementById('hudLevel');
+    const hudLeft = document.getElementById('hudLeft');
+    const menuOverlay = document.getElementById('menuOverlay');
+    const msgOverlay = document.getElementById('msgOverlay');
+    const msgBig = document.getElementById('msgBig');
+    const msgSub = document.getElementById('msgSub');
+    const overOverlay = document.getElementById('overOverlay');
+    const overTitle = document.getElementById('overTitle');
+    const overStats = document.getElementById('overStats');
+    const overNewBest = document.getElementById('overNewBest');
+    const boardList = document.getElementById('boardList');
+
+    // ---------- scoreboard (top 5) ----------
+    function loadScores() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(STORE_KEY));
+        return Array.isArray(raw) ? raw : [];
+      } catch { return []; }
+    }
+    function saveScore(level) {
+      const scores = loadScores();
+      const prevBest = scores[0] ? scores[0].level : 0;
+      scores.push({ level, date: new Date().toISOString().slice(0, 10) });
+      scores.sort((a, b) => b.level - a.level);
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(scores.slice(0, 5))); } catch {}
+      return level > prevBest;
+    }
+    function renderMenuBest() {
+      const best = loadScores()[0];
+      document.getElementById('menuBest').innerHTML =
+        best ? 'BEST: <strong>LEVEL ' + best.level + '</strong>' : '';
+    }
+    function renderBoard(justScored) {
+      const entries = loadScores();
+      boardList.innerHTML = '';
+      if (!entries.length) {
+        boardList.innerHTML = '<li class="empty">No naps yet</li>';
+        return;
+      }
+      let highlighted = false;
+      for (const e of entries) {
+        const li = document.createElement('li');
+        const lvl = document.createElement(!highlighted && e.level === justScored ? 'strong' : 'span');
+        if (lvl.tagName === 'STRONG') highlighted = true;
+        lvl.textContent = 'LVL ' + e.level;
+        const date = document.createElement('span');
+        date.textContent = e.date;
+        li.append(lvl, date);
+        boardList.appendChild(li);
+      }
+    }
+
+    // ---------- tiny sounds ----------
+    let audioCtx = null;
+    function beep(freq, dur, type = 'square', vol = 0.07, slideTo = 0) {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const t = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+        gain.gain.setValueAtTime(vol, t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start();
+        osc.stop(t + dur);
+      } catch {}
+    }
+
+    // ---------- artwork ----------
+    function bagSVG(color, w, h) {
+      return `<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+        <ellipse cx="100" cy="133" rx="86" ry="10" fill="#000" opacity="0.35"/>
+        <path d="M100 6 C152 6 192 44 192 84 C192 116 152 134 100 134 C48 134 8 116 8 84 C8 44 48 6 100 6 Z" fill="${color}"/>
+        <path d="M100 6 C152 6 192 44 192 84 C192 116 152 134 100 134 C48 134 8 116 8 84 C8 44 48 6 100 6 Z" fill="none" stroke="#000" stroke-opacity="0.25" stroke-width="3"/>
+        <path d="M100 134 C48 134 8 116 8 84 C8 78 8.6 72 10 66 C22 96 58 112 100 112 C142 112 178 96 190 66 C191.4 72 192 78 192 84 C192 116 152 134 100 134 Z" fill="#000" opacity="0.18"/>
+        <ellipse cx="70" cy="38" rx="34" ry="20" fill="#fff" opacity="0.28" transform="rotate(-18 70 38)"/>
+        <path d="M100 8 C100 50 100 92 100 132" stroke="#000" stroke-opacity="0.16" stroke-width="2.5" fill="none" stroke-dasharray="7 6"/>
+        <path d="M100 8 C64 34 40 66 30 118" stroke="#000" stroke-opacity="0.13" stroke-width="2.5" fill="none" stroke-dasharray="7 6"/>
+        <path d="M100 8 C136 34 160 66 170 118" stroke="#000" stroke-opacity="0.13" stroke-width="2.5" fill="none" stroke-dasharray="7 6"/>
+      </svg>`;
+    }
+
+    function hairPath(cut, hair) {
+      switch (cut) {
+        case 'bob':
+          return `<path d="M8.4 15c0-6.6 5.2-11.6 11.6-11.6S31.6 8.4 31.6 15v9c0 1.4-1 2.4-2.4 2.4h-1.4V15c0-3-3.4-4.6-7.8-4.6S12.2 12 12.2 15v11.4h-1.4A2.4 2.4 0 0 1 8.4 24z" fill="${hair}"/>`;
+        case 'bun':
+          return `<circle cx="20" cy="1.6" r="4.4" fill="${hair}"/>
+                  <path d="M8.6 14.4c0-6.4 5.1-11 11.4-11s11.4 4.6 11.4 11c0 0-3-4.6-11.4-4.6S8.6 14.4 8.6 14.4z" fill="${hair}"/>`;
+        case 'spike':
+          return `<path d="M8.8 14.6 11 6.4l3.2 5 2.6-7 3.4 6.4 3-6 2.4 6.6 3.4-4.4 2.2 7.6c0 0-3.6-4.4-11.4-4.4S8.8 14.6 8.8 14.6z" fill="${hair}"/>`;
+        default:
+          return `<path d="M8.6 15c0-6.4 5.1-11.6 11.4-11.6S31.4 8.6 31.4 15c0 0-2.4-5.4-11.4-5.4S8.6 15 8.6 15z" fill="${hair}"/>`;
+      }
+    }
+
+    function faceStanding(sleeping) {
+      return sleeping
+        ? `<path d="M14 15.4q2.2 2.6 4.4 0" stroke="#20143a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+           <path d="M21.6 15.4q2.2 2.6 4.4 0" stroke="#20143a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+           <ellipse cx="20" cy="21" rx="2.2" ry="2.8" fill="#20143a" opacity="0.75"/>`
+        : `<circle cx="16" cy="15" r="1.7" fill="#20143a"/>
+           <circle cx="24" cy="15" r="1.7" fill="#20143a"/>
+           <path d="M16.4 20.4q3.6 3 7.2 0" stroke="#20143a" stroke-width="1.6" fill="none" stroke-linecap="round"/>`;
+    }
+
+    function standSVG(p, sleeping) {
+      return `<svg viewBox="0 0 40 64" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="20" cy="61.5" rx="13" ry="2.6" fill="#000" opacity="0.4"/>
+        <rect x="13" y="41" width="6" height="17" rx="3" fill="${p.trousers}"/>
+        <rect x="21" y="41" width="6" height="17" rx="3" fill="${p.trousers}"/>
+        <rect x="11.6" y="55" width="8" height="5" rx="2.5" fill="#241a3e"/>
+        <rect x="20.4" y="55" width="8" height="5" rx="2.5" fill="#241a3e"/>
+        <rect x="6.4" y="27" width="5.4" height="18" rx="2.7" fill="${p.shirt}"/>
+        <rect x="28.2" y="27" width="5.4" height="18" rx="2.7" fill="${p.shirt}"/>
+        <circle cx="9.1" cy="45" r="3.1" fill="${p.skin}"/>
+        <circle cx="30.9" cy="45" r="3.1" fill="${p.skin}"/>
+        <rect x="9.6" y="24" width="20.8" height="22" rx="8" fill="${p.shirt}"/>
+        <rect x="9.6" y="24" width="20.8" height="22" rx="8" fill="#fff" opacity="0.12"/>
+        <rect x="17.4" y="21" width="5.2" height="5" rx="2" fill="${p.skin}"/>
+        <circle cx="20" cy="14.2" r="11" fill="${p.skin}"/>
+        ${hairPath(p.cut, p.hair)}
+        ${faceStanding(sleeping)}
+      </svg>`;
+    }
+
+    // Sunk into the beanbag: knees up, arms flopped out, head lolling.
+    function sitSVG(p, sleeping) {
+      const tilt = sleeping ? 13 : 3;
+      return `<svg viewBox="0 0 64 50" xmlns="http://www.w3.org/2000/svg">
+        <path d="M27 36 L13 45" stroke="${p.trousers}" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <path d="M37 36 L51 45" stroke="${p.trousers}" stroke-width="9" stroke-linecap="round" fill="none"/>
+        <ellipse cx="10.4" cy="45.6" rx="5.6" ry="3.8" fill="#241a3e" transform="rotate(-20 10.4 45.6)"/>
+        <ellipse cx="53.6" cy="45.6" rx="5.6" ry="3.8" fill="#241a3e" transform="rotate(20 53.6 45.6)"/>
+        <path d="M23 26 L9.6 33.6" stroke="${p.shirt}" stroke-width="6.6" stroke-linecap="round" fill="none"/>
+        <path d="M41 26 L54.4 33.6" stroke="${p.shirt}" stroke-width="6.6" stroke-linecap="round" fill="none"/>
+        <circle cx="8.4" cy="34.4" r="3.2" fill="${p.skin}"/>
+        <circle cx="55.6" cy="34.4" r="3.2" fill="${p.skin}"/>
+        <rect x="21" y="20" width="22" height="20" rx="9" fill="${p.shirt}"/>
+        <rect x="21" y="20" width="22" height="20" rx="9" fill="#fff" opacity="0.12"/>
+        <rect x="29.4" y="16.5" width="5.2" height="6" rx="2" fill="${p.skin}"/>
+        <g transform="translate(12 -3)">
+          <g transform="rotate(${tilt} 20 25)">
+            <circle cx="20" cy="14.2" r="11" fill="${p.skin}"/>
+            ${hairPath(p.cut, p.hair)}
+            ${faceStanding(sleeping)}
+          </g>
+        </g>
+      </svg>`;
+    }
+
+    // ---------- geometry ----------
+    const bag = { cx: 0, cy: 0, rx: 0, ry: 0, w: 0, h: 0 };
+
+    // Seat slots as fractions of the bag radii — back row first so the front
+    // row overlaps it naturally.
+    const SEAT_SLOTS = [
+      [-0.44, -0.38], [0.06, -0.44], [0.54, -0.38],
+      [-0.68, 0.00], [-0.22, -0.06], [0.26, -0.06], [0.70, 0.00],
+      [-0.46, 0.40], [0.04, 0.44], [0.54, 0.40],
+    ];
+
+    function layoutBag() {
+      const W = arena.clientWidth, H = arena.clientHeight;
+      bag.w = Math.min(W * 0.72, H * 0.56, 400);
+      bag.h = bag.w * 0.7;
+      bag.cx = W / 2;
+      bag.cy = Math.max(bag.h * 0.6 + 10, H * 0.27);
+      bag.rx = bag.w / 2;
+      bag.ry = bag.h / 2;
+      const left = bag.cx - bag.rx, top = bag.cy - bag.ry;
+      bagEl.style.width = bag.w + 'px';
+      bagEl.style.height = bag.h + 'px';
+      bagEl.style.setProperty('--bx', left + 'px');
+      bagEl.style.setProperty('--by', top + 'px');
+      bagEl.style.transform = `translate(${left}px, ${top}px)`;
+      bagLabel.style.width = bag.w + 'px';
+      bagLabel.style.transform = `translate(${left}px, ${bag.cy + bag.ry + 8}px)`;
+    }
+
+    function drawBag(color) {
+      bagEl.innerHTML = bagSVG(color, bag.w, bag.h);
+      bagEl.style.filter = `drop-shadow(0 0 26px ${color}66)`;
+    }
+
+    // Where the standing crowd lines up, and how big each person is.
+    function queueLayout(count) {
+      const W = arena.clientWidth, H = arena.clientHeight;
+      const bandTop = bag.cy + bag.ry + 34;
+      const bandH = Math.max(90, H - bandTop - 6);
+      let pw = 68, perRow = 1, rows = 1;
+      for (; pw >= 34; pw -= 2) {
+        perRow = Math.max(1, Math.floor((W - 10) / (pw + 8)));
+        rows = Math.ceil(count / perRow);
+        if (rows * (pw * 1.6 + 6) <= bandH) break;
+      }
+      return { pw, ph: pw * 1.6, perRow, rows, bandTop, bandH, W };
+    }
+
+    function homeSpot(index, count, q) {
+      const row = Math.floor(index / q.perRow);
+      const rowCount = Math.min(q.perRow, count - row * q.perRow);
+      const step = q.pw + 8;
+      const rowW = rowCount * step - 8;
+      const startX = (q.W - rowW) / 2;
+      const col = index % q.perRow;
+      const rowH = q.rows * (q.ph + 6) - 6;
+      const startY = q.bandTop + Math.max(0, (q.bandH - rowH) / 2);
+      return { x: startX + col * step, y: startY + row * (q.ph + 6) };
+    }
+
+    // ---------- game state ----------
+    let bagColor = BAG_COLORS[0].c;
+    let level = 0;
+    let people = [];
+    let remaining = 0;
+    let running = false;
+    let levelEndsAt = 0;
+    let msgTimer = 0;
+    let usedSeats = new Set();
+    let keyboardMode = false;
+    let picked = -1;   // keyboard selection
+
+    function place(p, x, y, animate) {
+      p.x = x; p.y = y;
+      p.el.classList.toggle('moving', !!animate);
+      p.el.style.transform = `translate(${x}px, ${y}px)`;
+      p.el.style.zIndex = String(10 + Math.round(y));
+    }
+
+    function setPose(p, pose, sleeping) {
+      p.pose = pose;
+      if (pose === 'sit') {
+        p.w = p.basePW * 1.34;
+        p.h = p.basePW * 1.05;
+        p.inner.innerHTML = sitSVG(p, sleeping);
+      } else {
+        p.w = p.basePW;
+        p.h = p.basePW * 1.6;
+        p.inner.innerHTML = standSVG(p, sleeping);
+      }
+      p.el.style.width = p.w + 'px';
+      p.el.style.height = p.h + 'px';
+    }
+
+    function clearPeople() {
+      for (const p of people) p.el.remove();
+      people = [];
+      usedSeats.clear();
+      picked = -1;
+    }
+
+    // Deal from a shuffled deck so a crowd never turns out all one colour.
+    function deck(list, count) {
+      const out = [];
+      while (out.length < count) {
+        const bag = list.slice();
+        for (let i = bag.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [bag[i], bag[j]] = [bag[j], bag[i]];
+        }
+        out.push(...bag);
+      }
+      return out;
+    }
+
+    function spawnPeople(count) {
+      clearPeople();
+      const q = queueLayout(count);
+      const shirts = deck(SHIRTS, count);
+      const hairs = deck(HAIRS, count);
+      const skins = deck(SKINS, count);
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'person idle';
+        const inner = document.createElement('div');
+        inner.className = 'inner';
+        el.appendChild(inner);
+        const p = {
+          el, inner, i,
+          basePW: q.pw,
+          shirt: shirts[i],
+          trousers: TROUSERS[Math.floor(Math.random() * TROUSERS.length)],
+          skin: skins[i],
+          hair: hairs[i],
+          cut: HAIRCUTS[Math.floor(Math.random() * HAIRCUTS.length)],
+          state: 'standing',
+          pose: 'stand',
+        };
+        inner.style.animationDelay = (Math.random() * -1.6) + 's';
+        setPose(p, 'stand', false);
+        const spot = homeSpot(i, count, q);
+        p.home = spot;
+        place(p, spot.x, spot.y, false);
+        wirePerson(p);
+        arena.appendChild(el);
+        people.push(p);
+      }
+    }
+
+    function relayout() {
+      layoutBag();
+      drawBag(bagColor);
+      if (!people.length) return;
+      const q = queueLayout(people.length);
+      for (const p of people) {
+        p.basePW = q.pw;
+        p.home = homeSpot(p.i, people.length, q);
+        setPose(p, p.pose, p.state === 'asleep');
+        if (p.state === 'standing') place(p, p.home.x, p.home.y, false);
+        else if (p.state === 'seated' || p.state === 'asleep') seatAt(p, p.seat, false);
+      }
+    }
+
+    // ---------- interaction ----------
+    function wirePerson(p) {
+      p.el.addEventListener('pointerdown', ev => {
+        if (!running) return;
+        ev.preventDefault();
+        keyboardMode = false;
+        highlight(-1);
+        if (p.state === 'seated') { sleep(p); return; }
+        if (p.state !== 'standing') return;
+        p.state = 'dragging';
+        p.el.classList.remove('idle', 'moving');
+        p.el.classList.add('dragging');
+        p.el.style.zIndex = '90';
+        p.pointerId = ev.pointerId;
+        try { p.el.setPointerCapture(ev.pointerId); } catch {}
+        const r = arena.getBoundingClientRect();
+        p.grabDX = (ev.clientX - r.left) - p.x;
+        p.grabDY = (ev.clientY - r.top) - p.y;
+        beep(660, 0.05, 'square', 0.05);
+      });
+
+      p.el.addEventListener('pointermove', ev => {
+        if (p.state !== 'dragging' || ev.pointerId !== p.pointerId) return;
+        ev.preventDefault();
+        const r = arena.getBoundingClientRect();
+        place(p, (ev.clientX - r.left) - p.grabDX, (ev.clientY - r.top) - p.grabDY, false);
+        p.el.style.zIndex = '90';
+      });
+
+      const finish = ev => {
+        if (p.state !== 'dragging' || ev.pointerId !== p.pointerId) return;
+        p.el.classList.remove('dragging');
+        try { p.el.releasePointerCapture(ev.pointerId); } catch {}
+        drop(p);
+      };
+      p.el.addEventListener('pointerup', finish);
+      p.el.addEventListener('pointercancel', finish);
+    }
+
+    function onBag(p) {
+      const cx = p.x + p.w / 2;
+      const cy = p.y + p.h * 0.62;
+      const dx = (cx - bag.cx) / bag.rx;
+      const dy = (cy - bag.cy) / bag.ry;
+      return dx * dx + dy * dy <= 1.1;   // a hair of slack — beanbags are squishy
+    }
+
+    function freeSeat(px, py) {
+      let best = -1, bestD = Infinity;
+      for (let s = 0; s < SEAT_SLOTS.length; s++) {
+        if (usedSeats.has(s)) continue;
+        const [fx, fy] = SEAT_SLOTS[s];
+        const d = Math.hypot(bag.cx + fx * bag.rx - px, bag.cy + fy * bag.ry - py);
+        if (d < bestD) { bestD = d; best = s; }
+      }
+      return best;
+    }
+
+    function seatAt(p, seat, animate) {
+      const [fx, fy] = SEAT_SLOTS[seat] || [0, 0];
+      const sx = bag.cx + fx * bag.rx;
+      const sy = bag.cy + fy * bag.ry;
+      place(p, sx - p.w / 2, sy - p.h * 0.62, animate);
+      p.el.style.zIndex = String(30 + Math.round(sy));
+    }
+
+    function sit(p) {
+      p.state = 'seated';
+      p.el.classList.remove('idle');
+      p.el.classList.add('seated');
+      const seat = freeSeat(p.x + p.w / 2, p.y + p.h / 2);
+      p.seat = seat >= 0 ? seat : 4;
+      if (seat >= 0) usedSeats.add(seat);
+      setPose(p, 'sit', false);
+      seatAt(p, p.seat, true);
+      bagEl.classList.add('squish');
+      setTimeout(() => bagEl.classList.remove('squish'), 190);
+      beep(220, 0.16, 'sine', 0.09, 120);
+      updateLabel();
+    }
+
+    function drop(p) {
+      if (onBag(p)) { sit(p); return; }
+      p.state = 'standing';
+      p.el.classList.add('idle');
+      place(p, p.home.x, p.home.y, true);
+      beep(180, 0.09, 'sawtooth', 0.05);
+    }
+
+    function sleep(p) {
+      if (p.state !== 'seated') return;
+      p.state = 'asleep';
+      p.el.classList.remove('seated');
+      p.el.classList.add('asleep');
+      setPose(p, 'sit', true);
+      seatAt(p, p.seat, false);
+      zzz(p);
+      beep(520, 0.22, 'triangle', 0.07, 180);
+      remaining--;
+      hudLeft.textContent = remaining;
+      const seat = p.seat;
+      setTimeout(() => {
+        p.el.classList.add('gone');
+        usedSeats.delete(seat);
+      }, 620);
+      setTimeout(() => { p.el.style.display = 'none'; }, 980);
+      updateLabel();
+      if (remaining <= 0) levelCleared();
+    }
+
+    function zzz(p) {
+      for (let i = 0; i < 3; i++) {
+        const z = document.createElement('div');
+        z.className = 'zzz';
+        z.textContent = 'z';
+        z.style.setProperty('--zx', (p.x + p.w * 0.72) + 'px');
+        z.style.setProperty('--zy', (p.y + p.h * 0.05 - i * 6) + 'px');
+        z.style.animationDelay = (i * 130) + 'ms';
+        z.style.zIndex = '95';
+        arena.appendChild(z);
+        setTimeout(() => z.remove(), 1100 + i * 130);
+      }
+    }
+
+    function updateLabel() {
+      if (!running) { bagLabel.textContent = ''; return; }
+      const anySeated = people.some(p => p.state === 'seated');
+      bagLabel.textContent = anySeated ? 'TAP THEM TO SLEEP' : 'DRAG THEM HERE';
+      bagLabel.style.opacity = '1';
+    }
+
+    // ---------- keyboard play ----------
+    function highlight(idx) {
+      people.forEach((p, i) => p.el.classList.toggle('picked', i === idx && keyboardMode));
+      picked = idx;
+    }
+    function liveIndexes() {
+      return people.map((p, i) => (p.state === 'standing' || p.state === 'seated') ? i : -1).filter(i => i >= 0);
+    }
+    function moveSelection(dir) {
+      const live = liveIndexes();
+      if (!live.length) { highlight(-1); return; }
+      const at = live.indexOf(picked);
+      const next = at < 0 ? (dir > 0 ? 0 : live.length - 1) : (at + dir + live.length) % live.length;
+      highlight(live[next]);
+    }
+    document.addEventListener('keydown', ev => {
+      if (!running) return;
+      const k = ev.key;
+      if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'Tab') {
+        ev.preventDefault(); keyboardMode = true; moveSelection(1);
+      } else if (k === 'ArrowLeft' || k === 'ArrowUp') {
+        ev.preventDefault(); keyboardMode = true; moveSelection(-1);
+      } else if (k === ' ' || k === 'Enter') {
+        ev.preventDefault();
+        keyboardMode = true;
+        if (picked < 0 || !people[picked] || (people[picked].state !== 'standing' && people[picked].state !== 'seated')) {
+          moveSelection(1);
+          if (picked < 0) return;
+        }
+        const p = people[picked];
+        if (p.state === 'standing') { sit(p); highlight(picked); }
+        else if (p.state === 'seated') { sleep(p); moveSelection(1); }
+      }
+    });
+
+    // ---------- level flow ----------
+    function startGame(color) {
+      bagColor = color;
+      level = 0;
+      keyboardMode = false;
+      layoutBag();
+      drawBag(bagColor);
+      menuOverlay.classList.add('hidden');
+      overOverlay.classList.add('hidden');
+      nextLevel();
+    }
+
+    function nextLevel() {
+      level++;
+      const count = PEOPLE_FOR_LEVEL(level);
+      hudLevel.textContent = level;
+      hudLeft.textContent = count;
+      const sub = level === 1
+        ? 'drag them onto the beanbag,<br>then tap them to sleep'
+        : count + ' people &middot; 10 seconds';
+      showMsg('LEVEL ' + level, sub, level === 1 ? 1600 : 950, () => {
+        layoutBag();
+        drawBag(bagColor);
+        spawnPeople(count);
+        remaining = count;
+        running = true;
+        updateLabel();
+        levelEndsAt = performance.now() + LEVEL_TIME;
+        beep(880, 0.12, 'triangle');
+      });
+    }
+
+    function levelCleared() {
+      running = false;
+      const spare = Math.max(0, levelEndsAt - performance.now());
+      timerFill.style.transform = 'scaleX(0)';
+      bagLabel.textContent = '';
+      beep(660, 0.14, 'triangle');
+      setTimeout(() => beep(880, 0.16, 'triangle'), 130);
+      setTimeout(() => beep(1174, 0.22, 'triangle'), 270);
+      showMsg('ALL ASLEEP!', (spare / 1000).toFixed(1) + 's to spare', 1000, () => {
+        clearPeople();
+        nextLevel();
+      });
+    }
+
+    function gameOver() {
+      running = false;
+      const total = people.length;
+      const awake = people.filter(p => p.state !== 'asleep').length;
+      clearPeople();
+      timerFill.style.transform = 'scaleX(0)';
+      bagLabel.textContent = '';
+      beep(240, 0.4, 'sawtooth', 0.07, 90);
+      setTimeout(() => beep(120, 0.5, 'sawtooth', 0.07, 60), 200);
+      const cleared = level - 1;
+      const isBest = cleared > 0 ? saveScore(cleared) : false;
+      overTitle.textContent = "TIME'S UP!";
+      overStats.innerHTML = cleared > 0
+        ? 'You reached <strong>LEVEL ' + level + '</strong><br>and put ' + (cleared * (cleared + 5) / 2 + (total - awake)) + ' people to sleep'
+        : 'Still ' + awake + (awake === 1 ? ' person' : ' people') + ' wide awake!<br>Beanbags wait for no one&hellip;';
+      overNewBest.classList.toggle('hidden', !isBest);
+      renderBoard(cleared);
+      overOverlay.classList.remove('hidden');
+    }
+
+    function showMsg(big, sub, ms, then) {
+      clearTimeout(msgTimer);
+      msgBig.innerHTML = big;
+      msgSub.innerHTML = sub;
+      msgOverlay.classList.remove('hidden');
+      msgTimer = setTimeout(() => {
+        msgOverlay.classList.add('hidden');
+        then && then();
+      }, ms);
+    }
+
+    // ---------- timer loop ----------
+    function frame(now) {
+      requestAnimationFrame(frame);
+      if (!running) return;
+      const left = levelEndsAt - now;
+      timerFill.style.transform = 'scaleX(' + Math.max(0, left / LEVEL_TIME) + ')';
+      if (left <= 0) gameOver();
+    }
+
+    // ---------- menu ----------
+    const swatches = document.getElementById('swatches');
+    for (const { name, c } of BAG_COLORS) {
+      const btn = document.createElement('button');
+      btn.className = 'swatch';
+      btn.style.setProperty('--c', c);
+      btn.setAttribute('aria-label', name + ' beanbag');
+      btn.innerHTML = bagSVG(c, 60, 42);
+      btn.addEventListener('click', () => startGame(c));
+      swatches.appendChild(btn);
+    }
+    document.getElementById('btnRandom').addEventListener('click', () => {
+      startGame(BAG_COLORS[Math.floor(Math.random() * BAG_COLORS.length)].c);
+    });
+    document.getElementById('btnRetry').addEventListener('click', () => startGame(bagColor));
+    document.getElementById('btnMenu').addEventListener('click', () => {
+      overOverlay.classList.add('hidden');
+      hudLevel.textContent = '-';
+      hudLeft.textContent = '-';
+      renderMenuBest();
+      menuOverlay.classList.remove('hidden');
+    });
+
+    window.addEventListener('resize', () => { if (!menuOverlay.classList.contains('hidden')) layoutBag(); else relayout(); });
+
+    renderMenuBest();
+    layoutBag();
+    drawBag(bagColor);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
