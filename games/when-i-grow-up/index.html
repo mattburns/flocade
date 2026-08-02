@@ -1,0 +1,2500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>When I Grow Up — Flocade</title>
+<link rel="stylesheet" href="../../fonts/fonts.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0d0221; --bg2: #1a0b3d;
+    --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600;
+    --text: #e8e6f0; --dim: #9b93b8;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    position: fixed; inset: 0;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  canvas#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .pixel { font-family: 'Press Start 2P', monospace; }
+
+  /* z-index 50: the nav row stays above the menu overlays (z-index 40) */
+  a.back, button.back {
+    position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 12px; z-index: 50;
+    color: var(--cyan); font-family: 'Press Start 2P', monospace;
+    font-size: 0.55rem; text-decoration: none; padding: 4px;
+    background: none; border: none; cursor: pointer;
+  }
+  a.back:hover, button.back:hover { color: var(--pink); }
+  .hidden { display: none !important; }
+
+  .iconbtn {
+    position: absolute; top: calc(4px + env(safe-area-inset-top)); z-index: 50;
+    background: rgba(255,245,251,0.08); border: 2px solid var(--pink);
+    border-radius: 50%; width: 36px; height: 36px; font-size: 0.9rem;
+    cursor: pointer; color: var(--text); line-height: 1;
+  }
+  #mute { right: 12px; }
+
+  /* ---------------------------------------------------------- overlays ---- */
+  .screen {
+    position: absolute; inset: 0; z-index: 40;
+    background: radial-gradient(120% 80% at 50% 0%, #1a0b3d 0%, #0d0221 70%);
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.85rem; overflow-y: auto; text-align: center;
+    padding: calc(52px + env(safe-area-inset-top)) 1rem calc(1.6rem + env(safe-area-inset-bottom));
+  }
+  #result { background: rgba(13,2,33,0.96); justify-content: center; }
+
+  .title {
+    font-family: 'Press Start 2P', monospace; font-size: clamp(1rem, 5.4vw, 1.9rem);
+    color: var(--yellow); text-shadow: 3px 3px 0 var(--pink); line-height: 1.55;
+  }
+  .question {
+    font-family: 'Press Start 2P', monospace; font-size: clamp(0.7rem, 3.6vw, 1.15rem);
+    color: var(--cyan); line-height: 1.8; text-shadow: 0 0 12px rgba(0,240,255,0.45);
+  }
+  .sub { color: var(--dim); font-size: 0.86rem; line-height: 1.6; max-width: 30rem; }
+  .sub b { color: var(--cyan); }
+  .keys { font-size: 0.7rem; color: var(--dim); line-height: 1.7; max-width: 30rem; }
+  .credit { color: var(--dim); font-size: 0.66rem; line-height: 1.6; }
+  .credit b { color: var(--pink); }
+
+  .btn {
+    font-family: 'Press Start 2P', monospace; font-size: 0.75rem; cursor: pointer;
+    background: var(--pink); color: #fff; border: none; border-radius: 8px;
+    padding: 0.9rem 1.4rem; box-shadow: 0 4px 0 #a3175a; line-height: 1.5;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #a3175a; }
+  .btn.alt { background: transparent; color: var(--cyan); border: 3px solid var(--cyan); box-shadow: none; }
+  .btn.small { font-size: 0.55rem; padding: 0.6rem 0.9rem; box-shadow: 0 3px 0 #a3175a; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; }
+
+  /* ---------------------------------------------------------- job grid ---- */
+  #jobs {
+    display: grid; gap: 0.6rem; width: 100%; max-width: 34rem;
+    grid-template-columns: repeat(auto-fill, minmax(8.6rem, 1fr));
+  }
+  .job {
+    position: relative; cursor: pointer; text-align: left;
+    background: linear-gradient(160deg, rgba(255,46,136,0.14), rgba(0,240,255,0.08));
+    border: 2px solid rgba(0,240,255,0.35); border-radius: 12px;
+    padding: 0.6rem 0.6rem 0.55rem; color: var(--text); font: inherit;
+    display: flex; flex-direction: column; gap: 0.2rem;
+    transition: transform 0.08s, border-color 0.12s, box-shadow 0.12s;
+  }
+  .job:hover { border-color: var(--yellow); box-shadow: 0 0 14px rgba(255,230,0,0.25); }
+  .job:active { transform: scale(0.96); }
+  .job .ic { font-size: 1.6rem; line-height: 1.1; }
+  .job .nm {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--yellow); line-height: 1.5;
+  }
+  .job .dsc { font-size: 0.66rem; color: var(--dim); line-height: 1.35; }
+  .job.done { border-color: var(--yellow); background: linear-gradient(160deg, rgba(255,230,0,0.16), rgba(255,46,136,0.1)); }
+  .job.done .dsc { color: #d8cf9a; }
+  .job .tick {
+    position: absolute; top: 0.4rem; right: 0.45rem; font-size: 0.95rem;
+    filter: drop-shadow(0 0 6px rgba(255,230,0,0.8));
+  }
+
+  #cvline {
+    font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--pink);
+    line-height: 1.7; letter-spacing: 1px;
+  }
+  #cvline b { color: var(--yellow); }
+
+  /* --------------------------------------------------------- how to row --- */
+  .howrow {
+    display: flex; align-items: center; gap: 0.65rem; text-align: left;
+    font-size: 0.8rem; color: var(--text);
+    width: 100%; max-width: 21rem; line-height: 1.45;
+  }
+  .howrow .ic {
+    flex: 0 0 40px; height: 40px; border-radius: 10px; font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,240,255,0.1); border: 2px solid rgba(0,240,255,0.4);
+  }
+  .howrow b { color: var(--yellow); }
+
+  /* -------------------------------------------------------- certificate -- */
+  .cert {
+    width: 100%; max-width: 24rem; padding: 1.1rem 1rem; margin-top: 0.5rem;
+    border: 3px double var(--yellow); border-radius: 10px;
+    background: rgba(255,230,0,0.06);
+    display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+  }
+  .cert .stamp { font-size: 2.6rem; line-height: 1; }
+  .cert .hdr {
+    font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+    color: var(--dim); letter-spacing: 2px; line-height: 1.6;
+  }
+  .cert .role {
+    font-family: 'Press Start 2P', monospace; font-size: 0.85rem;
+    color: var(--yellow); line-height: 1.6; text-shadow: 2px 2px 0 var(--pink);
+  }
+  .cert .note { font-size: 0.76rem; color: var(--text); line-height: 1.5; }
+  .cert .sig {
+    font-size: 0.66rem; color: var(--dim); border-top: 1px dashed rgba(255,230,0,0.4);
+    padding-top: 0.5rem; width: 100%; line-height: 1.6;
+  }
+  #toast {
+    position: absolute; top: 30%; left: 50%; transform: translate(-50%,-50%);
+    z-index: 25; pointer-events: none; text-align: center;
+    font-family: 'Press Start 2P', monospace; font-size: 0.65rem; line-height: 1.7;
+    color: var(--yellow); text-shadow: 2px 2px 0 var(--pink);
+    opacity: 0; transition: opacity 0.25s; max-width: 80vw;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<a class="back" id="backArcade" href="../../">&larr; FLOCADE</a>
+<button class="back hidden" id="backHub">&larr; JOB LIST</button>
+<button class="iconbtn" id="mute" title="Sound on/off">🔊</button>
+
+<div id="toast"></div>
+
+<!-- ------------------------------------------------------------ THE HUB -->
+<div id="hub" class="screen">
+  <div class="title">WHEN I<br>GROW UP</div>
+  <p class="question">WHAT DO YOU<br>WANT TO BE?</p>
+  <p class="sub">Tap a job to do <b>work experience</b> in it. Do a good job and you get <b>employed</b> — that's how you win!</p>
+  <div id="jobs"></div>
+  <div id="cvline"></div>
+  <div class="btnrow">
+    <button class="btn alt small" id="btnReset">CLEAR MY CV</button>
+  </div>
+  <p class="credit">A game designed by <b>Flo</b> 🖍️</p>
+</div>
+
+<!-- ---------------------------------------------------------- JOB INTRO -->
+<div id="intro" class="screen hidden">
+  <div class="title" id="introIcon" style="font-size:2.6rem; text-shadow:none;"></div>
+  <div class="title" id="introTitle"></div>
+  <p class="sub" id="introTag"></p>
+  <div id="introHow"></div>
+  <button class="btn" id="btnStart">START WORK EXPERIENCE</button>
+  <p class="keys" id="introKeys"></p>
+</div>
+
+<!-- -------------------------------------------------------------- RESULT -->
+<div id="result" class="screen hidden">
+  <div id="resultBody"></div>
+  <div class="btnrow" style="margin-top:1rem;">
+    <button class="btn" id="btnRetry">TRY AGAIN</button>
+    <button class="btn alt" id="btnHubFromResult">JOB LIST</button>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ======================================================================== *
+ *  When I Grow Up — a hub of ten "work experience" mini-jobs.
+ *  Do well at one and you get employed (that's the win). Collect all ten
+ *  to become the most over-qualified kid in the world.
+ * ======================================================================== */
+
+// ------------------------------------------------------------------ canvas
+const cv = document.getElementById('game');
+const g = cv.getContext('2d');
+let W = 0, H = 0;                     // canvas size in CSS pixels
+const SAFE_T = 80;                    // room for the back link, header bar and meters
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  W = cv.clientWidth; H = cv.clientHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (cur && cur.layout) cur.layout();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+// ------------------------------------------------------------------- sound
+let muted = false, AC = null;
+const muteBtn = document.getElementById('mute');
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+});
+function ac() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; } }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function tone(freq, dur, { type = 'square', vol = 0.14, delay = 0, to = null, attack = 0.012 } = {}) {
+  if (muted) return;
+  const a = ac(); if (!a) return;
+  const t0 = a.currentTime + delay;
+  const o = a.createOscillator(), gn = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (to) o.frequency.exponentialRampToValueAtTime(Math.max(30, to), t0 + dur);
+  gn.gain.setValueAtTime(0.0001, t0);
+  gn.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(gn); gn.connect(a.destination);
+  o.start(t0); o.stop(t0 + dur + 0.04);
+}
+function noise(dur, { vol = 0.12, delay = 0, hp = 400 } = {}) {
+  if (muted) return;
+  const a = ac(); if (!a) return;
+  const t0 = a.currentTime + delay;
+  const len = Math.max(1, Math.floor(a.sampleRate * dur));
+  const buf = a.createBuffer(1, len, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
+  const gn = a.createGain(); gn.gain.setValueAtTime(vol, t0);
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  src.connect(f); f.connect(gn); gn.connect(a.destination);
+  src.start(t0); src.stop(t0 + dur + 0.02);
+}
+// A sung / played note that holds for a while (used by the music jobs).
+function held(freq, dur, { type = 'triangle', vol = 0.12, vibrato = 0 } = {}) {
+  if (muted) return null;
+  const a = ac(); if (!a) return null;
+  const t0 = a.currentTime;
+  const o = a.createOscillator(), gn = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  gn.gain.setValueAtTime(0.0001, t0);
+  gn.gain.exponentialRampToValueAtTime(vol, t0 + 0.04);
+  gn.gain.setValueAtTime(vol, t0 + Math.max(0.05, dur - 0.08));
+  gn.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(gn); gn.connect(a.destination);
+  if (vibrato) {
+    const lfo = a.createOscillator(), lg = a.createGain();
+    lfo.frequency.value = 5.5; lg.gain.value = vibrato;
+    lfo.connect(lg); lg.connect(o.frequency); lfo.start(t0); lfo.stop(t0 + dur + 0.05);
+  }
+  o.start(t0); o.stop(t0 + dur + 0.05);
+  return { osc: o, gain: gn };
+}
+const SFX = {
+  tap:   () => tone(660, 0.06, { vol: 0.08, to: 880 }),
+  good:  () => { [660, 880].forEach((f, i) => tone(f, 0.1, { type: 'triangle', vol: 0.13, delay: i * 0.06 })); },
+  bad:   () => { tone(300, 0.1, { type: 'sawtooth', vol: 0.09 }); tone(200, 0.16, { type: 'sawtooth', vol: 0.09, delay: 0.09 }); },
+  cheer: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.14, { type: 'triangle', vol: 0.14, delay: i * 0.07 })); },
+  boo:   () => { tone(180, 0.4, { type: 'sawtooth', vol: 0.08, to: 90 }); },
+  win:   () => { [523, 659, 784, 1046, 784, 1046, 1318, 1568].forEach((f, i) => tone(f, 0.22, { type: 'triangle', vol: 0.16, delay: i * 0.14 })); },
+  lose:  () => { [440, 392, 330, 262].forEach((f, i) => tone(f, 0.26, { type: 'triangle', vol: 0.13, delay: i * 0.17 })); },
+  click: () => tone(440, 0.04, { vol: 0.06 }),
+};
+
+// ------------------------------------------------------------------- input
+const keys = new Set();
+let cur = null;                     // the running mini-job (null = in a menu)
+
+function canvasPoint(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+cv.addEventListener('pointerdown', (e) => {
+  if (!cur) return;
+  cv.setPointerCapture && cv.setPointerCapture(e.pointerId);
+  const p = canvasPoint(e); ac();
+  cur.down && cur.down(p.x, p.y, e.pointerId);
+}, { passive: false });
+cv.addEventListener('pointermove', (e) => {
+  if (!cur) return;
+  const p = canvasPoint(e);
+  cur.move && cur.move(p.x, p.y, e.pointerId, e.buttons > 0 || e.pointerType !== 'mouse');
+});
+const endPointer = (e) => {
+  if (!cur) return;
+  const p = canvasPoint(e);
+  cur.up && cur.up(p.x, p.y, e.pointerId);
+};
+cv.addEventListener('pointerup', endPointer);
+cv.addEventListener('pointercancel', endPointer);
+cv.addEventListener('contextmenu', (e) => e.preventDefault());
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') { if (cur) toHub(); return; }
+  if (keys.has(e.code)) return;              // ignore auto-repeat
+  keys.add(e.code);
+  if (!cur) return;
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+  ac();
+  cur.key && cur.key(e.code, true);
+});
+window.addEventListener('keyup', (e) => {
+  keys.delete(e.code);
+  if (cur) cur.key && cur.key(e.code, false);
+});
+
+// ------------------------------------------------------------ draw helpers
+function rr(x, y, w, h, r) {
+  const rad = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+  g.beginPath();
+  if (g.roundRect) { g.roundRect(x, y, w, h, rad); return; }
+  g.moveTo(x + rad, y);
+  g.arcTo(x + w, y, x + w, y + h, rad);
+  g.arcTo(x + w, y + h, x, y + h, rad);
+  g.arcTo(x, y + h, x, y, rad);
+  g.arcTo(x, y, x + w, y, rad);
+  g.closePath();
+}
+function fillRR(x, y, w, h, r, col) { rr(x, y, w, h, r); g.fillStyle = col; g.fill(); }
+function strokeRR(x, y, w, h, r, col, lw = 2) { rr(x, y, w, h, r); g.strokeStyle = col; g.lineWidth = lw; g.stroke(); }
+
+const PIX = "'Press Start 2P', monospace";
+function txt(s, x, y, { size = 12, col = '#e8e6f0', align = 'center', base = 'middle', pixel = true, weight = '' } = {}) {
+  g.font = `${weight} ${size}px ${pixel ? PIX : "'Inter', system-ui, sans-serif"}`.trim();
+  g.fillStyle = col; g.textAlign = align; g.textBaseline = base;
+  g.fillText(s, x, y);
+}
+// Colour emoji glyphs are composited with the paint's alpha, so the fill has
+// to be fully opaque or they come out as ghosts.
+function emoji(ch, x, y, size) {
+  g.font = `${size}px 'Inter', system-ui, sans-serif`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#ffffff';
+  g.fillText(ch, x, y);
+}
+// Biggest font size at which `s` still fits inside maxW.
+function fitSize(s, maxW, maxSize, minSize = 6, pixel = true) {
+  const fam = pixel ? PIX : "'Inter', system-ui, sans-serif";
+  let size = maxSize;
+  g.font = `${size}px ${fam}`;
+  while (size > minSize && g.measureText(s).width > maxW) {
+    size -= 0.5;
+    g.font = `${size}px ${fam}`;
+  }
+  return size;
+}
+// Largest rect of the given aspect (w/h) that fits the play area.
+function fit(aspect, { top = SAFE_T, bottom = 12, side = 10 } = {}) {
+  const aw = Math.max(40, W - side * 2), ah = Math.max(40, H - top - bottom);
+  let w = aw, h = w / aspect;
+  if (h > ah) { h = ah; w = h * aspect; }
+  return { x: (W - w) / 2, y: top + (ah - h) / 2, w, h };
+}
+function inRect(r, x, y) { return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h; }
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+// A tappable canvas button. `id` is what down() looks for.
+// A label that shrinks, and wraps onto two lines, rather than spilling out.
+function labelIn(label, cx, cy, maxW, maxSize, col) {
+  const one = fitSize(label, maxW, maxSize);
+  if (one >= maxSize * 0.62 || !label.includes(' ')) {
+    txt(label, cx, cy, { size: one, col });
+    return;
+  }
+  const words = label.split(' ');
+  let bestSplit = 1, bestWidth = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+    g.font = `10px ${PIX}`;
+    const wd = Math.max(g.measureText(a).width, g.measureText(b).width);
+    if (wd < bestWidth) { bestWidth = wd; bestSplit = i; }
+  }
+  const l1 = words.slice(0, bestSplit).join(' '), l2 = words.slice(bestSplit).join(' ');
+  const size = Math.min(fitSize(l1, maxW, maxSize), fitSize(l2, maxW, maxSize));
+  txt(l1, cx, cy - size * 0.72, { size, col });
+  txt(l2, cx, cy + size * 0.72, { size, col });
+}
+function drawButton(b, { col = '#00f0ff', bg = 'rgba(0,240,255,0.12)', size = 0, pressed = false, dim = false } = {}) {
+  const off = pressed ? 2 : 0;
+  fillRR(b.x, b.y + off, b.w, b.h, 10, dim ? 'rgba(155,147,184,0.08)' : bg);
+  strokeRR(b.x, b.y + off, b.w, b.h, 10, dim ? 'rgba(155,147,184,0.35)' : col, 2.5);
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2 + off;
+  const lcol = dim ? '#9b93b8' : '#ffe600';
+  const maxW = b.w - 12;
+  if (b.icon && b.label) {
+    emoji(b.icon, cx, cy - b.h * 0.2, Math.min(b.h * 0.4, 30));
+    labelIn(b.label, cx, cy + b.h * 0.28, maxW, size || Math.min(b.h * 0.2, 11), lcol);
+  } else if (b.icon) {
+    emoji(b.icon, cx, cy, Math.min(b.h * 0.6, 40));
+  } else {
+    labelIn(b.label, cx, cy, maxW, size || Math.min(b.h * 0.34, 14), lcol);
+  }
+}
+// Progress bar with a label that stays readable over the filled part or the gap.
+function meter(x, y, w, h, frac, { col = '#00f0ff', label = '', bg = 'rgba(255,255,255,0.08)' } = {}) {
+  fillRR(x, y, w, h, h / 2, bg);
+  const fw = clamp(frac, 0, 1) * (w - 4);
+  if (fw > 1) fillRR(x + 2, y + 2, fw, h - 4, (h - 4) / 2, col);
+  strokeRR(x, y, w, h, h / 2, 'rgba(255,255,255,0.25)', 1.5);
+  if (label) {
+    const size = fitSize(label, w - 22, Math.min(h * 0.55, 10));
+    g.font = `${size}px ${PIX}`;
+    const tw = g.measureText(label).width;
+    // a plaque behind the label so it reads over the fill and over the gap
+    fillRR(x + w / 2 - tw / 2 - 5, y + h / 2 - size * 0.8, tw + 10, size * 1.6, size * 0.5, 'rgba(13,2,33,0.78)');
+    txt(label, x + w / 2, y + h / 2 + 0.5, { size, col: '#ffffff' });
+  }
+}
+// Starfield-ish backdrop shared by several jobs.
+const DOTS = Array.from({ length: 70 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.6 + 0.4 }));
+function backdrop(top = '#1a0b3d', bottom = '#0d0221', stars = false) {
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, top); grd.addColorStop(1, bottom);
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  if (stars) {
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    for (const d of DOTS) { g.beginPath(); g.arc(d.x * W, d.y * H, d.r, 0, 7); g.fill(); }
+  }
+}
+// Sits below the back link / mute button row, never under them.
+function headerBar(title, right = '') {
+  const y = 44, h = 24;
+  fillRR(8, y, W - 16, h, 8, 'rgba(13,2,33,0.6)');
+  txt(title, W / 2, y + h / 2, { size: fitSize(title, W * 0.5, 9), col: '#00f0ff' });
+  if (right) txt(right, W - 16, y + h / 2, { size: 9, col: '#ffe600', align: 'right' });
+}
+// Screen-shake / flash feedback any job can use.
+let flash = { t: 0, col: '#ff2e88' };
+function flashScreen(col) { flash = { t: 0.28, col }; }
+function drawFlash(dt) {
+  if (flash.t <= 0) return;
+  flash.t -= dt;
+  g.globalAlpha = clamp(flash.t / 0.28, 0, 1) * 0.35;
+  g.fillStyle = flash.col; g.fillRect(0, 0, W, H);
+  g.globalAlpha = 1;
+}
+
+// ------------------------------------------------------------------ toast
+const toastEl = document.getElementById('toast');
+let toastTimer = 0;
+function toast(msg, secs = 1.6) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), secs * 1000);
+}
+
+/* ======================================================================== *
+ *  JOB 1 — PRIME MINISTER
+ *  The country shouts what it wants; pick the matching policy. Get your
+ *  approval rating to 100% and you win the election.
+ * ======================================================================== */
+const PM_ISSUES = [
+  { ic: '🏥', want: 'MORE HOSPITALS',  pol: 'BUILD HOSPITALS' },
+  { ic: '🏫', want: 'BETTER SCHOOLS',  pol: 'FIX THE SCHOOLS' },
+  { ic: '🌳', want: 'MORE PARKS',      pol: 'PLANT A PARK' },
+  { ic: '🚆', want: 'FASTER TRAINS',   pol: 'FASTER TRAINS' },
+  { ic: '🗑️', want: 'LESS RUBBISH',   pol: 'CLEAN THE STREETS' },
+  { ic: '🏠', want: 'MORE HOUSES',     pol: 'BUILD HOUSES' },
+  { ic: '🦷', want: 'A DENTIST',       pol: 'MORE DENTISTS' },
+  { ic: '📚', want: 'MORE LIBRARIES',  pol: 'OPEN LIBRARIES' },
+  { ic: '🚲', want: 'CYCLE LANES',     pol: 'PAINT BIKE LANES' },
+  { ic: '🐋', want: 'CLEANER SEAS',    pol: 'CLEAN THE SEA' },
+  { ic: '🍎', want: 'FREE FRUIT',      pol: 'FREE FRUIT' },
+  { ic: '🐕', want: 'DOG PARKS',       pol: 'DOG PARKS' },
+];
+
+function makePrimeMinister() {
+  const st = {
+    approval: 50, round: 0, maxRounds: 10, phase: 'ask', phaseT: 0,
+    ask: null, opts: [], picked: -1, correct: false, timeLeft: 7,
+    crowd: Array.from({ length: 22 }, (_, i) => ({
+      x: (i + 0.5) / 22, bob: Math.random() * 6, face: pick(['🧑', '👩', '👴', '👦', '👧', '🧕', '👨', '👵']),
+    })),
+    buttons: [],
+  };
+
+  function nextRound() {
+    st.round++;
+    if (st.round > st.maxRounds) { failJob('The election came and your approval never hit 100%.'); return; }
+    const bag = shuffle(PM_ISSUES.slice());
+    st.ask = bag[0];
+    st.opts = shuffle([bag[0], bag[1], bag[2]]);
+    st.picked = -1;
+    st.timeLeft = 7;
+    st.phase = 'ask';
+  }
+
+  function choose(i) {
+    if (st.phase !== 'ask') return;
+    st.picked = i;
+    st.correct = st.opts[i] === st.ask;
+    st.approval = clamp(st.approval + (st.correct ? 12 : -14), 0, 100);
+    st.phase = 'react'; st.phaseT = 1.15;
+    if (st.correct) { SFX.cheer(); flashScreen('#00f0ff'); } else { SFX.boo(); flashScreen('#ff2e88'); }
+  }
+
+  function layout() {
+    const bh = clamp(H * 0.13, 54, 92);
+    const gap = 8, side = 12;
+    const bw = (W - side * 2 - gap * 2) / 3;
+    const y = H - bh - 14;
+    st.buttons = st.opts.map((o, i) => ({ x: side + i * (bw + gap), y, w: bw, h: bh, icon: o.ic, label: o.pol }));
+  }
+
+  nextRound(); layout();
+
+  return {
+    layout,
+    down(x, y) {
+      for (let i = 0; i < st.buttons.length; i++) {
+        if (inRect(st.buttons[i], x, y)) { choose(i); return; }
+      }
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+      if (n !== undefined) choose(n);
+    },
+    update(dt) {
+      if (st.phase === 'ask') {
+        st.timeLeft -= dt;
+        if (st.timeLeft <= 0) {
+          st.approval = clamp(st.approval - 10, 0, 100);
+          st.picked = -2; st.correct = false;
+          st.phase = 'react'; st.phaseT = 1.0; SFX.boo();
+        }
+      } else if (st.phase === 'react') {
+        st.phaseT -= dt;
+        if (st.phaseT <= 0) {
+          if (st.approval >= 100) { succeed('prime-minister'); return; }
+          if (st.approval <= 0) { failJob('Your approval rating hit zero. The country wants a new PM.'); return; }
+          nextRound(); layout();
+        }
+      }
+      for (const c of st.crowd) c.bob += dt * (st.phase === 'react' && st.correct ? 9 : 3);
+    },
+    draw(dt, t) {
+      backdrop('#241046', '#0d0221');
+      headerBar('PRIME MINISTER', 'DAY ' + st.round + '/' + st.maxRounds);
+
+      // approval meter
+      const mw = Math.min(W - 40, 340);
+      meter((W - mw) / 2, SAFE_T + 2, mw, 20, st.approval / 100,
+        { col: st.approval >= 60 ? '#7cff5a' : st.approval >= 30 ? '#ffe600' : '#ff2e88',
+          label: 'APPROVAL ' + Math.round(st.approval) + '%' });
+
+      // the timer for this decision, tucked under the approval meter
+      if (st.phase === 'ask') {
+        meter((W - mw) / 2, SAFE_T + 26, mw, 9, st.timeLeft / 7,
+          { col: st.timeLeft < 2.5 ? '#ff2e88' : '#00f0ff' });
+      }
+
+      // Parliament behind the podium, so the middle of the screen isn't a void
+      const crowdY = (st.buttons.length ? st.buttons[0].y : H - 100) - 14;
+      const bldH = clamp(H * 0.21, 96, 215), bldW = Math.min(W * 0.92, 430);
+      const bldX = (W - bldW) / 2, bldY = crowdY - 4 - bldH;
+      g.fillStyle = '#1d0f3d';
+      g.fillRect(bldX, bldY + bldH * 0.3, bldW, bldH * 0.7);
+      // towers at each end and the clock tower in the middle
+      g.fillRect(bldX + bldW * 0.04, bldY + bldH * 0.12, bldW * 0.1, bldH * 0.88);
+      g.fillRect(bldX + bldW * 0.86, bldY + bldH * 0.12, bldW * 0.1, bldH * 0.88);
+      const twW = bldW * 0.13, twX = bldX + bldW * 0.18;   // the clock tower, off to one side
+      g.fillRect(twX, bldY, twW, bldH);
+      g.beginPath();
+      g.moveTo(twX - 3, bldY); g.lineTo(twX + twW / 2, bldY - bldH * 0.13); g.lineTo(twX + twW + 3, bldY);
+      g.closePath(); g.fill();
+      g.fillStyle = '#ffe600';
+      g.beginPath(); g.arc(twX + twW / 2, bldY + bldH * 0.14, Math.min(twW * 0.32, 13), 0, 7); g.fill();
+      g.fillStyle = 'rgba(0,240,255,0.22)';
+      for (let i = 0; i < 9; i++) {
+        const wx = bldX + bldW * (0.18 + i * 0.075);
+        if (Math.abs(wx - (twX + twW / 2)) < twW * 0.8) continue;
+        g.fillRect(wx, bldY + bldH * 0.45, bldW * 0.035, bldH * 0.28);
+      }
+
+      const podH = clamp(H * 0.075, 34, 62), podW = clamp(W * 0.26, 90, 160);
+      const podY = crowdY - 18 - podH;
+      const headSize = clamp(H * 0.085, 40, 76);
+      const you = { x: W / 2, y: podY - headSize * 0.45 };
+      emoji('🧑‍💼', you.x, you.y, headSize);
+      fillRR(you.x - podW / 2, podY, podW, podH, 8, '#3a1a6b');
+      strokeRR(you.x - podW / 2, podY, podW, podH, 8, '#00f0ff', 2);
+      txt('No.10', you.x, podY + podH / 2, { size: Math.min(podW / 7, 11), col: '#ffe600' });
+
+      // what the country is shouting for — centred in the space above the roofline
+      const spaceTop = SAFE_T + 40, spaceBot = bldY - 16;
+      const bw = Math.min(W - 30, 360);
+      const bh = clamp((spaceBot - spaceTop) * 0.55, 66, 150);
+      const bx = W / 2, by = clamp((spaceTop + spaceBot) / 2, spaceTop + bh / 2, Math.max(spaceTop + bh / 2, spaceBot - bh / 2));
+      fillRR(bx - bw / 2, by - bh / 2, bw, bh, 14, 'rgba(255,230,0,0.1)');
+      strokeRR(bx - bw / 2, by - bh / 2, bw, bh, 14, '#ffe600', 2.5);
+      g.beginPath();
+      g.moveTo(bx - 10, by + bh / 2); g.lineTo(bx + 10, by + bh / 2); g.lineTo(bx, by + bh / 2 + 14);
+      g.fillStyle = '#ffe600'; g.fill();
+      if (st.phase === 'ask') {
+        emoji(st.ask.ic, bx - bw * 0.32, by, Math.min(bh * 0.5, 34));
+        txt('WE WANT', bx + bw * 0.08, by - 14, { size: Math.min(bw / 22, 10), col: '#9b93b8' });
+        txt(st.ask.want, bx + bw * 0.08, by + 8, { size: Math.min(bw / (st.ask.want.length * 0.85), 13), col: '#ffe600' });
+      } else {
+        const msg = st.picked === -2 ? 'TOO SLOW!' : st.correct ? 'HOORAY!' : 'BOOOO!';
+        emoji(st.correct ? '🎉' : '😠', bx - bw * 0.3, by, Math.min(bh * 0.5, 34));
+        txt(msg, bx + bw * 0.08, by, { size: Math.min(bw / 12, 16), col: st.correct ? '#7cff5a' : '#ff2e88' });
+      }
+
+      // the crowd
+      for (const c of st.crowd) {
+        const hop = st.phase === 'react' ? Math.abs(Math.sin(c.bob)) * (st.correct ? 9 : 2) : Math.sin(c.bob) * 2;
+        emoji(c.face, c.x * W, crowdY - hop, clamp(W / 22, 14, 26));
+      }
+
+      // policy buttons
+      st.buttons.forEach((b, i) => {
+        const chosen = st.picked === i;
+        drawButton(b, {
+          col: chosen ? (st.correct ? '#7cff5a' : '#ff2e88') : '#00f0ff',
+          bg: chosen ? (st.correct ? 'rgba(124,255,90,0.2)' : 'rgba(255,46,136,0.2)') : 'rgba(0,240,255,0.1)',
+          pressed: chosen,
+        });
+      });
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 2 — SECURITY GUARD
+ *  Six CCTV feeds. Tap the camera that has a burglar in it. Don't tap the
+ *  cat. Ten catches and the job is yours.
+ * ======================================================================== */
+function makeSecurityGuard() {
+  const TARGET = 10, MAX_STRIKES = 3;
+  const ROOMS = ['FRONT DOOR', 'THE VAULT', 'CAR PARK', 'STOCK ROOM', 'THE TILLS', 'BACK ALLEY'];
+  const st = {
+    caught: 0, strikes: 0, cells: [], visitor: null, gap: 1.1, over: false,
+    static: Array.from({ length: 6 }, () => Math.random() * 10),
+    caughtFx: [],
+  };
+
+  function layout() {
+    const landscape = W > H * 1.05;
+    const cols = landscape ? 3 : 2, rows = landscape ? 2 : 3;
+    const top = SAFE_T + 34, bottom = 14, side = 10, gap = 8;
+    const cw = (W - side * 2 - gap * (cols - 1)) / cols;
+    const ch = (H - top - bottom - gap * (rows - 1)) / rows;
+    st.cells = [];
+    for (let i = 0; i < 6; i++) {
+      const c = i % cols, r = Math.floor(i / cols);
+      st.cells.push({ x: side + c * (cw + gap), y: top + r * (ch + gap), w: cw, h: ch, i });
+    }
+  }
+
+  function spawn() {
+    const kind = Math.random() < 0.25 ? 'cat' : 'thief';
+    const dur = kind === 'cat' ? 1.6 : clamp(2.0 - st.caught * 0.11, 0.85, 2.0);
+    st.visitor = {
+      cell: Math.floor(Math.random() * 6), kind, t: 0, dur,
+      dir: Math.random() < 0.5 ? 1 : -1, hit: false,
+    };
+    noise(0.06, { vol: 0.05, hp: 1200 });
+  }
+
+  function strike(why) {
+    st.strikes++;
+    SFX.bad(); flashScreen('#ff2e88'); toast(why, 1.1);
+    if (st.strikes >= MAX_STRIKES) {
+      st.over = true;
+      failJob('Three slip-ups and the shop lost its stock. Watch those cameras!');
+    }
+  }
+
+  layout();
+  st.gap = 0.9;
+
+  return {
+    layout,
+    down(x, y) {
+      if (st.over) return;
+      const cell = st.cells.find((c) => inRect(c, x, y));
+      if (!cell) return;
+      const v = st.visitor;
+      if (v && !v.hit && v.cell === cell.i) {
+        if (v.kind === 'thief') {
+          v.hit = true; st.caught++;
+          st.caughtFx.push({ cell: cell.i, t: 0.6 });
+          SFX.good(); tone(1200, 0.08, { vol: 0.1, delay: 0.05 });
+          if (st.caught >= TARGET) { st.over = true; succeed('security-guard'); return; }
+        } else {
+          v.hit = true; strike('THAT WAS A CAT!');
+        }
+      } else {
+        strike('NOTHING THERE!');
+      }
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].indexOf(code);
+      if (n < 0) return;
+      const c = st.cells[n];
+      this.down(c.x + c.w / 2, c.y + c.h / 2);
+    },
+    update(dt) {
+      if (st.over) return;
+      for (let i = 0; i < st.static.length; i++) st.static[i] += dt * 8;
+      st.caughtFx = st.caughtFx.filter((f) => (f.t -= dt) > 0);
+      const v = st.visitor;
+      if (v) {
+        v.t += dt;
+        if (v.t >= v.dur) {
+          if (!v.hit && v.kind === 'thief') { st.visitor = null; strike('ONE GOT AWAY!'); }
+          else st.visitor = null;
+          st.gap = 0.35 + Math.random() * clamp(1.1 - st.caught * 0.05, 0.35, 1.1);
+        }
+      } else {
+        st.gap -= dt;
+        if (st.gap <= 0) spawn();
+      }
+    },
+    draw(dt) {
+      backdrop('#12082b', '#08010f');
+      headerBar('SECURITY GUARD', '🦹 ' + st.caught + '/' + TARGET);
+      // strikes
+      let s = '';
+      for (let i = 0; i < MAX_STRIKES; i++) s += i < st.strikes ? '❌' : '⭕';
+      emoji(s, W / 2, SAFE_T + 14, 16);
+
+      for (const c of st.cells) {
+        // monitor body
+        fillRR(c.x, c.y, c.w, c.h, 8, '#050109');
+        // the feed
+        const fx = c.x + 4, fy = c.y + 4, fw = c.w - 8, fh = c.h - 20;
+        g.save();
+        rr(fx, fy, fw, fh, 5); g.clip();
+        const grd = g.createLinearGradient(0, fy, 0, fy + fh);
+        grd.addColorStop(0, '#0f2b2e'); grd.addColorStop(1, '#071417');
+        g.fillStyle = grd; g.fillRect(fx, fy, fw, fh);
+        // floor line + shelves so each feed looks like a room
+        g.strokeStyle = 'rgba(0,240,255,0.18)'; g.lineWidth = 1.5;
+        g.beginPath(); g.moveTo(fx, fy + fh * 0.68); g.lineTo(fx + fw, fy + fh * 0.68); g.stroke();
+        g.fillStyle = 'rgba(0,240,255,0.09)';
+        g.fillRect(fx + fw * 0.08, fy + fh * 0.28, fw * 0.2, fh * 0.4);
+        g.fillRect(fx + fw * 0.72, fy + fh * 0.22, fw * 0.2, fh * 0.46);
+        // scanlines + static
+        g.fillStyle = 'rgba(0,0,0,0.22)';
+        for (let yy = fy; yy < fy + fh; yy += 4) g.fillRect(fx, yy, fw, 1.5);
+        g.fillStyle = 'rgba(255,255,255,0.05)';
+        const sOff = (st.static[c.i] % 1) * fh;
+        g.fillRect(fx, fy + sOff, fw, 6);
+        // the visitor
+        const v = st.visitor;
+        if (v && v.cell === c.i && !(v.hit && v.kind === 'thief')) {
+          const p = v.t / v.dur;
+          const wx = v.dir > 0 ? fx + fw * (0.12 + p * 0.76) : fx + fw * (0.88 - p * 0.76);
+          const wy = fy + fh * 0.55 + Math.sin(v.t * 12) * 2;
+          const size = Math.min(fh * 0.46, 46);
+          // a torch glow, or a burglar in dark clothes is invisible on a dark feed
+          const glow = g.createRadialGradient(wx, wy, size * 0.2, wx, wy, size * 0.9);
+          glow.addColorStop(0, 'rgba(180,255,240,0.34)');
+          glow.addColorStop(1, 'rgba(180,255,240,0)');
+          g.fillStyle = glow;
+          g.beginPath(); g.arc(wx, wy, size * 0.9, 0, 7); g.fill();
+          emoji(v.kind === 'thief' ? '🦹' : '🐈', wx, wy, size);
+        }
+        const fxu = st.caughtFx.find((f) => f.cell === c.i);
+        if (fxu) {
+          g.fillStyle = 'rgba(124,255,90,' + (fxu.t / 0.6) * 0.4 + ')';
+          g.fillRect(fx, fy, fw, fh);
+          emoji('🚔', fx + fw / 2, fy + fh / 2, Math.min(fh * 0.5, 46));
+        }
+        g.restore();
+        strokeRR(fx, fy, fw, fh, 5, 'rgba(0,240,255,0.4)', 1.5);
+        // label with a blinking REC dot
+        txt('CAM ' + (c.i + 1) + ' · ' + ROOMS[c.i], c.x + c.w / 2, c.y + c.h - 8,
+          { size: Math.min(c.w / 16, 8), col: '#9b93b8' });
+        g.fillStyle = (Math.floor(st.static[c.i] * 0.4) % 2) ? '#ff2e88' : 'rgba(255,46,136,0.25)';
+        g.beginPath(); g.arc(c.x + 10, c.y + 12, 3.5, 0, 7); g.fill();
+      }
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 3 — SHOPKEEPER
+ *  Fetch what the customer asked for, then hand back the right change.
+ *  Five happy customers and you're hired.
+ * ======================================================================== */
+const SHOP_STOCK = [
+  { ic: '🍞', nm: 'BREAD', p: 1 }, { ic: '🥛', nm: 'MILK', p: 1 },
+  { ic: '🧀', nm: 'CHEESE', p: 2 }, { ic: '🍎', nm: 'APPLE', p: 1 },
+  { ic: '🍌', nm: 'BANANA', p: 1 }, { ic: '🍫', nm: 'CHOC', p: 2 },
+  { ic: '🥕', nm: 'CARROT', p: 1 }, { ic: '🧴', nm: 'SOAP', p: 3 },
+  { ic: '🍪', nm: 'BISCUITS', p: 2 }, { ic: '🧻', nm: 'LOO ROLL', p: 3 },
+  { ic: '🥚', nm: 'EGGS', p: 2 }, { ic: '☕', nm: 'COFFEE', p: 3 },
+];
+
+function makeShopkeeper() {
+  const TARGET = 5, MAX_STRIKES = 3, TIME = 110;
+  const st = {
+    served: 0, strikes: 0, timeLeft: TIME, phase: 'shop', phaseT: 0,
+    stock: [], list: [], got: [], total: 0, note: 5, changeOpts: [], pickedOpt: -1,
+    shelf: [], coinBtns: [], customer: '🧑', over: false, wobble: 0,
+  };
+
+  function newCustomer() {
+    st.stock = shuffle(SHOP_STOCK.slice()).slice(0, 8);
+    const n = st.served < 2 ? 2 : 3;
+    st.list = shuffle(st.stock.slice()).slice(0, n);
+    st.got = [];
+    st.total = st.list.reduce((a, b) => a + b.p, 0);
+    st.note = st.total <= 5 ? 5 : 10;
+    st.customer = pick(['🧑', '👩', '👴', '👵', '🧕', '👨‍🦰', '👧', '🧑‍🎤']);
+    st.phase = 'shop';
+    layout();
+  }
+
+  function makeChange() {
+    const right = st.note - st.total;
+    const opts = new Set([right]);
+    while (opts.size < 3) {
+      const d = right + pick([-3, -2, -1, 1, 2, 3]);
+      if (d >= 0 && d <= 9) opts.add(d);
+    }
+    st.changeOpts = shuffle([...opts]);
+    st.pickedOpt = -1;
+    st.phase = 'pay';
+    layout();
+    tone(880, 0.07, { vol: 0.09 });
+  }
+
+  function layout() {
+    const top = SAFE_T + 30;
+    const cols = 4, rows = 2;
+    const gap = 7, side = 10;
+    const bh = clamp(H * 0.1, 46, 74);         // change buttons
+    // The counter (customer + speech bubble + change buttons) takes the lower
+    // third; the shelves stretch to fill everything above it.
+    const counterH = clamp(H * 0.3, 175, 260);
+    const shelfBottom = H - counterH;
+    const cw = (W - side * 2 - gap * (cols - 1)) / cols;
+    const ch = Math.max(48, Math.min((shelfBottom - top - gap * 2) / rows, 150));
+    st.shelfBottom = top + ch * rows + gap;
+    st.shelf = st.stock.map((item, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      return { x: side + c * (cw + gap), y: top + r * (ch + gap), w: cw, h: ch, icon: item.ic, label: item.nm, item };
+    });
+    const bw = (W - side * 2 - gap * 2) / 3;
+    st.coinBtns = [0, 1, 2].map((i) => ({ x: side + i * (bw + gap), y: H - bh - 12, w: bw, h: bh }));
+  }
+
+  newCustomer();
+
+  function tapItem(item) {
+    const need = st.list.filter((l) => !st.got.includes(l));
+    const match = need.find((l) => l.nm === item.nm);
+    if (match) {
+      st.got.push(match);
+      SFX.tap(); tone(700 + st.got.length * 120, 0.08, { vol: 0.09 });
+      if (st.got.length === st.list.length) { st.phase = 'ring'; st.phaseT = 0.8; }
+    } else {
+      st.strikes++; SFX.bad(); flashScreen('#ff2e88'); toast('NOT ON THE LIST!', 1);
+      if (st.strikes >= MAX_STRIKES) { st.over = true; failJob('Too many wrong items. The customers went to the shop next door.'); }
+    }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      if (st.over) return;
+      if (st.phase === 'shop') {
+        const s = st.shelf.find((b) => inRect(b, x, y));
+        if (s) tapItem(s.item);
+      } else if (st.phase === 'pay') {
+        for (let i = 0; i < 3; i++) {
+          if (!inRect(st.coinBtns[i], x, y)) continue;
+          st.pickedOpt = i;
+          const right = st.note - st.total;
+          if (st.changeOpts[i] === right) {
+            st.served++; SFX.cheer(); flashScreen('#7cff5a');
+            st.phase = 'thanks'; st.phaseT = 1.2;
+            if (st.served >= TARGET) { st.over = true; succeed('shopkeeper'); }
+          } else {
+            st.strikes++; SFX.bad(); flashScreen('#ff2e88');
+            toast('WRONG CHANGE!', 1.1);
+            if (st.strikes >= MAX_STRIKES) { st.over = true; failJob('The till does not balance. Count that change carefully!'); }
+            else { st.phase = 'thanks'; st.phaseT = 1.0; }
+          }
+          return;
+        }
+      }
+    },
+    update(dt) {
+      if (st.over) return;
+      st.wobble += dt;
+      st.timeLeft -= dt;
+      if (st.timeLeft <= 0) { st.over = true; failJob('The shop shut before you served five customers.'); return; }
+      if (st.phase === 'ring') {
+        st.phaseT -= dt;
+        if (st.phaseT <= 0) makeChange();
+      } else if (st.phase === 'thanks') {
+        st.phaseT -= dt;
+        if (st.phaseT <= 0) newCustomer();
+      }
+    },
+    draw(dt) {
+      backdrop('#2a1454', '#0d0221');
+      headerBar('SHOPKEEPER', '🙂 ' + st.served + '/' + TARGET);
+      const mw = Math.min(W - 40, 300);
+      meter((W - mw) / 2, SAFE_T - 8, mw, 14, st.timeLeft / TIME,
+        { col: st.timeLeft < 20 ? '#ff2e88' : '#00f0ff', label: 'SHOP OPEN ' + Math.ceil(st.timeLeft) + 's' });
+      let strikeRow = '';
+      for (let i = 0; i < MAX_STRIKES; i++) strikeRow += i < st.strikes ? '❌' : '⭕';
+      emoji(strikeRow, W / 2, SAFE_T + 14, 13);
+
+      // shelves
+      for (const b of st.shelf) {
+        const done = st.got.some((gi) => gi.nm === b.item.nm);
+        fillRR(b.x, b.y, b.w, b.h, 8, done ? 'rgba(124,255,90,0.12)' : 'rgba(255,255,255,0.05)');
+        strokeRR(b.x, b.y, b.w, b.h, 8, done ? '#7cff5a' : 'rgba(0,240,255,0.3)', 2);
+        emoji(b.icon, b.x + b.w / 2, b.y + b.h * 0.4, Math.min(b.h * 0.42, 46));
+        txt(b.label, b.x + b.w / 2, b.y + b.h * 0.74, { size: fitSize(b.label, b.w - 10, 11), col: '#9b93b8' });
+        txt('£' + b.item.p, b.x + b.w / 2, b.y + b.h * 0.9, { size: Math.min(b.w / 7, 12), col: '#ffe600' });
+      }
+
+      // the counter
+      const cy = st.shelfBottom;
+      fillRR(0, cy, W, H - cy, 0, 'rgba(58,26,107,0.55)');
+      g.strokeStyle = 'rgba(255,230,0,0.35)'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(0, cy); g.lineTo(W, cy); g.stroke();
+
+      // customer and bubble sit in the counter space above the change buttons
+      const roomBot = st.coinBtns[0].y - 12;
+      const bagH = 44;
+      const custY = (cy + roomBot - bagH) / 2 + 2;
+      emoji(st.customer, W * 0.16, custY + Math.sin(st.wobble * 3) * 2, clamp(W * 0.15, 44, 76));
+
+      // the bag on the counter, holding whatever you've fetched so far
+      const bagTop = roomBot - bagH, bagY = bagTop + bagH / 2;
+      fillRR(10, bagTop, W - 20, bagH, 10, 'rgba(0,0,0,0.22)');
+      strokeRR(10, bagTop, W - 20, bagH, 10, 'rgba(255,230,0,0.3)', 2);
+      emoji('🛍️', 34, bagY, 24);
+      let bagX = 54;
+      g.font = `8px ${PIX}`;
+      txt('YOUR BAG', bagX, bagY, { size: 8, col: '#9b93b8', align: 'left' });
+      bagX += g.measureText('YOUR BAG').width + 14;
+      if (st.got.length) st.got.forEach((item, i) => emoji(item.ic, bagX + 14 + i * 30, bagY, 24));
+      else txt('(EMPTY)', bagX, bagY, { size: 8, col: '#9b93b8', align: 'left' });
+
+      // speech bubble: shopping list, price or thank you
+      const bx = W * 0.62, bw = Math.min(W * 0.66, 300);
+      const bh = clamp((roomBot - bagH - cy) * 0.8, 62, 150);
+      const by = custY;
+      fillRR(bx - bw / 2, by - bh / 2, bw, bh, 12, 'rgba(0,240,255,0.1)');
+      strokeRR(bx - bw / 2, by - bh / 2, bw, bh, 12, '#00f0ff', 2);
+      if (st.phase === 'shop') {
+        txt('PLEASE MAY I HAVE:', bx, by - bh / 2 + 15, { size: Math.min(bw / 22, 9), col: '#9b93b8' });
+        const step = bw / (st.list.length + 1);
+        st.list.forEach((l, i) => {
+          const lx = bx - bw / 2 + step * (i + 1), ly = by + 8;
+          const done = st.got.some((gi) => gi.nm === l.nm);
+          g.globalAlpha = done ? 0.35 : 1;
+          emoji(l.ic, lx, ly, Math.min(bh * 0.4, 32));
+          g.globalAlpha = 1;
+          if (done) {
+            g.strokeStyle = '#7cff5a'; g.lineWidth = 3;
+            g.beginPath(); g.moveTo(lx - 14, ly + 12); g.lineTo(lx + 14, ly - 12); g.stroke();
+          }
+        });
+      } else if (st.phase === 'ring') {
+        txt('THAT ALL COMES TO', bx, by - 12, { size: Math.min(bw / 22, 9), col: '#9b93b8' });
+        txt('£' + st.total, bx, by + 14, { size: Math.min(bw / 8, 22), col: '#ffe600' });
+      } else if (st.phase === 'pay') {
+        txt('£' + st.total + ' — HERE IS £' + st.note, bx, by - 14, { size: Math.min(bw / 24, 9), col: '#9b93b8' });
+        txt('MY CHANGE?', bx, by + 12, { size: Math.min(bw / 12, 15), col: '#ffe600' });
+      } else {
+        const ok = st.pickedOpt >= 0 && st.changeOpts[st.pickedOpt] === st.note - st.total;
+        txt(ok ? 'THANK YOU!' : 'THAT IS NOT RIGHT...', bx, by, { size: Math.min(bw / 14, 13), col: ok ? '#7cff5a' : '#ff2e88' });
+      }
+
+      if (st.phase === 'pay') {
+        st.coinBtns.forEach((b, i) => {
+          drawButton({ ...b, label: '£' + st.changeOpts[i] }, {
+            col: st.pickedOpt === i ? '#ffe600' : '#ff2e88',
+            bg: 'rgba(255,46,136,0.14)', size: Math.min(b.w / 5, 20),
+          });
+        });
+        txt('TAP THE RIGHT CHANGE', W / 2, st.coinBtns[0].y - 12, { size: 8, col: '#9b93b8' });
+      }
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 4 — ASTRONAUT
+ *  Fly the rocket up through the debris, grab fuel, and dock with the
+ *  space station.
+ * ======================================================================== */
+function makeAstronaut() {
+  const st = {
+    alt: 0, altSpeed: 4.0, fuel: 100, hits: 0, maxHits: 3,
+    rocket: { x: 0, y: 0, vx: 0, r: 20 }, target: null,
+    rocks: [], cans: [], puffs: [], t: 0, spawnT: 0.9, canT: 2.0,
+    phase: 'fly', dockT: 0, over: false, shake: 0, invuln: 0,
+  };
+
+  function layout() {
+    st.rocket.y = H - clamp(H * 0.16, 70, 130);
+    st.rocket.r = clamp(Math.min(W, H) * 0.055, 16, 26);
+    if (!st.target) st.target = W / 2;
+    st.rocket.x = clamp(st.rocket.x || W / 2, 20, W - 20);
+  }
+  layout();
+
+  function boom() {
+    st.hits++; SFX.bad(); flashScreen('#ff2e88'); st.shake = 0.4;
+    st.invuln = 1.1;                       // a moment's grace, so one cluster can't end the run
+    noise(0.25, { vol: 0.16, hp: 150 });
+    if (st.hits >= st.maxHits) { st.over = true; failJob('The rocket took too many hits. Space is unforgiving!'); }
+  }
+
+  return {
+    layout,
+    down(x, y) { st.target = x; },
+    move(x, y, id, pressed) { if (pressed) st.target = x; },
+    key(code, down) {
+      if (!down) return;
+      if (code === 'ArrowLeft' || code === 'KeyA') st.target = clamp(st.rocket.x - W * 0.18, 16, W - 16);
+      if (code === 'ArrowRight' || code === 'KeyD') st.target = clamp(st.rocket.x + W * 0.18, 16, W - 16);
+    },
+    update(dt) {
+      if (st.over) return;
+      st.t += dt;
+      st.shake = Math.max(0, st.shake - dt);
+      const r = st.rocket;
+
+      st.invuln = Math.max(0, st.invuln - dt);
+
+      if (st.phase === 'fly') {
+        st.alt = Math.min(100, st.alt + st.altSpeed * dt);
+        st.fuel = Math.max(0, st.fuel - dt * 2.2);
+        if (st.fuel <= 0) { st.over = true; failJob('You ran out of fuel. Always grab the fuel cans!'); return; }
+        if (st.alt >= 100) { st.phase = 'dock'; st.dockT = 0; SFX.good(); }
+      } else if (st.phase === 'dock') {
+        st.dockT += dt;
+        // glide to the docking port
+        r.x += (W / 2 - r.x) * Math.min(1, dt * 3);
+        r.y += (H * 0.34 - r.y) * Math.min(1, dt * 1.6);
+        if (st.dockT > 2.6) { st.over = true; succeed('astronaut'); return; }
+        for (const p of st.puffs) { p.y += p.vy * dt; p.life -= dt; }
+        st.puffs = st.puffs.filter((p) => p.life > 0);
+        return;
+      }
+
+      // steering
+      const dx = st.target - r.x;
+      r.vx += clamp(dx, -260, 260) * dt * 9;
+      r.vx *= 0.84;
+      r.x = clamp(r.x + r.vx * dt, r.r, W - r.r);
+
+      // spawn debris and fuel
+      st.spawnT -= dt;
+      if (st.spawnT <= 0) {
+        const spd = 120 + st.alt * 1.6 + Math.random() * 55;
+        st.rocks.push({
+          x: 20 + Math.random() * (W - 40), y: -30,
+          vy: spd, r: 11 + Math.random() * 14, spin: Math.random() * 6, vs: (Math.random() - 0.5) * 4,
+          ic: pick(['🪨', '☄️', '🛰️', '🪨']),
+        });
+        st.spawnT = clamp(1.25 - st.alt * 0.004, 0.62, 1.25) * (0.8 + Math.random() * 0.7);
+      }
+      st.canT -= dt;
+      if (st.canT <= 0) {
+        st.cans.push({ x: 24 + Math.random() * (W - 48), y: -24, vy: 110 + Math.random() * 45, r: 14 });
+        st.canT = 1.8 + Math.random() * 1.8;
+      }
+
+      for (const o of st.rocks) { o.y += o.vy * dt; o.spin += o.vs * dt; }
+      for (const c of st.cans) c.y += c.vy * dt;
+
+      // collisions
+      for (const o of st.rocks) {
+        if (o.dead) continue;
+        const d = Math.hypot(o.x - r.x, o.y - r.y);
+        if (d < o.r * 0.8 + r.r * 0.5) {
+          o.dead = true;
+          if (st.invuln <= 0) boom();
+        }
+      }
+      for (const c of st.cans) {
+        if (c.dead) continue;
+        const d = Math.hypot(c.x - r.x, c.y - r.y);
+        if (d < c.r + r.r) {
+          c.dead = true; st.fuel = Math.min(100, st.fuel + 26);
+          SFX.tap(); tone(1000, 0.1, { vol: 0.1, to: 1400 });
+        }
+      }
+      st.rocks = st.rocks.filter((o) => !o.dead && o.y < H + 40);
+      st.cans = st.cans.filter((c) => !c.dead && c.y < H + 40);
+
+      // exhaust
+      st.puffs.push({ x: r.x + (Math.random() - 0.5) * 8, y: r.y + r.r, vy: 140, life: 0.32, r: 3 + Math.random() * 4 });
+      for (const p of st.puffs) { p.y += p.vy * dt; p.life -= dt; }
+      st.puffs = st.puffs.filter((p) => p.life > 0);
+    },
+    draw(dt) {
+      g.save();
+      if (st.shake > 0) g.translate((Math.random() - 0.5) * 8 * st.shake, (Math.random() - 0.5) * 8 * st.shake);
+      backdrop('#05010f', '#160a33', true);
+      // Earth falling away below
+      const eR = W * 1.4, eY = H + eR - clamp(st.alt, 0, 100) * 3.4 - 30;
+      const eg = g.createRadialGradient(W / 2, eY, eR * 0.6, W / 2, eY, eR);
+      eg.addColorStop(0, '#2f7dd1'); eg.addColorStop(0.7, '#123a66'); eg.addColorStop(1, 'rgba(18,58,102,0)');
+      g.fillStyle = eg; g.beginPath(); g.arc(W / 2, eY, eR, 0, 7); g.fill();
+
+      if (st.phase === 'dock') {
+        // the station slides in from the top
+        const p = clamp(st.dockT / 1.4, 0, 1);
+        const sy = -80 + p * (H * 0.2 + 80);
+        emoji('🛰️', W / 2, sy, clamp(W * 0.3, 90, 170));
+        if (st.dockT > 1.6) txt('DOCKING...', W / 2, H * 0.55, { size: Math.min(W / 16, 16), col: '#00f0ff' });
+      }
+
+      for (const c of st.cans) emoji('⛽', c.x, c.y, c.r * 2.1);
+      for (const o of st.rocks) {
+        g.save(); g.translate(o.x, o.y); g.rotate(o.spin);
+        emoji(o.ic, 0, 0, o.r * 2.2); g.restore();
+      }
+
+      // exhaust + rocket
+      for (const p of st.puffs) {
+        g.fillStyle = 'rgba(255,230,0,' + clamp(p.life / 0.32, 0, 1) * 0.7 + ')';
+        g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
+      }
+      if (st.invuln <= 0 || Math.floor(st.invuln * 12) % 2 === 0) {
+        emoji('🚀', st.rocket.x, st.rocket.y, st.rocket.r * 2.4);
+      }
+
+      headerBar('ASTRONAUT', '💥 ' + st.hits + '/' + st.maxHits);
+      const mw = Math.min(W - 40, 300);
+      meter((W - mw) / 2, SAFE_T - 2, mw, 14, st.alt / 100, { col: '#7cff5a', label: 'ALTITUDE ' + Math.floor(st.alt) + '%' });
+      meter((W - mw) / 2, SAFE_T + 16, mw, 12, st.fuel / 100, { col: st.fuel < 25 ? '#ff2e88' : '#ffe600', label: 'FUEL' });
+      g.restore();
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 5 — ARTIST
+ *  Copy the painting on the easel, square by square, before the gallery
+ *  opens. Three good copies and you're the resident artist.
+ * ======================================================================== */
+const ART_PALETTE = ['#1b0f3a', '#ff2e88', '#00f0ff', '#ffe600', '#7cff5a', '#ffffff'];
+// 5x5 pictures, digits index into ART_PALETTE (0 = blank canvas)
+const ART_PICTURES = [
+  { nm: 'FLOWER',  rows: ['00300', '01310', '11411', '00400', '04440'] },
+  { nm: 'HOUSE',   rows: ['00100', '01110', '11111', '13531', '13331'] },
+  { nm: 'CAT',     rows: ['30003', '33333', '32323', '33333', '03030'] },
+  { nm: 'ROCKET',  rows: ['00500', '05550', '01110', '01110', '13031'] },
+  { nm: 'STAR',    rows: ['00300', '03330', '33333', '03030', '30003'] },
+  { nm: 'FISH',    rows: ['00000', '02220', '22252', '02220', '00000'] },
+  { nm: 'SUNSET',  rows: ['33333', '31113', '11411', '44444', '44444'] },
+  { nm: 'HEART',   rows: ['01010', '11111', '11111', '01110', '00100'] },
+];
+
+function makeArtist() {
+  const N = 5, TARGET = 3, PASS = 0.88, TIME = 50;
+  const st = {
+    done: 0, pic: null, cells: [], colour: 1, timeLeft: TIME,
+    grid: { x: 0, y: 0, cell: 0 }, ref: { x: 0, y: 0, cell: 0 },
+    swatches: [], submit: null, phase: 'paint', phaseT: 0, score: 0, over: false, used: [],
+  };
+
+  function newPicture() {
+    const bag = ART_PICTURES.filter((p) => !st.used.includes(p.nm));
+    st.pic = pick(bag.length ? bag : ART_PICTURES);
+    st.used.push(st.pic.nm);
+    st.cells = Array.from({ length: N * N }, () => 0);
+    st.timeLeft = TIME;
+    st.colour = 1;
+    st.phase = 'paint';
+    layout();
+  }
+
+  function target(i) { return +st.pic.rows[Math.floor(i / N)][i % N]; }
+  function match() {
+    let ok = 0;
+    for (let i = 0; i < N * N; i++) if (st.cells[i] === target(i)) ok++;
+    return ok / (N * N);
+  }
+
+  function layout() {
+    const top = SAFE_T + 20;
+    const swH = clamp(H * 0.085, 42, 60);
+    const btnH = clamp(H * 0.085, 40, 58);
+    const bottom = swH + btnH + 30;
+    const availH = H - top - bottom;
+    const side = 10;
+    const LABEL = 20;                       // room for the "COPY THIS" caption
+    const landscape = W > H * 1.02;
+    if (landscape) {
+      const half = (W - side * 3) / 2;
+      const cell = Math.floor(Math.min(half, availH - LABEL) / N);
+      const size = cell * N;
+      const y = top + LABEL + (availH - LABEL - size) / 2;
+      st.ref = { x: side + (half - size) / 2, y, cell };
+      st.grid = { x: side * 2 + half + (half - size) / 2, y, cell };
+    } else {
+      const refCell = Math.floor(Math.min((W - side * 2) * 0.62, (availH - LABEL) * 0.34) / N);
+      const gCell = Math.floor(Math.min(W - side * 2, availH - LABEL - refCell * N - 18) / N);
+      const block = LABEL + refCell * N + 18 + gCell * N;
+      const y0 = top + Math.max(0, (availH - block) / 2);
+      st.ref = { x: (W - refCell * N) / 2, y: y0 + LABEL, cell: refCell };
+      st.grid = { x: (W - gCell * N) / 2, y: y0 + LABEL + refCell * N + 18, cell: gCell };
+    }
+    const swW = Math.min((W - side * 2 - 6 * 5) / 6, 74);
+    const swTotal = swW * 6 + 6 * 5;
+    st.swatches = ART_PALETTE.map((c, i) => ({
+      x: (W - swTotal) / 2 + i * (swW + 6), y: H - btnH - swH - 22, w: swW, h: swH, col: c, i,
+    }));
+    const bw = Math.min(W - side * 2, 260);
+    st.submit = { x: (W - bw) / 2, y: H - btnH - 12, w: bw, h: btnH };
+  }
+
+  newPicture();
+
+  function paintAt(x, y) {
+    const gr = st.grid, size = gr.cell * N;
+    if (x < gr.x || x > gr.x + size || y < gr.y || y > gr.y + size) return false;
+    const c = Math.floor((x - gr.x) / gr.cell), r = Math.floor((y - gr.y) / gr.cell);
+    const i = r * N + c;
+    if (st.cells[i] !== st.colour) {
+      st.cells[i] = st.colour;
+      tone(500 + st.colour * 90, 0.05, { vol: 0.06, type: 'triangle' });
+    }
+    return true;
+  }
+
+  function submit() {
+    st.score = match();
+    st.phase = 'judge'; st.phaseT = 1.9;
+    if (st.score >= PASS) {
+      st.done++; SFX.cheer(); flashScreen('#7cff5a');
+      if (st.done >= TARGET) { st.over = true; succeed('artist'); }
+    } else { SFX.bad(); flashScreen('#ff2e88'); }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      if (st.over) return;
+      if (st.phase !== 'paint') return;
+      const s = st.swatches.find((b) => inRect(b, x, y));
+      if (s) { st.colour = s.i; SFX.click(); return; }
+      if (inRect(st.submit, x, y)) { submit(); return; }
+      paintAt(x, y);
+    },
+    move(x, y, id, pressed) { if (pressed && st.phase === 'paint' && !st.over) paintAt(x, y); },
+    key(code, down) {
+      if (!down) return;
+      const n = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'].indexOf(code);
+      if (n >= 0) st.colour = n;
+      if (code === 'Enter' || code === 'Space') submit();
+    },
+    update(dt) {
+      if (st.over) return;
+      if (st.phase === 'paint') {
+        st.timeLeft -= dt;
+        if (st.timeLeft <= 0) { st.over = true; failJob('The gallery opened and your painting was not finished.'); }
+      } else {
+        st.phaseT -= dt;
+        if (st.phaseT <= 0) {
+          if (st.score >= PASS) newPicture();
+          else { st.phase = 'paint'; st.timeLeft = Math.max(st.timeLeft, 16); }
+        }
+      }
+    },
+    draw(dt) {
+      backdrop('#20103f', '#0d0221');
+      headerBar('ARTIST', '🖼️ ' + st.done + '/' + TARGET);
+      const mw = Math.min(W - 40, 300);
+      meter((W - mw) / 2, SAFE_T - 4, mw, 13, st.timeLeft / TIME,
+        { col: st.timeLeft < 12 ? '#ff2e88' : '#00f0ff', label: 'PAINT IT: ' + Math.ceil(st.timeLeft) + 's' });
+
+      // the reference on its easel
+      const rf = st.ref, rs = rf.cell * N;
+      fillRR(rf.x - 6, rf.y - 6, rs + 12, rs + 12, 6, '#5a3a1c');
+      for (let i = 0; i < N * N; i++) {
+        const c = i % N, r = Math.floor(i / N);
+        g.fillStyle = ART_PALETTE[target(i)];
+        g.fillRect(rf.x + c * rf.cell, rf.y + r * rf.cell, rf.cell - 1, rf.cell - 1);
+      }
+      txt('COPY THIS: ' + st.pic.nm, rf.x + rs / 2, rf.y - 13, { size: Math.min(rs / 14, 9), col: '#ffe600' });
+
+      // your canvas
+      const gr = st.grid, gs = gr.cell * N;
+      fillRR(gr.x - 7, gr.y - 7, gs + 14, gs + 14, 6, '#efe6d8');
+      for (let i = 0; i < N * N; i++) {
+        const c = i % N, r = Math.floor(i / N);
+        const x = gr.x + c * gr.cell, y = gr.y + r * gr.cell;
+        g.fillStyle = ART_PALETTE[st.cells[i]];
+        g.fillRect(x, y, gr.cell - 1, gr.cell - 1);
+        g.strokeStyle = 'rgba(255,255,255,0.09)'; g.lineWidth = 1;
+        g.strokeRect(x + 0.5, y + 0.5, gr.cell - 2, gr.cell - 2);
+      }
+
+      // palette
+      for (const s of st.swatches) {
+        fillRR(s.x, s.y, s.w, s.h, 8, s.col);
+        strokeRR(s.x, s.y, s.w, s.h, 8, st.colour === s.i ? '#ffe600' : 'rgba(255,255,255,0.3)', st.colour === s.i ? 4 : 2);
+        if (s.i === 0) txt('X', s.x + s.w / 2, s.y + s.h / 2, { size: Math.min(s.w / 3, 12), col: '#9b93b8' });
+      }
+      drawButton({ ...st.submit, label: 'FINISHED!' }, { col: '#ff2e88', bg: 'rgba(255,46,136,0.18)' });
+
+      if (st.phase === 'judge') {
+        g.fillStyle = 'rgba(13,2,33,0.82)'; g.fillRect(0, 0, W, H);
+        const ok = st.score >= PASS;
+        emoji(ok ? '🏆' : '🤨', W / 2, H * 0.36, clamp(W * 0.22, 60, 110));
+        txt(Math.round(st.score * 100) + '% MATCH', W / 2, H * 0.5, { size: Math.min(W / 13, 22), col: ok ? '#7cff5a' : '#ff2e88' });
+        txt(ok ? 'THE CRITICS LOVE IT!' : 'LOOK AGAIN AND FIX IT...', W / 2, H * 0.58, { size: Math.min(W / 26, 11), col: '#e8e6f0' });
+      }
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 6 — GUITARIST
+ *  Notes slide down the strings. Pluck each one as it reaches the line.
+ * ======================================================================== */
+function makeGuitarist() {
+  const LANES = 4, TRAVEL = 1.75, WINDOW = 0.19, PASS = 0.8;
+  const STRINGS = ['E', 'A', 'D', 'G'];
+  const FREQ = [165, 220, 294, 392];
+  const st = {
+    t: -1.6, notes: [], hits: 0, misses: 0, combo: 0, best: 0,
+    lanes: [], lineY: 0, topY: 0, flashes: [0, 0, 0, 0], held: [false, false, false, false],
+    beat: 0.5, nextBeat: 0, over: false, songEnd: 0,
+  };
+
+  // A little riff: pairs and runs, 44 notes at 120bpm.
+  (function build() {
+    const beat = 0.5;
+    const pattern = [
+      0, 1, 2, 3, 2, 1, 0, 0, 1, 1, 2, 2, 3, 3, 2, 0,
+      1, 2, 3, 3, 2, 1, 0, 1, 2, 3, 0, 3, 1, 2, 0, 1,
+      2, 3, 3, 2, 1, 0, 0, 1, 2, 3, 2, 1,
+    ];
+    let t = 0.9;
+    pattern.forEach((lane, i) => {
+      st.notes.push({ lane, t, hit: false, dead: false });
+      t += (i % 8 === 7) ? beat : beat * (i % 4 === 3 ? 0.75 : 0.5);
+    });
+    st.songEnd = t + 1.4;
+  })();
+
+  function layout() {
+    const top = SAFE_T + 26;
+    const padH = clamp(H * 0.13, 60, 100);
+    st.topY = top;
+    st.lineY = H - padH - 26;
+    const side = 8, gap = 6;
+    const lw = (W - side * 2 - gap * (LANES - 1)) / LANES;
+    st.lanes = Array.from({ length: LANES }, (_, i) => ({
+      x: side + i * (lw + gap), w: lw, cx: side + i * (lw + gap) + lw / 2,
+      pad: { x: side + i * (lw + gap), y: H - padH - 12, w: lw, h: padH },
+    }));
+  }
+  layout();
+
+  function pluck(lane) {
+    st.flashes[lane] = 0.18;
+    let best = null, bestD = 1e9;
+    for (const n of st.notes) {
+      if (n.lane !== lane || n.hit || n.dead) continue;
+      const d = Math.abs(n.t - st.t);
+      if (d < bestD) { bestD = d; best = n; }
+    }
+    if (best && bestD <= WINDOW) {
+      best.hit = true; st.hits++; st.combo++; st.best = Math.max(st.best, st.combo);
+      tone(FREQ[lane] * 2, 0.34, { type: 'sawtooth', vol: 0.1, to: FREQ[lane] * 1.98 });
+      tone(FREQ[lane], 0.3, { type: 'triangle', vol: 0.08 });
+    } else {
+      st.combo = 0;
+      noise(0.06, { vol: 0.05, hp: 2200 });
+    }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      const l = st.lanes.findIndex((l2) => x >= l2.x && x <= l2.x + l2.w);
+      if (l >= 0) pluck(l);
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = ['KeyA', 'KeyS', 'KeyD', 'KeyF'].indexOf(code);
+      const m = ['ArrowLeft', 'ArrowDown', 'ArrowUp', 'ArrowRight'].indexOf(code);
+      const lane = n >= 0 ? n : m;
+      if (lane >= 0) pluck(lane);
+    },
+    update(dt) {
+      if (st.over) return;
+      st.t += dt;
+      for (let i = 0; i < LANES; i++) st.flashes[i] = Math.max(0, st.flashes[i] - dt);
+      // backing click so there's something to play along to
+      if (st.t >= st.nextBeat) {
+        if (st.t > 0) { noise(0.03, { vol: 0.04, hp: 3000 }); tone(90, 0.09, { vol: 0.08, type: 'sine', to: 55 }); }
+        st.nextBeat = Math.floor(st.t / st.beat) * st.beat + st.beat;
+      }
+      for (const n of st.notes) {
+        if (!n.hit && !n.dead && st.t - n.t > WINDOW) { n.dead = true; st.misses++; st.combo = 0; }
+      }
+      if (st.t >= st.songEnd) {
+        st.over = true;
+        const total = st.hits + st.misses;
+        const acc = total ? st.hits / total : 0;
+        if (acc >= PASS) succeed('guitarist');
+        else failJob('You hit ' + Math.round(acc * 100) + '% of the notes. The band needs ' + Math.round(PASS * 100) + '%.');
+      }
+    },
+    draw(dt) {
+      backdrop('#241046', '#0d0221');
+      // fretboard — everything on it is clipped so notes never spill into the HUD
+      const bx = st.lanes[0].x, bw = st.lanes[LANES - 1].x + st.lanes[LANES - 1].w - bx;
+      const boardH = st.lineY - st.topY + 34;
+      g.save();
+      rr(bx - 4, st.topY, bw + 8, boardH, 8); g.clip();
+      fillRR(bx - 4, st.topY, bw + 8, boardH, 8, '#3a2010');
+      for (let f = 1; f < 7; f++) {
+        const y = st.topY + (st.lineY - st.topY) * (f / 7);
+        g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(bx - 4, y); g.lineTo(bx + bw + 4, y); g.stroke();
+      }
+      // strings
+      st.lanes.forEach((l, i) => {
+        g.strokeStyle = 'rgba(220,220,255,' + (0.3 + st.flashes[i] * 2) + ')';
+        g.lineWidth = 1.5 + i * 0.7;
+        g.beginPath(); g.moveTo(l.cx, st.topY); g.lineTo(l.cx, st.lineY + 30); g.stroke();
+      });
+      // strum line
+      g.strokeStyle = '#ffe600'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(bx - 8, st.lineY); g.lineTo(bx + bw + 8, st.lineY); g.stroke();
+      g.globalAlpha = 0.25; g.lineWidth = 12;
+      g.beginPath(); g.moveTo(bx - 8, st.lineY); g.lineTo(bx + bw + 8, st.lineY); g.stroke();
+      g.globalAlpha = 1;
+
+      // notes
+      const speed = (st.lineY - st.topY) / TRAVEL;
+      for (const n of st.notes) {
+        if (n.hit) continue;
+        const y = st.lineY - (n.t - st.t) * speed;
+        if (y < st.topY - 30 || y > st.lineY + 60) continue;
+        const l = st.lanes[n.lane];
+        const r = Math.min(l.w * 0.38, 22);
+        g.fillStyle = n.dead ? 'rgba(155,147,184,0.35)' : ['#ff2e88', '#00f0ff', '#ffe600', '#7cff5a'][n.lane];
+        g.beginPath(); g.ellipse(l.cx, y, r, r * 0.72, 0, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2;
+        g.beginPath(); g.ellipse(l.cx, y, r, r * 0.72, 0, 0, 7); g.stroke();
+      }
+      g.restore();
+
+      // pads
+      st.lanes.forEach((l, i) => {
+        const lit = st.flashes[i] > 0;
+        drawButton({ ...l.pad, label: STRINGS[i] }, {
+          col: lit ? '#ffe600' : '#00f0ff',
+          bg: lit ? 'rgba(255,230,0,0.3)' : 'rgba(0,240,255,0.1)',
+          pressed: lit, size: Math.min(l.pad.w / 3, 20),
+        });
+      });
+
+      headerBar('GUITARIST', '🎸 ' + st.hits + ' HIT');
+      const total = st.hits + st.misses;
+      const acc = total ? st.hits / total : 1;
+      const mw = Math.min(W - 40, 300);
+      meter((W - mw) / 2, SAFE_T - 2, mw, 14, clamp(st.t / st.songEnd, 0, 1),
+        { col: acc >= PASS ? '#7cff5a' : '#ff2e88', label: 'SONG ' + Math.round(acc * 100) + '% CLEAN' });
+      if (st.combo > 2) txt('COMBO x' + st.combo, W / 2, SAFE_T + 22, { size: Math.min(W / 24, 12), col: '#ffe600' });
+      if (st.t < 0.6) {
+        const pw = Math.min(W - 40, 260);
+        fillRR((W - pw) / 2, H * 0.42, pw, 46, 10, 'rgba(13,2,33,0.85)');
+        strokeRR((W - pw) / 2, H * 0.42, pw, 46, 10, '#00f0ff', 2);
+        txt('GET READY...', W / 2, H * 0.42 + 23, { size: fitSize('GET READY...', pw - 20, 18), col: '#00f0ff' });
+      }
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 7 — PIANIST
+ *  The piano plays a phrase; play it back. Five phrases and you're the
+ *  concert pianist.
+ * ======================================================================== */
+function makePianist() {
+  const WHITE = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C'];
+  const WFREQ = [262, 294, 330, 349, 392, 440, 494, 523];
+  const BLACKS = [0, 1, 3, 4, 5];       // gaps after these white keys
+  const BFREQ = [277, 311, 370, 415, 466];
+  const ROUNDS = [3, 4, 5, 6, 7];
+  const st = {
+    round: 0, lives: 3, seq: [], step: 0, phase: 'listen', phaseT: 0.8, playIdx: -1,
+    lit: -1, litT: 0, keys: [], blacks: [], over: false, sparkle: 0,
+  };
+
+  function newSeq() {
+    const len = ROUNDS[st.round];
+    st.seq = Array.from({ length: len }, () => Math.floor(Math.random() * 8));
+    st.step = 0; st.playIdx = -1; st.phase = 'listen'; st.phaseT = 0.7;
+  }
+
+  function layout() {
+    const kbH = clamp(H * 0.5, 170, 340);
+    const y = H - kbH - clamp(H * 0.03, 8, 24);
+    const side = 8;
+    const kw = (W - side * 2) / 8;
+    st.keys = WFREQ.map((f, i) => ({ x: side + i * kw, y, w: kw - 2, h: kbH, i, f }));
+    st.blacks = BLACKS.map((wi, j) => ({
+      x: side + (wi + 1) * kw - kw * 0.28, y, w: kw * 0.56, h: kbH * 0.6, f: BFREQ[j],
+    }));
+  }
+  layout();
+  newSeq();
+
+  function press(i) {
+    if (st.over) return;
+    st.lit = i; st.litT = 0.22;
+    held(WFREQ[i], 0.5, { type: 'triangle', vol: 0.13 });
+    if (st.phase !== 'play') return;
+    if (st.seq[st.step] === i) {
+      st.step++;
+      if (st.step >= st.seq.length) {
+        st.round++; SFX.cheer(); st.sparkle = 1;
+        if (st.round >= ROUNDS.length) { st.over = true; succeed('pianist'); return; }
+        st.phase = 'bravo'; st.phaseT = 1.2;
+      }
+    } else {
+      st.lives--; SFX.bad(); flashScreen('#ff2e88');
+      if (st.lives <= 0) { st.over = true; failJob('The concert fell apart. Listen closely to every note!'); return; }
+      st.phase = 'oops'; st.phaseT = 1.1;
+    }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      for (const b of st.blacks) {
+        if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+          held(b.f, 0.4, { type: 'triangle', vol: 0.1 });
+          if (st.phase === 'play') {
+            st.lives--; SFX.bad(); flashScreen('#ff2e88');
+            if (st.lives <= 0) { st.over = true; failJob('Those black keys were not in the tune!'); }
+            else { st.phase = 'oops'; st.phaseT = 1.0; }
+          }
+          return;
+        }
+      }
+      const k = st.keys.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+      if (k) press(k.i);
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK'].indexOf(code);
+      if (n >= 0) press(n);
+    },
+    update(dt) {
+      if (st.over) return;
+      st.litT = Math.max(0, st.litT - dt);
+      if (st.litT === 0 && st.phase !== 'listen') st.lit = -1;
+      st.sparkle = Math.max(0, st.sparkle - dt * 0.7);
+      st.phaseT -= dt;
+      if (st.phase === 'listen') {
+        if (st.phaseT <= 0) {
+          st.playIdx++;
+          if (st.playIdx >= st.seq.length) {
+            st.phase = 'play'; st.lit = -1; st.step = 0;
+            tone(1200, 0.08, { vol: 0.07 });
+          } else {
+            st.lit = st.seq[st.playIdx]; st.litT = 0.34;
+            held(WFREQ[st.lit], 0.42, { type: 'triangle', vol: 0.15 });
+            st.phaseT = 0.52;
+          }
+        }
+      } else if (st.phase === 'bravo') {
+        if (st.phaseT <= 0) newSeq();
+      } else if (st.phase === 'oops') {
+        if (st.phaseT <= 0) { st.playIdx = -1; st.phase = 'listen'; st.phaseT = 0.5; st.step = 0; }
+      }
+    },
+    draw(dt) {
+      backdrop('#1b0b38', '#0d0221');
+      headerBar('PIANIST', '🎵 ' + st.round + '/' + ROUNDS.length);
+      let hearts = '';
+      for (let i = 0; i < 3; i++) hearts += i < st.lives ? '❤️' : '🖤';
+      emoji(hearts, W / 2, SAFE_T + 12, 15);
+
+      // sheet music stand filling the space above the keyboard
+      const k0 = st.keys[0];
+      const shTop = SAFE_T + 26, shBot = k0.y - 34;
+      const shH = Math.max(70, shBot - shTop), shW = Math.min(W - 24, 420);
+      fillRR((W - shW) / 2, shTop, shW, shH, 10, 'rgba(255,255,255,0.05)');
+      strokeRR((W - shW) / 2, shTop, shW, shH, 10, 'rgba(0,240,255,0.3)', 2);
+      for (let i = 1; i <= 4; i++) {
+        const ly = shTop + shH * (0.28 + i * 0.1);
+        g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo((W - shW) / 2 + 14, ly); g.lineTo((W + shW) / 2 - 14, ly); g.stroke();
+      }
+      emoji('🎼', (W - shW) / 2 + 26, shTop + shH * 0.5, Math.min(shH * 0.3, 34));
+      emoji('🧑‍🎤', (W + shW) / 2 - 26, shTop + shH * 0.5, Math.min(shH * 0.3, 34));
+
+      const msg = st.phase === 'listen' ? 'LISTEN...' : st.phase === 'play' ? 'YOUR TURN!'
+        : st.phase === 'bravo' ? 'BRAVO!' : 'OOPS — LISTEN AGAIN';
+      txt(msg, W / 2, shTop + shH * 0.28,
+        { size: fitSize(msg, shW * 0.7, 17), col: st.phase === 'play' ? '#7cff5a' : st.phase === 'oops' ? '#ff2e88' : '#00f0ff' });
+
+      // progress dots for the phrase
+      const dots = st.seq.length, dy = shTop + shH * 0.72;
+      const dw = Math.min(shW * 0.66, dots * 26);
+      st.seq.forEach((_, i) => {
+        const x = W / 2 - dw / 2 + (dw / dots) * (i + 0.5);
+        const on = st.phase === 'play' ? i < st.step : i <= st.playIdx;
+        g.fillStyle = on ? '#ffe600' : 'rgba(255,255,255,0.16)';
+        g.beginPath(); g.arc(x, dy, Math.min(dw / dots / 3, 7), 0, 7); g.fill();
+      });
+
+      // grand piano lid
+      fillRR(k0.x - 6, k0.y - 22, W - (k0.x - 6) * 2 + 0, 26, 6, '#2b1050');
+      txt('FLOCADE GRAND', W / 2, k0.y - 9, { size: Math.min(W / 34, 9), col: '#ffe600' });
+
+      // white keys
+      for (const k of st.keys) {
+        const lit = st.lit === k.i;
+        const grd = g.createLinearGradient(0, k.y, 0, k.y + k.h);
+        if (lit) { grd.addColorStop(0, '#fff9b0'); grd.addColorStop(1, '#ffe600'); }
+        else { grd.addColorStop(0, '#ffffff'); grd.addColorStop(1, '#cfc9dd'); }
+        fillRR(k.x, k.y, k.w, k.h, 5, grd);
+        strokeRR(k.x, k.y, k.w, k.h, 5, '#0d0221', 1.5);
+        txt(WHITE[k.i], k.x + k.w / 2, k.y + k.h - 16, { size: Math.min(k.w / 2.2, 12), col: '#2b1050' });
+      }
+      // black keys on top
+      for (const b of st.blacks) {
+        fillRR(b.x, b.y, b.w, b.h, 4, '#1a1024');
+        strokeRR(b.x, b.y, b.w, b.h, 4, '#000', 1);
+      }
+      if (st.sparkle > 0) {
+        g.globalAlpha = st.sparkle * 0.5;
+        emoji('✨', W / 2, H * 0.3, clamp(W * 0.3, 70, 150));
+        g.globalAlpha = 1;
+      }
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 8 — DRUMMER
+ *  The pattern is written on the screen and a playhead sweeps across it.
+ *  Hit each pad exactly when the playhead gets there.
+ * ======================================================================== */
+function makeDrummer() {
+  const PADS = [
+    { nm: 'KICK', ic: '🦶', col: '#ff2e88' },
+    { nm: 'SNARE', ic: '🥁', col: '#00f0ff' },
+    { nm: 'HAT', ic: '🎩', col: '#ffe600' },
+  ];
+  const PATTERNS = [
+    ['0.......', '....0...', '..0...0.'],
+    ['0...0...', '....0...', '0.0.0.0.'],
+    ['0..0..0.', '....0..0', '..0...0.'],
+    ['0.0.0...', '..0...0.', '0.0.0.0.'],
+    ['0..0.0..', '....0..0', '0.0.0.0.'],
+  ];
+  const STEPS = 8, WINDOW = 0.17, PASS = 0.8, LIVES = 3;
+  const st = {
+    idx: 0, lives: LIVES, phase: 'listen', bar: 0, stepDur: 0.34,
+    notes: [], hits: 0, total: 0, lastStep: -1, pads: [], grid: null,
+    flash: [0, 0, 0], playT: 0, over: false, msgT: 0, msg: '',
+  };
+
+  function loadPattern() {
+    const p = PATTERNS[st.idx];
+    st.notes = [];
+    p.forEach((row, pad) => {
+      for (let s = 0; s < STEPS; s++) if (row[s] === '0') st.notes.push({ pad, step: s, hit: false, judged: false });
+    });
+    st.total = st.notes.length;
+    st.hits = 0; st.bar = 0; st.playT = 0; st.lastStep = -1; st.phase = 'listen';
+  }
+
+  function layout() {
+    const top = SAFE_T + 34;
+    const padH = clamp(H * 0.2, 90, 170);
+    const side = 10;
+    const gutter = clamp(W * 0.16, 52, 78);      // room for the KICK/SNARE/HAT names
+    const gridH = Math.min(H - top - padH - 46, clamp(H * 0.5, 140, 400));
+    st.grid = { x: side + gutter, y: top + Math.max(0, (H - top - padH - 46 - gridH) / 2), w: W - side * 2 - gutter, h: gridH };
+    const gap = 8;
+    const pw = (W - side * 2 - gap * 2) / 3;
+    st.pads = PADS.map((p, i) => ({ x: side + i * (pw + gap), y: H - padH - 14, w: pw, h: padH, ...p, i }));
+  }
+  layout();
+  loadPattern();
+
+  function sound(pad) {
+    if (pad === 0) { tone(120, 0.16, { type: 'sine', vol: 0.2, to: 45 }); noise(0.05, { vol: 0.05, hp: 80 }); }
+    else if (pad === 1) { noise(0.13, { vol: 0.16, hp: 900 }); tone(220, 0.08, { type: 'triangle', vol: 0.08, to: 140 }); }
+    else { noise(0.05, { vol: 0.09, hp: 6000 }); }
+  }
+
+  function whack(pad) {
+    st.flash[pad] = 0.16;
+    sound(pad);
+    if (st.phase !== 'play') return;
+    const now = st.playT;
+    let best = null, bd = 1e9;
+    for (const n of st.notes) {
+      if (n.pad !== pad || n.hit) continue;
+      const d = Math.abs(n.step * st.stepDur - now);
+      if (d < bd) { bd = d; best = n; }
+    }
+    if (best && bd <= WINDOW) { best.hit = true; st.hits++; tone(1400, 0.05, { vol: 0.05 }); }
+    else { st.msg = 'OFF BEAT!'; st.msgT = 0.5; }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      const p = st.pads.find((b) => inRect(b, x, y));
+      if (p) whack(p.i);
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = { Space: 0, KeyZ: 0, KeyX: 1, KeyC: 2, ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2 }[code];
+      if (n !== undefined) whack(n);
+    },
+    update(dt) {
+      if (st.over) return;
+      for (let i = 0; i < 3; i++) st.flash[i] = Math.max(0, st.flash[i] - dt);
+      st.msgT = Math.max(0, st.msgT - dt);
+      st.playT += dt;
+      const barLen = STEPS * st.stepDur;
+      const step = Math.floor(st.playT / st.stepDur);
+
+      if (st.phase === 'listen') {
+        if (step !== st.lastStep && step < STEPS) {
+          st.lastStep = step;
+          for (const n of st.notes) if (n.step === step) { sound(n.pad); st.flash[n.pad] = 0.14; }
+          if (step % 2 === 0) tone(1000, 0.03, { vol: 0.03 });
+        }
+        if (st.playT >= barLen) {
+          st.phase = 'play'; st.playT = 0; st.lastStep = -1;
+          for (const n of st.notes) n.hit = false;
+          st.hits = 0;
+          tone(1200, 0.09, { vol: 0.08 });
+        }
+      } else if (st.phase === 'play') {
+        if (step !== st.lastStep && step < STEPS) {
+          st.lastStep = step;
+          if (step % 2 === 0) tone(1000, 0.03, { vol: 0.03 });   // metronome
+        }
+        if (st.playT >= barLen + WINDOW) {
+          const acc = st.total ? st.hits / st.total : 0;
+          if (acc >= PASS) {
+            st.idx++; SFX.cheer();
+            if (st.idx >= PATTERNS.length) { st.over = true; succeed('drummer'); return; }
+            st.msg = 'TIGHT! NEXT BEAT'; st.msgT = 1.2;
+            loadPattern();
+          } else {
+            st.lives--; SFX.bad(); flashScreen('#ff2e88');
+            if (st.lives <= 0) { st.over = true; failJob('The band lost the beat. Watch the playhead and keep time!'); return; }
+            st.msg = 'AGAIN FROM THE TOP'; st.msgT = 1.2;
+            loadPattern();
+          }
+        }
+      }
+    },
+    draw(dt) {
+      backdrop('#2b0f3f', '#0d0221');
+      headerBar('DRUMMER', '🥁 ' + st.idx + '/' + PATTERNS.length);
+      let hearts = '';
+      for (let i = 0; i < LIVES; i++) hearts += i < st.lives ? '❤️' : '🖤';
+      emoji(hearts, W / 2, SAFE_T - 4, 15);
+      const beatMsg = st.phase === 'listen' ? 'LISTEN TO THE BEAT' : 'NOW YOU PLAY IT!';
+      txt(beatMsg, W / 2, SAFE_T + 18,
+        { size: fitSize(beatMsg, W - 40, 12), col: st.phase === 'play' ? '#7cff5a' : '#00f0ff' });
+
+      // the pattern grid
+      const gr = st.grid, rowH = gr.h / 3, colW = gr.w / STEPS;
+      fillRR(gr.x, gr.y, gr.w, gr.h, 8, 'rgba(255,255,255,0.04)');
+      for (let r = 0; r < 3; r++) {
+        for (let s = 0; s < STEPS; s++) {
+          const x = gr.x + s * colW, y = gr.y + r * rowH;
+          g.strokeStyle = s % 2 === 0 ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)';
+          g.lineWidth = 1;
+          g.strokeRect(x + 1, y + 1, colW - 2, rowH - 2);
+        }
+        txt(PADS[r].nm, gr.x - 8, gr.y + r * rowH + rowH / 2,
+          { size: fitSize(PADS[r].nm, gr.x - 22, 10), col: PADS[r].col, align: 'right' });
+      }
+      for (const n of st.notes) {
+        const x = gr.x + n.step * colW + colW / 2, y = gr.y + n.pad * rowH + rowH / 2;
+        const rad = Math.min(colW, rowH) * 0.32;
+        g.fillStyle = n.hit ? '#7cff5a' : PADS[n.pad].col;
+        g.globalAlpha = st.phase === 'play' && !n.hit ? 0.55 : 1;
+        g.beginPath(); g.arc(x, y, rad, 0, 7); g.fill();
+        g.globalAlpha = 1;
+        if (n.hit) { txt('✓', x, y, { size: rad * 1.3, col: '#0d0221', pixel: false }); }
+      }
+      // playhead
+      const barLen = STEPS * st.stepDur;
+      const px = gr.x + clamp(st.playT / barLen, 0, 1) * gr.w;
+      g.strokeStyle = '#ffffff'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(px, gr.y - 6); g.lineTo(px, gr.y + gr.h + 6); g.stroke();
+      g.globalAlpha = 0.3; g.lineWidth = 10;
+      g.beginPath(); g.moveTo(px, gr.y - 6); g.lineTo(px, gr.y + gr.h + 6); g.stroke();
+      g.globalAlpha = 1;
+
+      if (st.msgT > 0) txt(st.msg, W / 2, gr.y + gr.h + 22, { size: Math.min(W / 24, 12), col: '#ffe600' });
+
+      // pads
+      for (const p of st.pads) {
+        const lit = st.flash[p.i] > 0;
+        fillRR(p.x, p.y + (lit ? 3 : 0), p.w, p.h, 14, lit ? 'rgba(255,230,0,0.25)' : 'rgba(255,255,255,0.06)');
+        strokeRR(p.x, p.y + (lit ? 3 : 0), p.w, p.h, 14, lit ? '#ffe600' : p.col, 3);
+        emoji(p.ic, p.x + p.w / 2, p.y + p.h * 0.42 + (lit ? 3 : 0), Math.min(p.h * 0.42, 40));
+        txt(p.nm, p.x + p.w / 2, p.y + p.h * 0.78 + (lit ? 3 : 0), { size: Math.min(p.w / 6, 11), col: p.col });
+      }
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 9 — SINGER
+ *  Hold your voice on the melody line as it scrolls by. Drag up and down
+ *  to change pitch — let go and you stop singing.
+ * ======================================================================== */
+function makeSinger() {
+  const PASS = 0.68;
+  const SCALE = [262, 294, 330, 349, 392, 440, 494, 523, 587, 659];  // C major, 10 steps
+  const st = {
+    t: -1.2, melody: [], songEnd: 0, myPitch: 4.5, singing: false,
+    inTune: 0, noteTime: 0, tol: 0.8, voice: null, sparkles: [], over: false, wob: 0,
+  };
+
+  (function build() {
+    // a simple up-and-down tune, each note 1.1s
+    const line = [0, 2, 4, 2, 0, 4, 5, 4, 2, 4, 7, 5, 4, 2, 0, 2, 4, 5, 7, 5, 4, 2, 0, 0];
+    let t = 1.2;
+    for (const n of line) {
+      const dur = 1.05;
+      st.melody.push({ n, t, dur });
+      t += dur;
+    }
+    st.songEnd = t + 0.8;
+  })();
+
+  // The staff is capped in height so the notes stay chunky bars, not towers.
+  function staff() {
+    const avail = H - (SAFE_T + 30) - 70;
+    const h = Math.min(avail, 460);
+    const top = SAFE_T + 30 + (avail - h) / 2;
+    return { top, bot: top + h };
+  }
+  function y2pitch(y) {
+    const { top, bot } = staff();
+    return clamp((bot - y) / (bot - top), 0, 1) * (SCALE.length - 1);
+  }
+  function pitch2y(p) {
+    const { top, bot } = staff();
+    return bot - (p / (SCALE.length - 1)) * (bot - top);
+  }
+  function freqOf(p) {
+    const i = clamp(p, 0, SCALE.length - 1);
+    const lo = Math.floor(i), hi = Math.min(SCALE.length - 1, lo + 1);
+    return SCALE[lo] + (SCALE[hi] - SCALE[lo]) * (i - lo);
+  }
+
+  function startVoice() {
+    if (muted) return;
+    const a = ac(); if (!a) return;
+    stopVoice();
+    const o = a.createOscillator(), gn = a.createGain();
+    o.type = 'sine'; o.frequency.value = freqOf(st.myPitch);
+    gn.gain.value = 0.0001;
+    gn.gain.linearRampToValueAtTime(0.12, a.currentTime + 0.06);
+    const lfo = a.createOscillator(), lg = a.createGain();
+    lfo.frequency.value = 5.2; lg.gain.value = 4;
+    lfo.connect(lg); lg.connect(o.frequency);
+    o.connect(gn); gn.connect(a.destination);
+    o.start(); lfo.start();
+    st.voice = { o, gn, lfo, a };
+  }
+  function stopVoice() {
+    if (!st.voice) return;
+    const { o, gn, lfo, a } = st.voice;
+    try {
+      gn.gain.cancelScheduledValues(a.currentTime);
+      gn.gain.setValueAtTime(gn.gain.value, a.currentTime);
+      gn.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.08);
+      o.stop(a.currentTime + 0.12); lfo.stop(a.currentTime + 0.12);
+    } catch (e) { /* already stopped */ }
+    st.voice = null;
+  }
+
+  function currentNote() {
+    for (const m of st.melody) if (st.t >= m.t && st.t < m.t + m.dur) return m;
+    return null;
+  }
+
+  return {
+    layout() {},
+    stop: stopVoice,
+    down(x, y) { st.singing = true; st.myPitch = y2pitch(y); startVoice(); },
+    move(x, y, id, pressed) { if (st.singing && pressed) st.myPitch = y2pitch(y); },
+    up() { st.singing = false; stopVoice(); },
+    key(code, down) {
+      const step = 0.7;
+      if (code === 'ArrowUp') { if (down) { st.myPitch = clamp(st.myPitch + step, 0, SCALE.length - 1); st.singing = true; startVoice(); } }
+      if (code === 'ArrowDown') { if (down) { st.myPitch = clamp(st.myPitch - step, 0, SCALE.length - 1); st.singing = true; startVoice(); } }
+      if (code === 'Space') {
+        if (down) { st.singing = true; startVoice(); }
+        else { st.singing = false; stopVoice(); }
+      }
+    },
+    update(dt) {
+      if (st.over) return;
+      st.t += dt; st.wob += dt;
+      if (st.voice) st.voice.o.frequency.setTargetAtTime(freqOf(st.myPitch), st.voice.a.currentTime, 0.03);
+      const m = currentNote();
+      if (m && st.t > 0) {
+        st.noteTime += dt;
+        const off = Math.abs(st.myPitch - m.n);
+        if (st.singing && off <= st.tol) {
+          st.inTune += dt;
+          if (Math.random() < dt * 22) st.sparkles.push({ x: W * 0.34, y: pitch2y(st.myPitch), vx: 90 + Math.random() * 60, vy: (Math.random() - 0.5) * 60, life: 0.7 });
+        }
+      }
+      for (const s of st.sparkles) { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
+      st.sparkles = st.sparkles.filter((s) => s.life > 0);
+      if (st.t >= st.songEnd) {
+        st.over = true; stopVoice();
+        const acc = st.noteTime ? st.inTune / st.noteTime : 0;
+        if (acc >= PASS) succeed('singer');
+        else failJob('You were in tune ' + Math.round(acc * 100) + '% of the time. The choir wants ' + Math.round(PASS * 100) + '%.');
+      }
+    },
+    draw(dt) {
+      backdrop('#2a0b3f', '#0d0221');
+      // stage lights
+      for (let i = 0; i < 3; i++) {
+        const lx = W * (0.2 + i * 0.3);
+        const grd = g.createLinearGradient(lx, 0, lx, H);
+        const a = 0.05 + Math.sin(st.wob * 2 + i) * 0.03;
+        grd.addColorStop(0, 'rgba(255,46,136,' + Math.max(0, a) + ')');
+        grd.addColorStop(1, 'rgba(255,46,136,0)');
+        g.fillStyle = grd; g.beginPath();
+        g.moveTo(lx, 0); g.lineTo(lx - W * 0.18, H); g.lineTo(lx + W * 0.18, H); g.closePath(); g.fill();
+      }
+
+      const nowX = W * 0.3;
+      const pxPerSec = Math.max(W * 0.42, 130);
+      const { top: stTop, bot: stBot } = staff();
+      // staff lines
+      for (let i = 0; i < SCALE.length; i++) {
+        const y = pitch2y(i);
+        g.strokeStyle = 'rgba(255,255,255,0.07)'; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+      }
+      // melody blocks
+      for (const m of st.melody) {
+        const x = nowX + (m.t - st.t) * pxPerSec;
+        const w = m.dur * pxPerSec - 4;
+        if (x + w < -20 || x > W + 20) continue;
+        const y = pitch2y(m.n), h = Math.max(10, (pitch2y(0) - pitch2y(1)) * 1.1);
+        const active = st.t >= m.t && st.t < m.t + m.dur;
+        fillRR(x, y - h / 2, w, h, h / 2, active ? 'rgba(255,230,0,0.35)' : 'rgba(0,240,255,0.22)');
+        strokeRR(x, y - h / 2, w, h, h / 2, active ? '#ffe600' : 'rgba(0,240,255,0.5)', 2);
+      }
+      // the "now" line
+      g.strokeStyle = '#ff2e88'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(nowX, stTop - 14); g.lineTo(nowX, stBot + 14); g.stroke();
+
+      // sparkles
+      for (const s of st.sparkles) {
+        g.fillStyle = 'rgba(255,230,0,' + clamp(s.life / 0.7, 0, 1) + ')';
+        g.beginPath(); g.arc(s.x, s.y, 3, 0, 7); g.fill();
+      }
+
+      // you, with a mic
+      const my = pitch2y(st.myPitch);
+      const m = currentNote();
+      const good = st.singing && m && Math.abs(st.myPitch - m.n) <= st.tol;
+      g.fillStyle = good ? 'rgba(124,255,90,0.25)' : 'rgba(255,255,255,0.1)';
+      g.beginPath(); g.arc(nowX, my, 26, 0, 7); g.fill();
+      emoji(st.singing ? (good ? '😃' : '😐') : '😶', nowX, my, 34);
+      emoji('🎤', nowX - 30, my + 14, 22);
+      if (!st.singing && st.t > 1.0) {
+        txt('↕ HOLD & DRAG TO SING', W / 2, stBot + 34, { size: fitSize('↕ HOLD & DRAG TO SING', W - 40, 11), col: '#ffe600' });
+      }
+
+      headerBar('SINGER', '🎶 ' + Math.round((st.noteTime ? st.inTune / st.noteTime : 0) * 100) + '%');
+      const mw = Math.min(W - 40, 300);
+      const acc = st.noteTime ? st.inTune / st.noteTime : 0;
+      meter((W - mw) / 2, SAFE_T - 6, mw, 14, clamp(st.t / st.songEnd, 0, 1),
+        { col: acc >= PASS ? '#7cff5a' : '#ff2e88', label: 'IN TUNE ' + Math.round(acc * 100) + '% / ' + Math.round(PASS * 100) + '%' });
+      if (st.t < 0.9) {
+        const rw = Math.min(W - 40, 300);
+        fillRR((W - rw) / 2, stTop - 46, rw, 30, 8, 'rgba(13,2,33,0.85)');
+        txt('HOLD & DRAG TO SING', W / 2, stTop - 31, { size: fitSize('HOLD & DRAG TO SING', rw - 16, 12), col: '#00f0ff' });
+      }
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  JOB 10 — DANCER
+ *  Copy the lead dancer's move before the next beat. The music speeds up.
+ * ======================================================================== */
+function makeDancer() {
+  const MOVES = [
+    { nm: 'ARMS UP', ic: '🙌', lead: '🙌' },
+    { nm: 'SPIN', ic: '🌀', lead: '🕺' },
+    { nm: 'FLIP', ic: '🤸', lead: '🤸' },
+    { nm: 'WIGGLE', ic: '〰️', lead: '💃' },
+  ];
+  const TARGET = 18, MAX_MISS = 4;
+  const st = {
+    got: 0, missed: 0, beat: 1.45, timer: 0, move: -1, answered: false,
+    buttons: [], flashBtn: -1, flashT: 0, ok: null, okT: 0, floor: 0, over: false, combo: 0,
+  };
+
+  function layout() {
+    const bh = clamp(H * 0.14, 62, 100);
+    const gap = 8, side = 10;
+    const cols = W > H * 0.9 ? 4 : 2;
+    const rows = 4 / cols;
+    const bw = (W - side * 2 - gap * (cols - 1)) / cols;
+    st.buttons = MOVES.map((m, i) => {
+      const c = i % cols, r = Math.floor(i / cols);
+      return {
+        x: side + c * (bw + gap), y: H - (rows - r) * (bh + gap) - 8,
+        w: bw, h: bh, icon: m.ic, label: m.nm, i,
+      };
+    });
+  }
+  layout();
+
+  function nextMove() {
+    st.move = Math.floor(Math.random() * MOVES.length);
+    st.answered = false;
+    st.timer = st.beat;
+    tone(110, 0.12, { type: 'sine', vol: 0.14, to: 60 });
+    noise(0.03, { vol: 0.04, hp: 4000 });
+  }
+  nextMove();
+
+  function copy(i) {
+    if (st.over || st.answered) return;
+    st.flashBtn = i; st.flashT = 0.18;
+    st.answered = true;
+    if (i === st.move) {
+      st.got++; st.combo++;
+      st.ok = true; st.okT = 0.5;
+      tone(700 + Math.min(st.combo, 8) * 60, 0.1, { type: 'triangle', vol: 0.12 });
+      st.beat = Math.max(0.78, st.beat - 0.035);
+      if (st.got >= TARGET) { st.over = true; succeed('dancer'); return; }
+    } else {
+      st.missed++; st.combo = 0;
+      st.ok = false; st.okT = 0.5;
+      SFX.bad();
+      if (st.missed >= MAX_MISS) { st.over = true; failJob('You lost the routine. Watch the lead dancer and copy the move!'); }
+    }
+  }
+
+  return {
+    layout,
+    down(x, y) {
+      const b = st.buttons.find((b2) => inRect(b2, x, y));
+      if (b) copy(b.i);
+    },
+    key(code, down) {
+      if (!down) return;
+      const n = { ArrowUp: 0, ArrowRight: 1, ArrowLeft: 2, ArrowDown: 3, Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
+      if (n !== undefined) copy(n);
+    },
+    update(dt) {
+      if (st.over) return;
+      st.floor += dt;
+      st.flashT = Math.max(0, st.flashT - dt);
+      st.okT = Math.max(0, st.okT - dt);
+      st.timer -= dt;
+      if (st.timer <= 0) {
+        if (!st.answered) {
+          st.missed++; st.combo = 0; st.ok = false; st.okT = 0.5; SFX.bad(); flashScreen('#ff2e88');
+          if (st.missed >= MAX_MISS) { st.over = true; failJob('Too many missed moves. Keep up with the beat!'); return; }
+        }
+        nextMove();
+      }
+    },
+    draw(dt) {
+      backdrop('#160736', '#0d0221');
+      // disco floor — fills everything between the dancer and the buttons
+      const btnTop = st.buttons[0] ? st.buttons[0].y : H - 100;
+      const topY = btnTop - clamp(H * 0.2, 80, 170);
+      const cell = clamp(W / 8, 40, 80);
+      const rows = 4, rowH = (btnTop - 10 - topY) / rows;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < Math.ceil(W / cell) + 1; c++) {
+          const ph = Math.sin(st.floor * 4 + r * 0.8 + c * 0.6);
+          const col = ['rgba(255,46,136,', 'rgba(0,240,255,', 'rgba(255,230,0,'][(r + c) % 3];
+          g.fillStyle = col + (0.06 + Math.max(0, ph) * 0.16) + ')';
+          g.fillRect(c * cell, topY + r * rowH, cell - 2, rowH - 2);
+        }
+      }
+      // disco ball
+      emoji('🪩', W / 2, SAFE_T + clamp(H * 0.06, 26, 50), clamp(W * 0.11, 30, 52));
+
+      // lead dancer shows the move, centred between the disco ball and the floor
+      const lead = MOVES[st.move];
+      const cy = Math.max(SAFE_T + 90, (SAFE_T + 70 + topY) / 2);
+      const bob = Math.abs(Math.sin(st.floor * 6)) * 8;
+      const leadSize = clamp(Math.min(W, H) * 0.24, 70, 130);
+      emoji(lead.lead, W / 2, cy - bob, leadSize);
+      txt('COPY THIS!', W / 2, cy - leadSize * 0.72 - 14, { size: Math.min(W / 22, 13), col: '#ffe600' });
+      txt(lead.nm, W / 2, cy + leadSize * 0.66 + 14, { size: Math.min(W / 18, 16), col: '#00f0ff' });
+
+      // beat timer
+      const tw = Math.min(W - 60, 240);
+      const meterY = cy + leadSize * 0.66 + 34;
+      meter((W - tw) / 2, meterY, tw, 9, clamp(st.timer / st.beat, 0, 1),
+        { col: st.timer / st.beat < 0.35 ? '#ff2e88' : '#7cff5a' });
+
+      if (st.okT > 0) {
+        const msg = st.ok ? (st.combo > 3 ? 'ON FIRE! x' + st.combo : 'NICE!') : 'MISSED!';
+        const my = (meterY + 20 + topY) / 2;
+        const size = fitSize(msg, W - 60, 18);
+        g.globalAlpha = clamp(st.okT / 0.5, 0, 1);
+        g.font = `${size}px ${PIX}`;
+        const pw = g.measureText(msg).width + 22;
+        fillRR((W - pw) / 2, my - size, pw, size * 2, 8, 'rgba(13,2,33,0.85)');
+        txt(msg, W / 2, my, { size, col: st.ok ? '#7cff5a' : '#ff2e88' });
+        g.globalAlpha = 1;
+      }
+
+      for (const b of st.buttons) {
+        const lit = st.flashBtn === b.i && st.flashT > 0;
+        drawButton(b, {
+          col: lit ? (st.ok ? '#7cff5a' : '#ff2e88') : '#00f0ff',
+          bg: lit ? (st.ok ? 'rgba(124,255,90,0.25)' : 'rgba(255,46,136,0.25)') : 'rgba(0,240,255,0.1)',
+          pressed: lit,
+        });
+      }
+
+      headerBar('DANCER', '💃 ' + st.got + '/' + TARGET);
+      let x = '';
+      for (let i = 0; i < MAX_MISS; i++) x += i < st.missed ? '❌' : '⭕';
+      emoji(x, W / 2, SAFE_T + 14, 14);
+      drawFlash(dt);
+    },
+  };
+}
+
+/* ======================================================================== *
+ *  THE JOB LIST
+ * ======================================================================== */
+const JOBS = [
+  {
+    id: 'prime-minister', icon: '🏛️', title: 'PRIME MINISTER', short: 'Run the whole country',
+    role: 'PRIME MINISTER', stamp: '🏛️',
+    tagline: 'Work experience at No.10. The country shouts what it wants — give it to them and your approval rating goes up.',
+    how: [['📣', 'The crowd shouts <b>WE WANT</b> something.'], ['🗳️', 'Tap the <b>policy</b> that matches it.'],
+          ['📈', 'Get <b>approval to 100%</b> and you win the election.'], ['⏳', 'Be quick — dithering loses votes.']],
+    keys: 'Keyboard: 1 / 2 / 3 to pick a policy',
+    certNote: 'You won the election with a 100% approval rating. Nobody has ever done that.',
+    make: makePrimeMinister,
+  },
+  {
+    id: 'security-guard', icon: '🛡️', title: 'SECURITY GUARD', short: 'Watch the CCTV wall',
+    role: 'HEAD OF SECURITY', stamp: '🛡️',
+    tagline: 'Night shift in the security office. Six cameras, one sneaky burglar, and a cat that keeps setting off the alarm.',
+    how: [['🖥️', 'Watch all <b>six camera feeds</b> at once.'], ['🦹', 'Tap the camera with the <b>burglar</b> in it.'],
+          ['🐈', 'Do <b>not</b> tap the cat — that is a false alarm.'], ['❌', '<b>Three mistakes</b> and you are off the job.']],
+    keys: 'Keyboard: 1–6 for cameras 1–6',
+    certNote: 'Ten burglars caught in one shift and not a single false alarm. The vault has never been safer.',
+    make: makeSecurityGuard,
+  },
+  {
+    id: 'shopkeeper', icon: '🏪', title: 'SHOPKEEPER', short: 'Serve the customers',
+    role: 'SHOPKEEPER', stamp: '🏪',
+    tagline: 'A Saturday behind the till. Fetch what people ask for, add it up, and hand back exactly the right change.',
+    how: [['🧺', 'Tap the shelf items on the customer\'s <b>list</b>.'], ['💰', 'Then pick the <b>right change</b> from their note.'],
+          ['🙂', 'Serve <b>5 customers</b> before closing time.'], ['❌', 'Three mix-ups and they shop elsewhere.']],
+    keys: 'Mouse or touch',
+    certNote: 'Five customers served, the till balances to the penny, and the shelves are still tidy.',
+    make: makeShopkeeper,
+  },
+  {
+    id: 'astronaut', icon: '🚀', title: 'ASTRONAUT', short: 'Fly to the space station',
+    role: 'ASTRONAUT', stamp: '🚀',
+    tagline: 'Work experience in orbit. Fly the rocket up through the debris field and dock with the space station.',
+    how: [['👉', '<b>Drag</b> left and right to steer the rocket.'], ['🪨', 'Dodge asteroids — <b>3 hits</b> and the mission is over.'],
+          ['⛽', 'Grab <b>fuel cans</b> or you will run dry.'], ['🛰️', 'Reach <b>100% altitude</b> to dock.']],
+    keys: 'Keyboard: ← → to steer',
+    certNote: 'Docked with the space station on the first attempt, with fuel to spare.',
+    make: makeAstronaut,
+  },
+  {
+    id: 'artist', icon: '🎨', title: 'ARTIST', short: 'Copy the paintings',
+    role: 'RESIDENT ARTIST', stamp: '🎨',
+    tagline: 'A day in a real studio. Copy the painting on the easel square by square before the gallery opens.',
+    how: [['🖌️', 'Tap a <b>colour</b>, then tap squares to paint.'], ['👀', 'Match the painting on the <b>easel</b> exactly.'],
+          ['🏆', 'Get <b>88% or better</b>, three paintings in a row.'], ['⏳', 'The gallery opens in 50 seconds!']],
+    keys: 'Keyboard: 1–6 to pick a colour, ENTER to finish',
+    certNote: 'Three flawless copies. Your work now hangs in the gallery next to the real thing.',
+    make: makeArtist,
+  },
+  {
+    id: 'guitarist', icon: '🎸', title: 'GUITARIST', short: 'Play the riff',
+    role: 'LEAD GUITARIST', stamp: '🎸',
+    tagline: 'An audition with the band. Notes slide down the strings — pluck each one as it reaches the yellow line.',
+    how: [['🎵', 'Notes slide down <b>four strings</b>.'], ['👇', 'Tap that string when the note hits the <b>line</b>.'],
+          ['✅', 'Play <b>80% of the riff</b> cleanly to pass.'], ['🔥', 'Hit them in a row to build a combo.']],
+    keys: 'Keyboard: A S D F (or ← ↓ ↑ →)',
+    certNote: 'You nailed the riff first time. The band has already printed the tour posters.',
+    make: makeGuitarist,
+  },
+  {
+    id: 'pianist', icon: '🎹', title: 'PIANIST', short: 'Play back the tune',
+    role: 'CONCERT PIANIST', stamp: '🎹',
+    tagline: 'A lesson on a grand piano. The piano plays a phrase; play the very same notes back.',
+    how: [['👂', 'Watch and listen — keys <b>light up</b> in order.'], ['🎹', 'Play the same keys back in the <b>same order</b>.'],
+          ['📈', 'Phrases get longer: <b>5 rounds</b> to clear.'], ['❤️', 'Three lives. Black keys are never in the tune!']],
+    keys: 'Keyboard: A S D F G H J K = the white keys',
+    certNote: 'Every phrase played back perfectly, right up to seven notes. The concert hall is booked.',
+    make: makePianist,
+  },
+  {
+    id: 'drummer', icon: '🥁', title: 'DRUMMER', short: 'Keep the beat',
+    role: 'DRUMMER', stamp: '🥁',
+    tagline: 'Behind the kit in a real studio. The beat is written on the screen — hit each drum as the playhead reaches it.',
+    how: [['👀', 'The <b>grid</b> shows kick, snare and hat.'], ['▶️', 'A <b>playhead</b> sweeps across the bar.'],
+          ['🥁', 'Hit each pad exactly as the playhead arrives.'], ['🎶', 'Nail <b>5 beats</b> to get the gig.']],
+    keys: 'Keyboard: Z X C (or ← ↓ →)',
+    certNote: 'Five patterns, dead on the beat, no drifting. The band can finally record.',
+    make: makeDrummer,
+  },
+  {
+    id: 'singer', icon: '🎤', title: 'SINGER', short: 'Hit the notes',
+    role: 'LEAD SINGER', stamp: '🎤',
+    tagline: 'A choir audition. Hold your voice on the melody line as it scrolls past — drag up and down to change pitch.',
+    how: [['👇', '<b>Hold</b> the screen to sing — let go and you stop.'], ['↕️', 'Drag <b>up and down</b> to change your pitch.'],
+          ['🎯', 'Stay inside the <b>blue melody bars</b>.'], ['✅', 'Be in tune <b>68% of the song</b> to pass.']],
+    keys: 'Keyboard: hold SPACE to sing, ↑ ↓ for pitch',
+    certNote: 'In tune from the first note to the last. You are singing the solo on Friday.',
+    make: makeSinger,
+  },
+  {
+    id: 'dancer', icon: '💃', title: 'DANCER', short: 'Copy the moves',
+    role: 'DANCER', stamp: '💃',
+    tagline: 'A dance rehearsal. The lead dancer pulls a move on every beat — copy it before the next one, and the music speeds up.',
+    how: [['🕺', 'The lead dancer shows a <b>move</b>.'], ['👇', 'Tap the <b>matching button</b> before the beat ends.'],
+          ['⚡', 'Every correct move makes the music <b>faster</b>.'], ['❌', '<b>18 moves</b> to learn the routine. 4 misses and it is over.']],
+    keys: 'Keyboard: ↑ → ← ↓ (or 1 2 3 4)',
+    certNote: 'Eighteen moves without dropping the routine, and it kept getting faster. You are front row.',
+    make: makeDancer,
+  },
+];
+
+/* ======================================================================== *
+ *  PROGRESS (your CV)
+ * ======================================================================== */
+const SAVE_KEY = 'flocade-when-i-grow-up-v1';
+let employed = new Set();
+function loadCV() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) employed = new Set(JSON.parse(raw).filter((id) => JOBS.some((j) => j.id === id)));
+  } catch (e) { employed = new Set(); }
+}
+function saveCV() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify([...employed])); } catch (e) { /* private mode */ }
+}
+
+/* ======================================================================== *
+ *  SCREENS
+ * ======================================================================== */
+const hubEl = document.getElementById('hub');
+const introEl = document.getElementById('intro');
+const resultEl = document.getElementById('result');
+const jobsEl = document.getElementById('jobs');
+const cvEl = document.getElementById('cvline');
+const backArcade = document.getElementById('backArcade');
+const backHub = document.getElementById('backHub');
+let curJob = null;
+
+function setNav(inGame) {
+  backArcade.classList.toggle('hidden', inGame);
+  backHub.classList.toggle('hidden', !inGame);
+}
+function showOnly(el) {
+  for (const s of [hubEl, introEl, resultEl]) s.classList.toggle('hidden', s !== el);
+}
+
+function renderHub() {
+  jobsEl.innerHTML = '';
+  for (const job of JOBS) {
+    const done = employed.has(job.id);
+    const b = document.createElement('button');
+    b.className = 'job' + (done ? ' done' : '');
+    b.innerHTML =
+      (done ? '<span class="tick">✅</span>' : '') +
+      '<span class="ic">' + job.icon + '</span>' +
+      '<span class="nm">' + job.title + '</span>' +
+      '<span class="dsc">' + (done ? 'EMPLOYED!<br>' + job.short : job.short) + '</span>';
+    b.addEventListener('click', () => { SFX.click(); showIntro(job); });
+    jobsEl.appendChild(b);
+  }
+  const n = employed.size;
+  cvEl.innerHTML = n === 0
+    ? 'MY CV: <b>EMPTY</b> — GO AND GET A JOB!'
+    : n === JOBS.length
+      ? 'MY CV: <b>ALL 10 JOBS</b> 🏆 YOU CAN BE ANYTHING!'
+      : 'MY CV: <b>' + n + '/' + JOBS.length + '</b> JOBS';
+}
+
+function showIntro(job) {
+  curJob = job;
+  document.getElementById('introIcon').textContent = job.icon;
+  document.getElementById('introTitle').textContent = job.title;
+  document.getElementById('introTag').innerHTML =
+    (employed.has(job.id) ? '<b>You already got this job!</b> ' : '') + job.tagline;
+  document.getElementById('introHow').innerHTML = job.how
+    .map(([ic, t]) => '<div class="howrow"><div class="ic">' + ic + '</div><div>' + t + '</div></div>').join('');
+  document.getElementById('introKeys').textContent = job.keys;
+  showOnly(introEl);
+  setNav(true);
+  cur = null;
+}
+
+function startJob() {
+  if (!curJob) return;
+  showOnly(null);
+  setNav(true);
+  flash.t = 0;
+  resize();
+  cur = curJob.make();
+  if (cur.layout) cur.layout();
+  ac();
+}
+
+function toHub() {
+  if (cur && cur.stop) cur.stop();
+  cur = null;
+  curJob = null;
+  renderHub();
+  showOnly(hubEl);
+  setNav(false);
+}
+
+function succeed() {
+  const job = curJob;
+  if (cur && cur.stop) cur.stop();
+  cur = null;
+  if (!job) return;
+  const firstEver = employed.size === 0;
+  const isNew = !employed.has(job.id);
+  employed.add(job.id);
+  saveCV();
+  const all = employed.size === JOBS.length;
+  SFX.win();
+  const body = document.getElementById('resultBody');
+  body.innerHTML =
+    '<div class="title">' + (all ? 'YOU CAN BE<br>ANYTHING!' : 'YOU WIN!<br>YOU GOT THE JOB!') + '</div>' +
+    '<div class="cert">' +
+      '<div class="stamp">' + job.stamp + '</div>' +
+      '<div class="hdr">CERTIFICATE OF EMPLOYMENT</div>' +
+      '<div class="role">' + job.role + '</div>' +
+      '<div class="note">' + job.certNote + '</div>' +
+      '<div class="sig">Signed: The ' + job.title.toLowerCase() + '\'s boss ✒️<br>' +
+        'Jobs on your CV: <b>' + employed.size + '/' + JOBS.length + '</b></div>' +
+    '</div>' +
+    '<p class="sub" style="margin-top:0.8rem;">' + (
+      all ? 'Every single job on the list — <b>you are employed everywhere</b>. Nobody in the world has a CV like this.'
+        : firstEver && isNew ? 'You got <b>employed</b>, so you have officially <b>won the game</b>! Now go and try the other jobs too.'
+        : isNew ? 'A new job for your CV. <b>' + (JOBS.length - employed.size) + '</b> left to try!'
+        : 'Employed all over again — that job is definitely yours.'
+    ) + '</p>';
+  document.getElementById('btnRetry').textContent = 'DO IT AGAIN';
+  showOnly(resultEl);
+  setNav(true);
+}
+
+function failJob(msg) {
+  const job = curJob;
+  if (cur && cur.stop) cur.stop();
+  cur = null;
+  if (!job) return;
+  SFX.lose();
+  const body = document.getElementById('resultBody');
+  body.innerHTML =
+    '<div class="title" style="color:#ff2e88; text-shadow:3px 3px 0 #1a0b3d;">NOT HIRED<br>YET...</div>' +
+    '<div style="font-size:2.6rem; margin:0.4rem 0;">' + job.icon + '</div>' +
+    '<p class="sub">' + msg + '</p>' +
+    '<p class="keys">Work experience is like that. Have another go — you get better every time.</p>';
+  document.getElementById('btnRetry').textContent = 'TRY AGAIN';
+  showOnly(resultEl);
+  setNav(true);
+}
+
+// ------------------------------------------------------------------ buttons
+document.getElementById('btnStart').addEventListener('click', () => { SFX.click(); startJob(); });
+document.getElementById('btnRetry').addEventListener('click', () => { SFX.click(); startJob(); });
+document.getElementById('btnHubFromResult').addEventListener('click', () => { SFX.click(); toHub(); });
+backHub.addEventListener('click', () => { SFX.click(); toHub(); });
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (employed.size === 0) { toast('YOUR CV IS ALREADY EMPTY'); return; }
+  employed = new Set(); saveCV(); renderHub(); SFX.bad();
+  toast('CV CLEARED — START AGAIN!');
+});
+
+/* ======================================================================== *
+ *  MAIN LOOP
+ * ======================================================================== */
+let last = 0;
+function frame(now) {
+  const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016);
+  last = now;
+  if (cur) {
+    if (cur.update) cur.update(dt);
+    if (cur && cur.draw) cur.draw(dt, now / 1000);
+  } else {
+    g.clearRect(0, 0, W, H);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ------------------------------------------------------------------- boot
+loadCV();
+renderHub();
+showOnly(hubEl);
+setNav(false);
+resize();
+
+const boot = () => { resize(); requestAnimationFrame(frame); };
+if (document.fonts && document.fonts.load) {
+  Promise.race([
+    Promise.all([
+      document.fonts.load('10px "Press Start 2P"'),
+      document.fonts.load('12px "Inter"'),
+    ]),
+    new Promise((r) => setTimeout(r, 1500)),
+  ]).then(boot, boot);
+} else {
+  boot();
+}
+})();
+</script>
+</body>
+</html>
