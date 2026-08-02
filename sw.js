@@ -6,7 +6,7 @@
 // bumps, anything already cached is served cache-first and silently
 // re-fetched in the background (stale-while-revalidate), so updates still
 // flow to players one visit late.
-const CACHE_VERSION = 'flocade-v8';
+const CACHE_VERSION = 'flocade-v9';
 
 // Files the gallery itself needs.
 const SHELL_ASSETS = [
