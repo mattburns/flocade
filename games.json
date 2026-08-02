@@ -190,5 +190,11 @@
     "title": "Scrambled Eggs",
     "icon": "🍳",
     "description": "Circular breakout in a frying pan! Slide your spatula around the rim, crack the eggshell, and get the ball rattling inside to scramble the whole egg."
+  },
+  {
+    "slug": "babysitter",
+    "title": "Babysitter",
+    "icon": "👶",
+    "description": "Babies are crawling all over the baby-proofed house! Pick up a crying one, fetch the milk or teddy it wants, and earn hearts — 5 hearts brings a new baby. Can you get all 10 happy at once?"
   }
 ]
