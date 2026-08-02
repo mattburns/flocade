@@ -21,6 +21,10 @@ There are no tests or linters configured.
 - The site is an installable PWA (`manifest.json`, `icons/`) and `sw.js` precaches the entire arcade on first visit so every game works offline afterwards. The service worker derives the precache list from `games.json`, serves cached content stale-while-revalidate, and keeps `games.json` itself network-first.
 - To add a game: create `games/<slug>/index.html`, then add a `{ slug, title, icon, description }` entry to `games.json`. The `slug` must match the folder name. Then **bump `CACHE_VERSION` in `sw.js`** so existing visitors precache the new game, and if the game has any files beyond `index.html`, list them in `EXTRA_GAME_ASSETS` in `sw.js`.
 
+## Shipping a new game
+
+When you add a game, don't stop at pushing the branch — **open a pull request and merge it** without waiting to be asked. Matt accepts these as a matter of course, so treat "the game is finished and tested" as the point at which it should land on `main`. Same for follow-up fixes to a game you just shipped.
+
 ## Conventions
 
 - Visual theme: dark retro-arcade (background `#0d0221`, neon pink `#ff2e88`, cyan `#00f0ff`, yellow `#ffe600`, "Press Start 2P" font). Games should follow the same palette so the arcade feels cohesive.
