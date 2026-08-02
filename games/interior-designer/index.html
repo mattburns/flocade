@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Interior Designer — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+      --ink: #4a3b5c;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem 0.9rem;
+      flex: 0 0 auto;
+    }
+    header a, header button.linky {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--cyan);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 0.4rem 0.2rem;
+    }
+    header h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.65rem, 2.6vw, 1rem);
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 var(--pink);
+      flex: 1;
+      text-align: center;
+      line-height: 1.5;
+    }
+    header .spacer { min-width: 5.5rem; }
+    .hint {
+      flex: 0 0 auto;
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.8rem;
+      padding: 0 1rem 0.45rem;
+      min-height: 1.4rem;
+    }
+    .hint b { color: var(--cyan); font-weight: 600; }
+
+    /* ---------- World / street view ---------- */
+    #worldView { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    #street {
+      flex: 1;
+      min-height: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      cursor: grab;
+      border-top: 2px solid var(--card);
+    }
+    #street.dragging { cursor: grabbing; }
+    #streetInner {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+      gap: clamp(1.5rem, 5vw, 4rem);
+      padding: 0 3rem 12%;
+      width: max-content;
+      background:
+        radial-gradient(ellipse 45% 30% at 18% 22%, rgba(255, 230, 0, 0.35), transparent 70%),
+        linear-gradient(#1b0640 0%, #3c0f66 45%, #7a2a8f 68%, #c74e8a 78%, #2a5d34 78.5%, #1e4526 100%);
+    }
+    /* road */
+    #streetInner::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      height: 9%;
+      background:
+        repeating-linear-gradient(90deg, transparent 0 42px, var(--yellow) 42px 70px, transparent 70px 112px) 50% 50% / 112px 5px no-repeat,
+        #2b2438;
+      background-repeat: repeat-x, no-repeat;
+      background-size: 112px 5px, auto;
+      background-position: 0 50%, 0 0;
+      border-top: 3px solid #171129;
+    }
+    .sun {
+      position: absolute;
+      top: 9%;
+      left: 220px;
+      width: 74px; height: 74px;
+      border-radius: 50%;
+      background: var(--yellow);
+      box-shadow: 0 0 40px 14px rgba(255, 230, 0, 0.5);
+    }
+    .cloud {
+      position: absolute;
+      height: 26px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.22);
+    }
+    .cloud::before {
+      content: '';
+      position: absolute;
+      top: -12px; left: 22%;
+      width: 45%; height: 24px;
+      border-radius: 20px;
+      background: inherit;
+    }
+    .house {
+      position: relative;
+      z-index: 1;
+      flex: 0 0 auto;
+      width: clamp(150px, 24vh, 230px);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: transform 0.15s;
+    }
+    .house:active { transform: scale(0.96); }
+    .house svg { display: block; width: 100%; height: auto; }
+    .house .label {
+      display: block;
+      margin-top: 0.5rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: var(--text);
+      text-align: center;
+      text-shadow: 1px 1px 0 #000;
+    }
+
+    /* ---------- Room view ---------- */
+    #roomView { flex: 1; display: none; flex-direction: column; min-height: 0; }
+    #roomView.active { display: flex; }
+    #worldView.hiddenView { display: none; }
+    #roomWrap { flex: 1; min-height: 0; padding: 0 0.6rem 0.6rem; display: flex; }
+    #room {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      border: 3px solid var(--card);
+      border-radius: 14px;
+      overflow: hidden;
+      touch-action: none;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.12);
+    }
+    #wall  { position: absolute; left: 0; right: 0; top: 0; height: 58%; background: #fff; }
+    #floor { position: absolute; left: 0; right: 0; top: 58%; bottom: 0; background: #fff; }
+    #skirting {
+      position: absolute; left: 0; right: 0; top: 58%;
+      height: 8px; margin-top: -4px;
+      background: #d8d2e0;
+      border-top: 2px solid #b9b1c9;
+      border-bottom: 2px solid #b9b1c9;
+      pointer-events: none;
+    }
+    #room.painting #wall, #room.painting #floor { cursor: crosshair; }
+
+    /* wastepaper bin (drag furniture here to throw it away) */
+    #bin {
+      position: absolute;
+      left: 2%;
+      top: 38%;
+      width: clamp(40px, 7%, 64px);
+      opacity: 0.85;
+      transition: transform 0.15s;
+      pointer-events: none;
+    }
+    #bin svg { display: block; width: 100%; height: auto; }
+    #bin.hot { transform: scale(1.25) rotate(-8deg); }
+    #bin.hot .binBody { fill: #ffb3c9; }
+
+    /* furniture */
+    .item {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      cursor: default;
+      filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.18));
+    }
+    #room.edit .item { cursor: grab; }
+    .item.dragging { cursor: grabbing !important; filter: drop-shadow(0 10px 8px rgba(0,0,0,0.25)); }
+    .item svg { display: block; width: 100%; height: auto; pointer-events: none; }
+    @keyframes pop { 0% { scale: 0.2; } 70% { scale: 1.15; } 100% { scale: 1; } }
+    .item.pop { animation: pop 0.25s ease-out; }
+    @keyframes wiggle { 0%,100% { rotate: 0deg; } 25% { rotate: -4deg; } 75% { rotate: 4deg; } }
+    .item.wiggle { animation: wiggle 0.3s; }
+
+    /* paintbrush FAB + toolbar */
+    #fab {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      width: 62px; height: 62px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: var(--pink);
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.2s;
+      z-index: 30;
+    }
+    #fab svg { width: 34px; height: 34px; }
+    #room.edit #fab { transform: rotate(-20deg) scale(1.08); background: var(--cyan); }
+    #toolbar {
+      position: absolute;
+      left: 10px;
+      right: 84px;
+      bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 8px;
+      z-index: 25;
+      pointer-events: none;
+    }
+    .tool {
+      width: clamp(44px, 9vh, 58px);
+      height: clamp(44px, 9vh, 58px);
+      border-radius: 50%;
+      border: 3px solid var(--ink);
+      background: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      padding: 6px;
+      opacity: 0;
+      transform: translateY(30px) scale(0.4);
+      transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+      transition-delay: var(--d, 0s);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+    #room.edit #toolbar { pointer-events: auto; }
+    #room.edit .tool { opacity: 1; transform: translateY(0) scale(1); }
+    .tool:active { transform: scale(0.9) !important; }
+    .tool svg { width: 100%; height: 100%; }
+    .tool.roller { background: var(--yellow); }
+
+    /* swatch panel */
+    #swatchPanel {
+      position: absolute;
+      top: 3%;
+      right: 0;
+      bottom: 3%;
+      width: min(46%, 220px);
+      background: #f4f0fa;
+      border: 3px solid var(--ink);
+      border-right: none;
+      border-radius: 16px 0 0 16px;
+      box-shadow: -4px 4px 14px rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: stretch;
+      z-index: 40;
+      transform: translateX(110%);
+      transition: transform 0.25s ease-out;
+    }
+    #swatchPanel.open { transform: translateX(0); }
+    #swatchClose {
+      flex: 0 0 34px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1rem;
+      color: var(--ink);
+    }
+    #swatchScroll {
+      flex: 1;
+      overflow-y: auto;
+      touch-action: pan-y;
+      padding: 12px 12px 12px 0;
+    }
+    #swatchScroll p {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      line-height: 1.7;
+      color: var(--ink);
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #swatchGrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .swatch {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      border: 3px solid #c9c0d8;
+      cursor: pointer;
+      padding: 0;
+    }
+    .swatch.sel { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 46, 136, 0.4); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../" id="backArcade">&larr; ARCADE</a>
+    <button class="linky" id="exitRoom" hidden>&larr; STREET</button>
+    <h1 id="title">INTERIOR DESIGNER</h1>
+    <span class="spacer"></span>
+  </header>
+  <div class="hint" id="hint"></div>
+
+  <div id="worldView">
+    <div id="street">
+      <div id="streetInner">
+        <div class="sun"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="roomView">
+    <div id="roomWrap">
+      <div id="room">
+        <div id="wall"></div>
+        <div id="floor"></div>
+        <div id="skirting"></div>
+        <div id="bin"></div>
+        <div id="items"></div>
+        <div id="swatchPanel">
+          <button id="swatchClose" aria-label="Close swatches">&gt;</button>
+          <div id="swatchScroll">
+            <p>PICK A STYLE,<br>THEN TAP THE<br>WALL OR FLOOR!</p>
+            <div id="swatchGrid"></div>
+          </div>
+        </div>
+        <div id="toolbar"></div>
+        <button id="fab" aria-label="Paintbrush"></button>
+      </div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+/* ---------------- tiny sounds ---------------- */
+let AC = null;
+function blip(freq = 600, dur = 0.07, type = 'square', vol = 0.035) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start();
+    o.stop(AC.currentTime + dur);
+  } catch (e) { /* sound is optional */ }
+}
+
+/* ---------------- patterns (walls & floors) ---------------- */
+function pat(w, h, body) {
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>${body}</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
+const PATTERNS = {
+  white:  { css: '#ffffff' },
+  cream:  { css: '#fdf3dc' },
+  pink:   { css: '#ffd9e8' },
+  sky:    { css: '#d8efff' },
+  mint:   { css: '#dcf7e5' },
+  lilac:  { css: '#eadcff' },
+  speckle: { css: pat(56, 56,
+    `<rect width='56' height='56' fill='#f4efe4'/>` +
+    `<circle cx='9' cy='12' r='2.4' fill='#c9b8a0'/><circle cx='30' cy='6' r='1.8' fill='#a8b8c9'/>` +
+    `<circle cx='46' cy='18' r='2.2' fill='#c9a0b3'/><circle cx='18' cy='32' r='1.9' fill='#a0c9ad'/>` +
+    `<circle cx='40' cy='40' r='2.5' fill='#c9b8a0'/><circle cx='7' cy='48' r='1.7' fill='#c9a0b3'/>` +
+    `<circle cx='27' cy='51' r='2.1' fill='#a8b8c9'/><circle cx='51' cy='51' r='1.6' fill='#a0c9ad'/>`) + ' #f4efe4' },
+  checker: { css: pat(48, 48,
+    `<rect width='48' height='48' fill='#fff'/>` +
+    `<rect width='24' height='24' fill='#26223a'/><rect x='24' y='24' width='24' height='24' fill='#26223a'/>`) + ' #fff' },
+  diamond: { css: pat(56, 56,
+    `<rect width='56' height='56' fill='#fff'/>` +
+    `<polygon points='28,0 56,28 28,56 0,28' fill='#26223a'/>`) + ' #fff' },
+  grass: { css: pat(56, 56,
+    `<rect width='56' height='56' fill='#7ecb5f'/>` +
+    `<path d='M8 14 l4 -7 l4 7 M30 8 l4 -7 l4 7 M18 34 l4 -7 l4 7 M42 28 l4 -7 l4 7 M6 50 l4 -7 l4 7 M32 52 l4 -7 l4 7' stroke='#4e9c38' stroke-width='2.5' fill='none' stroke-linecap='round'/>`) + ' #7ecb5f' },
+  brickTan: { css: pat(84, 48,
+    `<rect width='84' height='48' fill='#d8c493'/>` +
+    `<g stroke='#a58c58' stroke-width='3' fill='none'>` +
+    `<path d='M0 12 H84 M0 36 H84'/><path d='M42 0 V12 M21 12 V36 M63 12 V36 M42 36 V48'/></g>`) + ' #d8c493' },
+  brickRed: { css: pat(84, 48,
+    `<rect width='84' height='48' fill='#e8ddd0'/>` +
+    `<g fill='#c0503c'>` +
+    `<rect x='2' y='2' width='38' height='20' rx='2'/><rect x='44' y='2' width='38' height='20' rx='2'/>` +
+    `<rect x='-19' y='26' width='38' height='20' rx='2'/><rect x='23' y='26' width='38' height='20' rx='2'/><rect x='65' y='26' width='38' height='20' rx='2'/></g>`) + ' #e8ddd0' },
+  flowers: { css: pat(72, 72,
+    `<rect width='72' height='72' fill='#fffdf5'/>` +
+    `<g fill='#ff8fb8'><circle cx='18' cy='12' r='4'/><circle cx='12' cy='18' r='4'/><circle cx='24' cy='18' r='4'/><circle cx='14' cy='25' r='4'/><circle cx='22' cy='25' r='4'/></g>` +
+    `<circle cx='18' cy='19' r='3.5' fill='#ffe600'/>` +
+    `<g fill='#8fc9ff'><circle cx='54' cy='46' r='4'/><circle cx='48' cy='52' r='4'/><circle cx='60' cy='52' r='4'/><circle cx='50' cy='59' r='4'/><circle cx='58' cy='59' r='4'/></g>` +
+    `<circle cx='54' cy='53' r='3.5' fill='#ffe600'/>` +
+    `<path d='M40 20 q6 -3 10 2 M20 52 q-6 3 -10 -2' stroke='#7ecb5f' stroke-width='3' fill='none' stroke-linecap='round'/>`) + ' #fffdf5' },
+  wood: { css: pat(72, 72,
+    `<rect width='72' height='72' fill='#d9a05f'/>` +
+    `<g stroke='#b07a3f' stroke-width='3'><path d='M0 18 H72 M0 36 H72 M0 54 H72' fill='none'/>` +
+    `<path d='M18 0 V18 M54 18 V36 M30 36 V54 M60 54 V72 M6 54 V72' fill='none'/></g>` +
+    `<g fill='#b07a3f'><ellipse cx='40' cy='9' rx='3' ry='1.6'/><ellipse cx='14' cy='45' rx='3' ry='1.6'/><ellipse cx='58' cy='63' rx='3' ry='1.6'/></g>`) + ' #d9a05f' },
+  tiles: { css: pat(56, 56,
+    `<rect width='56' height='56' fill='#f2f7ff'/>` +
+    `<g stroke='#7aa8d8' stroke-width='2.5' fill='none'><path d='M0 28 H56 M28 0 V56'/></g>` +
+    `<g fill='#7aa8d8'><polygon points='28,22 34,28 28,34 22,28'/></g>`) + ' #f2f7ff' },
+  stars: { css: pat(72, 72,
+    `<rect width='72' height='72' fill='#2b2069'/>` +
+    `<g fill='#ffe600'><path d='M18 10 l2.2 5 5 2.2 -5 2.2 -2.2 5 -2.2 -5 -5 -2.2 5 -2.2 z'/>` +
+    `<path d='M52 34 l2.2 5 5 2.2 -5 2.2 -2.2 5 -2.2 -5 -5 -2.2 5 -2.2 z'/>` +
+    `<circle cx='58' cy='12' r='2'/><circle cx='12' cy='50' r='2'/><circle cx='34' cy='62' r='2'/><circle cx='38' cy='24' r='1.5'/></g>`) + ' #2b2069' },
+};
+
+/* ---------------- furniture ---------------- */
+const OUT = `stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'`;
+const FURNITURE = {
+  bed: { w: 27, vw: 220, vh: 130, svg:
+    `<rect x='8' y='12' width='28' height='96' rx='9' fill='#c98a5b' ${OUT}/>` +
+    `<rect x='192' y='58' width='20' height='50' rx='7' fill='#c98a5b' ${OUT}/>` +
+    `<rect x='24' y='88' width='180' height='22' rx='6' fill='#b0713f' ${OUT}/>` +
+    `<rect x='30' y='108' width='14' height='14' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='184' y='108' width='14' height='14' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='30' y='62' width='168' height='30' rx='11' fill='#fffdf5' ${OUT}/>` +
+    `<path d='M96 62 h102 v30 h-102 q14 -15 0 -30 z' fill='#ff8fb8' ${OUT}/>` +
+    `<rect x='38' y='46' width='50' height='26' rx='11' fill='#fff' ${OUT}/>` },
+  toilet: { w: 12, vw: 100, vh: 125, svg:
+    `<rect x='24' y='10' width='52' height='36' rx='7' fill='#fff' ${OUT}/>` +
+    `<rect x='42' y='2' width='16' height='9' rx='4' fill='#cfd8e3' ${OUT}/>` +
+    `<path d='M18 56 h64 c3 26 -13 42 -32 42 s-35 -16 -32 -42 z' fill='#fff' ${OUT}/>` +
+    `<ellipse cx='50' cy='55' rx='33' ry='11' fill='#e8eef5' ${OUT}/>` +
+    `<rect x='30' y='108' width='40' height='12' rx='5' fill='#cfd8e3' ${OUT}/>` },
+  fridge: { w: 14, vw: 100, vh: 160, svg:
+    `<rect x='14' y='6' width='72' height='142' rx='11' fill='#dff3f7' ${OUT}/>` +
+    `<path d='M14 58 h72' stroke='#4a3b5c' stroke-width='4'/>` +
+    `<rect x='72' y='18' width='7' height='28' rx='3.5' fill='#4a3b5c'/>` +
+    `<rect x='72' y='68' width='7' height='46' rx='3.5' fill='#4a3b5c'/>` +
+    `<rect x='20' y='148' width='12' height='9' fill='#9bb8c0' ${OUT}/>` +
+    `<rect x='68' y='148' width='12' height='9' fill='#9bb8c0' ${OUT}/>` },
+  sofa: { w: 23, vw: 180, vh: 115, svg:
+    `<rect x='20' y='14' width='140' height='64' rx='15' fill='#ff6ea6' ${OUT}/>` +
+    `<rect x='34' y='58' width='54' height='32' rx='9' fill='#ff9dc2' ${OUT}/>` +
+    `<rect x='92' y='58' width='54' height='32' rx='9' fill='#ff9dc2' ${OUT}/>` +
+    `<rect x='4' y='44' width='32' height='54' rx='13' fill='#ff6ea6' ${OUT}/>` +
+    `<rect x='144' y='44' width='32' height='54' rx='13' fill='#ff6ea6' ${OUT}/>` +
+    `<rect x='24' y='96' width='12' height='14' fill='#8a5a2e' ${OUT}/>` +
+    `<rect x='144' y='96' width='12' height='14' fill='#8a5a2e' ${OUT}/>` },
+  tv: { w: 17, vw: 150, vh: 118, svg:
+    `<rect x='8' y='8' width='134' height='76' rx='9' fill='#26223a' ${OUT}/>` +
+    `<rect x='18' y='18' width='114' height='56' rx='5' fill='#3d3660'/>` +
+    `<path d='M28 66 L74 24 M42 70 L88 28' stroke='#5e548e' stroke-width='7' stroke-linecap='round'/>` +
+    `<rect x='67' y='84' width='16' height='16' fill='#8a839e' ${OUT}/>` +
+    `<rect x='45' y='100' width='60' height='11' rx='5' fill='#4a3b5c'/>` },
+};
+
+const ICON_ROLLER =
+  `<svg viewBox='0 0 60 60'><g stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'>` +
+  `<rect x='8' y='10' width='36' height='16' rx='8' fill='#ff2e88'/>` +
+  `<path d='M44 18 h8 v14 h-19' fill='none' stroke-linecap='round'/>` +
+  `<rect x='28' y='32' width='10' height='20' rx='4' fill='#c98a5b'/></g></svg>`;
+
+const ICON_BRUSH =
+  `<svg viewBox='0 0 60 60'><g stroke='#fff' stroke-width='3' stroke-linejoin='round'>` +
+  `<rect x='33' y='4' width='12' height='24' rx='5' fill='#c98a5b' transform='rotate(35 39 16)'/>` +
+  `<rect x='24' y='26' width='14' height='9' rx='2' fill='#b9b1c9' transform='rotate(35 31 30)'/>` +
+  `<path d='M22 32 q-12 6 -14 22 q14 -2 24 -8 q4 -6 -2 -12 q-4 -4 -8 -2 z' fill='#ffe600'/></g></svg>`;
+
+const BIN_SVG =
+  `<svg viewBox='0 0 70 84'><g stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'>` +
+  `<path class='binBody' d='M12 16 L20 78 H50 L58 16 Z' fill='#e8e2f0'/>` +
+  `<path d='M22 24 L27 70 M35 24 L35 70 M48 24 L43 70' fill='none' stroke-width='3'/>` +
+  `<rect x='8' y='10' width='54' height='9' rx='4' fill='#cfc7dd'/></g></svg>`;
+
+function itemSVG(type) {
+  const f = FURNITURE[type];
+  return `<svg viewBox='0 0 ${f.vw} ${f.vh}' style='aspect-ratio:${f.vw}/${f.vh}'>${f.svg}</svg>`;
+}
+
+/* ---------------- houses ---------------- */
+const HOUSES = [
+  { id: 'rose',   name: 'ROSE COTTAGE', body: '#ffb3d1', roof: '#c94f7c', door: '#8a2e55' },
+  { id: 'blue',   name: 'BLUE BUNGALOW', body: '#9dd6ff', roof: '#3d6fa8', door: '#26456b' },
+  { id: 'sunny',  name: 'SUNNY VILLA', body: '#ffe08a', roof: '#d68a2e', door: '#8a5a1a' },
+  { id: 'mint',   name: 'MINT MANOR', body: '#a8e8c0', roof: '#3f9c68', door: '#25603f' },
+  { id: 'lilac',  name: 'LILAC LODGE', body: '#d4b8ff', roof: '#7c4fc9', door: '#4d2e8a' },
+  { id: 'peach',  name: 'PEACH PLACE', body: '#ffc9a3', roof: '#d6642e', door: '#8a3d1a' },
+];
+
+function houseSVG(h, i) {
+  const win = `fill='#211a3a' stroke='#171129' stroke-width='4'`;
+  const chimney = i % 2 === 0
+    ? `<rect x='160' y='28' width='22' height='42' fill='${h.roof}' stroke='#171129' stroke-width='4'/>` : '';
+  return `<svg viewBox='0 0 230 230'>
+    ${chimney}
+    <rect x='25' y='90' width='180' height='132' rx='6' fill='${h.body}' stroke='#171129' stroke-width='5'/>
+    <polygon points='12,95 115,18 218,95' fill='${h.roof}' stroke='#171129' stroke-width='5' stroke-linejoin='round'/>
+    <rect x='45' y='115' width='44' height='40' rx='4' ${win}/>
+    <rect x='141' y='115' width='44' height='40' rx='4' ${win}/>
+    <path d='M67 115 v40 M45 135 h44 M163 115 v40 M141 135 h44' stroke='#171129' stroke-width='3'/>
+    <rect x='92' y='150' width='46' height='72' rx='5' fill='${h.door}' stroke='#171129' stroke-width='5'/>
+    <circle cx='128' cy='188' r='4.5' fill='#ffe600'/>
+  </svg>`;
+}
+
+/* ---------------- state ---------------- */
+const SAVE_KEY = 'flocade-interior-designer-v1';
+let state = { houses: {} };
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) state = JSON.parse(raw);
+  if (!state || typeof state !== 'object' || !state.houses) state = { houses: {} };
+} catch (e) { state = { houses: {} }; }
+
+function save() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+}
+function houseState(id) {
+  if (!state.houses[id]) state.houses[id] = { wall: 'white', floor: 'white', items: [] };
+  return state.houses[id];
+}
+
+/* ---------------- elements ---------------- */
+const $ = (id) => document.getElementById(id);
+const worldView = $('worldView'), roomView = $('roomView');
+const street = $('street'), streetInner = $('streetInner');
+const room = $('room'), wall = $('wall'), floor = $('floor');
+const itemsLayer = $('items'), bin = $('bin');
+const toolbar = $('toolbar'), fab = $('fab');
+const swatchPanel = $('swatchPanel'), swatchGrid = $('swatchGrid');
+const hint = $('hint'), title = $('title');
+const exitRoom = $('exitRoom'), backArcade = $('backArcade');
+
+let currentHouse = null;
+let editMode = false;
+let paintSel = null;
+let zTop = 10;
+
+/* ---------------- world / street ---------------- */
+bin.innerHTML = BIN_SVG;
+fab.innerHTML = ICON_BRUSH;
+
+for (let i = 0; i < 3; i++) {
+  const c = document.createElement('div');
+  c.className = 'cloud';
+  c.style.width = 90 + i * 40 + 'px';
+  c.style.top = 6 + i * 9 + '%';
+  c.style.left = 450 + i * 620 + 'px';
+  streetInner.appendChild(c);
+}
+HOUSES.forEach((h, i) => {
+  const b = document.createElement('button');
+  b.className = 'house';
+  b.style.marginBottom = (i % 2 ? 0 : 2) + '%';
+  b.innerHTML = houseSVG(h, i) + `<span class="label">${h.name}</span>`;
+  b.addEventListener('click', () => { blip(700, 0.08, 'triangle'); enterHouse(h); });
+  streetInner.appendChild(b);
+});
+
+// mouse drag-to-pan (touch scrolls natively)
+let panning = false, panX = 0, panScroll = 0, panMoved = false;
+street.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse') return;
+  panning = true; panMoved = false;
+  panX = e.clientX; panScroll = street.scrollLeft;
+  street.classList.add('dragging');
+});
+window.addEventListener('pointermove', (e) => {
+  if (!panning) return;
+  const dx = e.clientX - panX;
+  if (Math.abs(dx) > 4) panMoved = true;
+  street.scrollLeft = panScroll - dx;
+});
+window.addEventListener('pointerup', () => { panning = false; street.classList.remove('dragging'); });
+// stop a drag-pan from "clicking" a house
+streetInner.addEventListener('click', (e) => { if (panMoved) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+/* ---------------- room ---------------- */
+function setHint(html) { hint.innerHTML = html; }
+
+function enterHouse(h) {
+  currentHouse = h;
+  worldView.classList.add('hiddenView');
+  roomView.classList.add('active');
+  backArcade.hidden = true;
+  exitRoom.hidden = false;
+  title.textContent = h.name;
+  setEditMode(false);
+  renderRoom();
+  setHint('Press the <b>paintbrush</b> in the corner!');
+}
+
+function leaveHouse() {
+  currentHouse = null;
+  setEditMode(false);
+  roomView.classList.remove('active');
+  worldView.classList.remove('hiddenView');
+  backArcade.hidden = false;
+  exitRoom.hidden = true;
+  title.textContent = 'INTERIOR DESIGNER';
+  setHint('Every house is empty… tap one to decorate it!');
+  blip(500, 0.08, 'triangle');
+}
+exitRoom.addEventListener('click', leaveHouse);
+
+function applySurfaces() {
+  const hs = houseState(currentHouse.id);
+  wall.style.background = (PATTERNS[hs.wall] || PATTERNS.white).css;
+  floor.style.background = (PATTERNS[hs.floor] || PATTERNS.white).css;
+}
+
+function renderRoom() {
+  applySurfaces();
+  itemsLayer.innerHTML = '';
+  houseState(currentHouse.id).items.forEach((it) => itemsLayer.appendChild(makeItemEl(it)));
+}
+
+/* ---------------- edit mode / toolbar ---------------- */
+const TOOL_ORDER = ['bed', 'toilet', 'fridge', 'sofa', 'tv'];
+TOOL_ORDER.forEach((type, i) => {
+  const b = document.createElement('button');
+  b.className = 'tool';
+  b.style.setProperty('--d', i * 0.04 + 's');
+  b.innerHTML = itemSVG(type);
+  b.title = type;
+  b.addEventListener('click', () => spawnItem(type));
+  toolbar.appendChild(b);
+});
+const rollerBtn = document.createElement('button');
+rollerBtn.className = 'tool roller';
+rollerBtn.style.setProperty('--d', TOOL_ORDER.length * 0.04 + 's');
+rollerBtn.innerHTML = ICON_ROLLER;
+rollerBtn.title = 'paint';
+rollerBtn.addEventListener('click', () => {
+  blip(760, 0.07);
+  swatchPanel.classList.add('open');
+  setHint('Pick a style, then tap the <b>wall</b> or <b>floor</b>!');
+});
+toolbar.appendChild(rollerBtn);
+
+fab.addEventListener('click', () => setEditMode(!editMode));
+
+function setEditMode(on) {
+  editMode = on;
+  room.classList.toggle('edit', on);
+  if (on) {
+    blip(880, 0.09, 'triangle');
+    setHint('Add furniture, <b>drag</b> it around, <b>tap</b> it to flip — drag onto the <b>bin</b> to bin it!');
+  } else {
+    closeSwatches();
+  }
+}
+
+/* ---------------- swatches / painting ---------------- */
+Object.keys(PATTERNS).forEach((id) => {
+  const b = document.createElement('button');
+  b.className = 'swatch';
+  b.style.background = PATTERNS[id].css;
+  b.addEventListener('click', () => {
+    paintSel = id;
+    blip(920, 0.06);
+    [...swatchGrid.children].forEach((c) => c.classList.remove('sel'));
+    b.classList.add('sel');
+    room.classList.add('painting');
+    setHint('Now tap the <b>wall</b> or the <b>floor</b>!');
+  });
+  swatchGrid.appendChild(b);
+});
+
+function closeSwatches() {
+  swatchPanel.classList.remove('open');
+  paintSel = null;
+  room.classList.remove('painting');
+  [...swatchGrid.children].forEach((c) => c.classList.remove('sel'));
+}
+$('swatchClose').addEventListener('click', () => { blip(440, 0.06); closeSwatches(); });
+
+function paintSurface(which) {
+  if (!paintSel || !currentHouse) return;
+  houseState(currentHouse.id)[which] = paintSel;
+  applySurfaces();
+  save();
+  blip(which === 'wall' ? 990 : 660, 0.12, 'sine', 0.05);
+}
+wall.addEventListener('click', () => paintSurface('wall'));
+floor.addEventListener('click', () => paintSurface('floor'));
+
+/* ---------------- furniture: spawn / drag / flip / bin ---------------- */
+function spawnItem(type) {
+  const hs = houseState(currentHouse.id);
+  if (hs.items.length >= 30) { blip(160, 0.15, 'sawtooth'); setHint('This house is FULL! Bin something first.'); return; }
+  const it = {
+    t: type,
+    x: 30 + Math.random() * 40,
+    y: type === 'tv' ? 30 + Math.random() * 15 : 70 + Math.random() * 22,
+    f: 1,
+    z: ++zTop,
+  };
+  hs.items.push(it);
+  const el = makeItemEl(it);
+  el.classList.add('pop');
+  itemsLayer.appendChild(el);
+  save();
+  blip(700 + Math.random() * 200, 0.1, 'triangle', 0.05);
+}
+
+function makeItemEl(it) {
+  const el = document.createElement('div');
+  el.className = 'item';
+  el.style.width = FURNITURE[it.t].w + '%';
+  el.innerHTML = itemSVG(it.t);
+  it.z = it.z || ++zTop;
+  zTop = Math.max(zTop, it.z);
+  positionItem(el, it);
+  el.addEventListener('pointerdown', (e) => onItemDown(e, el, it));
+  return el;
+}
+
+function positionItem(el, it) {
+  el.style.left = it.x + '%';
+  el.style.top = it.y + '%';
+  el.style.zIndex = it.z;
+  el.style.transform = `translate(-50%, -100%) scaleX(${it.f})`;
+}
+
+function overBin(e) {
+  const r = bin.getBoundingClientRect();
+  return e.clientX > r.left - 20 && e.clientX < r.right + 20 &&
+         e.clientY > r.top - 20 && e.clientY < r.bottom + 20;
+}
+
+function onItemDown(e, el, it) {
+  if (!editMode) {
+    el.classList.remove('wiggle');
+    void el.offsetWidth;
+    el.classList.add('wiggle');
+    blip(300, 0.05, 'triangle');
+    return;
+  }
+  e.preventDefault();
+  e.stopPropagation();
+  it.z = ++zTop;
+  el.style.zIndex = it.z;
+  const roomRect = room.getBoundingClientRect();
+  const startX = e.clientX, startY = e.clientY;
+  const origX = it.x, origY = it.y;
+  let moved = false;
+  el.setPointerCapture(e.pointerId);
+  el.classList.add('dragging');
+
+  const onMove = (ev) => {
+    const dx = ev.clientX - startX, dy = ev.clientY - startY;
+    if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+    it.x = Math.min(98, Math.max(2, origX + (dx / roomRect.width) * 100));
+    it.y = Math.min(99, Math.max(8, origY + (dy / roomRect.height) * 100));
+    positionItem(el, it);
+    bin.classList.toggle('hot', overBin(ev));
+  };
+  const onUp = (ev) => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    el.classList.remove('dragging');
+    bin.classList.remove('hot');
+    const hs = houseState(currentHouse.id);
+    if (moved && overBin(ev)) {
+      hs.items = hs.items.filter((x) => x !== it);
+      el.remove();
+      blip(220, 0.18, 'sawtooth', 0.05);
+      save();
+      return;
+    }
+    if (!moved) {
+      it.f *= -1; // tap = flip
+      positionItem(el, it);
+      blip(540, 0.06);
+    }
+    save();
+  };
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+}
+
+/* ---------------- keyboard ---------------- */
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (swatchPanel.classList.contains('open')) closeSwatches();
+    else if (editMode) setEditMode(false);
+    else if (currentHouse) leaveHouse();
+  }
+  if (!currentHouse) {
+    if (e.key === 'ArrowRight') street.scrollLeft += 120;
+    if (e.key === 'ArrowLeft') street.scrollLeft -= 120;
+  }
+});
+
+setHint('Every house is empty… tap one to decorate it!');
+</script>
+</body>
+</html>

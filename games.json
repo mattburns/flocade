@@ -180,6 +180,12 @@
     "description": "Trampoline is where people NEVER belong! Pull them down, let go, and sling-shot them all into the sky before time runs out — every launch buys you extra seconds."
   },
   {
+    "slug": "interior-designer",
+    "title": "Interior Designer",
+    "icon": "🛋️",
+    "description": "Every house on the street is empty! Go inside, paint the walls and floors, and fill the rooms with beds, sofas, fridges and TVs."
+  },
+  {
     "slug": "scrambled-eggs",
     "title": "Scrambled Eggs",
     "icon": "🍳",
