@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>DIY — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --card: #1a0b3d;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #e8e6f0;
+      --dim: #9b93b8;
+      --ink: #4a3b5c;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.55rem 0.9rem 0.35rem;
+      flex: 0 0 auto;
+    }
+    header a, header button.linky {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--cyan);
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      text-decoration: none;
+      white-space: nowrap;
+      padding: 0.4rem 0.2rem;
+    }
+    header h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.7rem, 2.8vw, 1.05rem);
+      color: var(--yellow);
+      text-shadow: 2px 2px 0 var(--pink);
+      flex: 1;
+      text-align: center;
+      line-height: 1.5;
+    }
+    header .spacer { min-width: 4.5rem; }
+    #hint {
+      flex: 0 0 auto;
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.8rem;
+      padding: 0 1rem 0.4rem;
+      min-height: 1.4rem;
+    }
+    #hint b { color: var(--cyan); }
+
+    /* ---------- menu ---------- */
+    #menuView {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.4rem;
+      padding: 1rem;
+    }
+    #menuView .bigIcon { width: min(40vw, 190px); }
+    #menuView .bigIcon svg { display: block; width: 100%; height: auto; }
+    .menuBtn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem;
+      color: #fff;
+      background: var(--pink);
+      border: 3px solid #fff;
+      border-radius: 14px;
+      padding: 1rem 2rem;
+      cursor: pointer;
+      min-width: 230px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    }
+    .menuBtn.alt { background: #3d9ca8; }
+    .menuBtn:active { transform: scale(0.96); }
+
+    /* ---------- gallery ---------- */
+    #galleryView { flex: 1; min-height: 0; overflow-y: auto; padding: 0.5rem 1rem 1.5rem; display: none; }
+    #galleryGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .buildCard {
+      position: relative;
+      background: var(--card);
+      border: 3px solid var(--ink);
+      border-radius: 12px;
+      cursor: pointer;
+      padding: 8px;
+      text-align: center;
+    }
+    .buildCard:active { border-color: var(--cyan); }
+    .buildCard svg { display: block; width: 100%; height: auto; background: #2b1a55; border-radius: 6px; }
+    .buildCard .name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      color: var(--text);
+      margin-top: 6px;
+    }
+    .buildCard .del {
+      position: absolute;
+      top: -9px; right: -9px;
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      background: var(--pink);
+      color: #fff;
+      font-size: 0.8rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    #emptyGallery {
+      text-align: center;
+      color: var(--dim);
+      font-size: 0.9rem;
+      padding: 2rem 1rem;
+      line-height: 1.7;
+    }
+
+    /* ---------- build site ---------- */
+    #buildView { flex: 1; min-height: 0; padding: 0 0.6rem 0.6rem; display: none; }
+    #site {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border: 3px solid var(--card);
+      border-radius: 14px;
+      overflow: hidden;
+      touch-action: none;
+      background: linear-gradient(#2b1a55 0%, #4a2a72 55%, #7a2a8f 86%, #8a5a3a 86.5%, #6a4228 100%);
+    }
+    /* faint stars */
+    #site::before {
+      content: '';
+      position: absolute;
+      inset: 0 0 14% 0;
+      background-image:
+        radial-gradient(circle 2px at 12% 20%, #fff8 99%, transparent),
+        radial-gradient(circle 1.5px at 32% 10%, #fff7 99%, transparent),
+        radial-gradient(circle 2px at 55% 24%, #fff6 99%, transparent),
+        radial-gradient(circle 1.5px at 76% 12%, #fff8 99%, transparent),
+        radial-gradient(circle 2px at 90% 30%, #fff5 99%, transparent);
+      pointer-events: none;
+    }
+    .brick {
+      position: absolute;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .brick svg { display: block; width: 100%; height: 100%; }
+    .brick .smear { display: none; }
+    .brick.cem .smear { display: block; }
+    .brick.carrying { z-index: 300; opacity: 0.92; rotate: -3deg; }
+    @keyframes plop { 0% { scale: 1 0.6; } 60% { scale: 1 1.15; } 100% { scale: 1 1; } }
+    .brick.plop { animation: plop 0.22s ease-out; }
+    .brick.tumble { transition: left 0.45s cubic-bezier(0.3, 0.8, 0.6, 1), top 0.45s cubic-bezier(0.6, -0.2, 0.8, 1); }
+
+    .blob {
+      position: absolute;
+      z-index: 20;
+      cursor: grab;
+    }
+    .blob svg { display: block; width: 100%; height: auto; pointer-events: none; }
+    .blob.carrying { z-index: 300; cursor: grabbing; }
+    @keyframes wobble { 0%, 100% { scale: 1 1; } 50% { scale: 1.06 0.94; } }
+    .blob { animation: wobble 1.6s infinite ease-in-out; }
+
+    .bowl {
+      position: absolute;
+      bottom: 1.5%;
+      z-index: 200;
+      width: clamp(90px, 17%, 150px);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      touch-action: none;
+    }
+    .bowl svg { display: block; width: 100%; height: auto; pointer-events: none; }
+    .bowl:active { transform: scale(0.95); }
+    #brickBowl { left: 1.5%; }
+    #cementBowl { left: calc(1.5% + clamp(90px, 17%, 150px) + 8px); }
+    .bowlLabel {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.42rem;
+      color: #fff;
+      text-shadow: 1px 1px 0 #000;
+      display: block;
+      margin-top: 2px;
+    }
+
+    #saveBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 400;
+      width: 58px; height: 58px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: #1f8fff; /* the blue save button */
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    #saveBtn svg { width: 30px; height: 30px; }
+    #saveBtn:active { transform: scale(0.92); }
+    @keyframes savedPulse { 0% { box-shadow: 0 0 0 0 rgba(31, 143, 255, 0.8); } 100% { box-shadow: 0 0 0 26px rgba(31, 143, 255, 0); } }
+    #saveBtn.saved { animation: savedPulse 0.6s; }
+    #undoBtn {
+      position: absolute;
+      bottom: 12px;
+      right: 10px;
+      z-index: 400;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      border: 3px solid #fff;
+      background: var(--ink);
+      color: #fff;
+      font-size: 1.4rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    #undoBtn:active { transform: scale(0.92); }
+
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 16%;
+      transform: translateX(-50%) translateY(400%);
+      z-index: 500;
+      background: var(--card);
+      border: 2px solid var(--cyan);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      padding: 0.55rem 1rem;
+      max-width: 84%;
+      text-align: center;
+      transition: transform 0.25s;
+      pointer-events: none;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back" href="../../" id="backArcade">&larr; ARCADE</a>
+    <button class="linky" id="backMenu" hidden>&larr; MENU</button>
+    <h1>DIY</h1>
+    <span class="spacer"></span>
+  </header>
+  <div id="hint"></div>
+
+  <div id="menuView">
+    <div class="bigIcon" id="menuIcon"></div>
+    <button class="menuBtn" id="newBtn">🧱 NEW BUILD</button>
+    <button class="menuBtn alt" id="galleryBtn">🖼 GALLERY</button>
+  </div>
+
+  <div id="galleryView">
+    <div id="galleryGrid"></div>
+    <p id="emptyGallery" hidden>Nothing here yet…<br>Start a NEW build and press the blue save button!</p>
+  </div>
+
+  <div id="buildView">
+    <div id="site">
+      <button class="bowl" id="brickBowl"></button>
+      <button class="bowl" id="cementBowl"></button>
+      <button id="saveBtn" aria-label="Save"></button>
+      <button id="undoBtn" aria-label="Undo">↩</button>
+      <div id="toast"></div>
+    </div>
+  </div>
+
+<script>
+'use strict';
+
+/* ---------------- sounds ---------------- */
+let AC = null;
+function blip(freq = 600, dur = 0.07, type = 'square', vol = 0.035) {
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, AC.currentTime + dur);
+    o.connect(g).connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur);
+  } catch (e) { /* optional */ }
+}
+
+/* ---------------- art ---------------- */
+const OUT = `stroke='#4a3b5c' stroke-width='4' stroke-linejoin='round'`;
+const OUT3 = `stroke='#4a3b5c' stroke-width='3' stroke-linejoin='round'`;
+
+function brickSVG(hue) {
+  const base = `hsl(${hue}, 62%, 52%)`;
+  const dark = `hsl(${hue}, 62%, 40%)`;
+  const light = `hsl(${hue}, 68%, 62%)`;
+  return `<svg viewBox='0 0 110 50' preserveAspectRatio='none'>` +
+    `<g class='smear'><path d='M4 8 q12 -12 26 -4 q10 6 22 -2 q12 -8 24 0 q12 8 24 -1 q6 -4 8 2 L106 12 L4 12 z' fill='#b8b2c4'/></g>` +
+    `<rect x='3' y='8' width='104' height='39' rx='5' fill='${base}' ${OUT3}/>` +
+    `<path d='M8 14 h94' stroke='${light}' stroke-width='4' stroke-linecap='round'/>` +
+    `<path d='M10 40 h90' stroke='${dark}' stroke-width='5' stroke-linecap='round'/>` +
+    `<circle cx='28' cy='27' r='2' fill='${dark}'/><circle cx='58' cy='31' r='2.4' fill='${dark}'/><circle cx='84' cy='25' r='1.8' fill='${dark}'/>` +
+    `</svg>`;
+}
+
+const BLOB_SVG =
+  `<svg viewBox='0 0 70 55'>` +
+  `<path d='M10 40 q-8 -14 6 -22 q4 -12 18 -10 q12 -8 22 2 q12 2 8 16 q6 12 -8 16 q-6 8 -20 6 q-16 4 -26 -8 z' fill='#b8b2c4' ${OUT3}/>` +
+  `<ellipse cx='26' cy='24' rx='6' ry='4' fill='#d5d0de'/>` +
+  `<circle cx='48' cy='34' r='3' fill='#9d97ac'/></svg>`;
+
+const BRICKBOWL_SVG =
+  `<svg viewBox='0 0 150 110'>` +
+  `<g transform='rotate(-14 45 48)'><rect x='22' y='36' width='46' height='22' rx='4' fill='hsl(12,62%,52%)' ${OUT3}/></g>` +
+  `<g transform='rotate(9 95 42)'><rect x='72' y='30' width='46' height='22' rx='4' fill='hsl(20,62%,50%)' ${OUT3}/></g>` +
+  `<rect x='52' y='16' width='46' height='22' rx='4' fill='hsl(4,60%,54%)' ${OUT3}/>` +
+  `<path d='M8 52 h134 c-2 34 -28 50 -67 50 s-65 -16 -67 -50 z' fill='#3d9ca8' ${OUT}/>` +
+  `<path d='M8 52 h134' stroke='#4a3b5c' stroke-width='4'/></svg>`;
+
+const CEMENTBOWL_SVG =
+  `<svg viewBox='0 0 150 110'>` +
+  `<path d='M28 44 q20 -22 46 -14 q26 -10 42 8 q14 4 8 16 L28 54 z' fill='#b8b2c4' ${OUT3}/>` +
+  `<ellipse cx='62' cy='38' rx='8' ry='5' fill='#d5d0de'/>` +
+  `<rect x='104' y='2' width='9' height='42' rx='4' fill='#c98a5b' ${OUT3}/>` +
+  `<polygon points='94,40 124,40 116,58 102,58' fill='#8a839e' ${OUT3}/>` +
+  `<path d='M8 52 h134 c-2 34 -28 50 -67 50 s-65 -16 -67 -50 z' fill='#e05a8f' ${OUT}/>` +
+  `<path d='M8 52 h134' stroke='#4a3b5c' stroke-width='4'/></svg>`;
+
+const SAVE_SVG =
+  `<svg viewBox='0 0 40 40'><g stroke='#fff' stroke-width='3.5' stroke-linejoin='round' fill='none'>` +
+  `<path d='M6 6 h22 l6 6 v22 h-28 z'/>` +
+  `<path d='M12 6 v9 h14 v-9'/>` +
+  `<rect x='12' y='22' width='16' height='12'/></g></svg>`;
+
+const MENU_ICON =
+  `<svg viewBox='0 0 190 150'>` +
+  `<g ${OUT}>` +
+  `<rect x='30' y='106' width='60' height='26' rx='4' fill='hsl(8,62%,52%)'/>` +
+  `<rect x='94' y='106' width='60' height='26' rx='4' fill='hsl(18,62%,50%)'/>` +
+  `<path d='M36 102 q14 -10 30 -2 q16 -8 26 2 l-2 6 -52 0 z' fill='#b8b2c4' stroke-width='3'/>` +
+  `<rect x='62' y='72' width='60' height='26' rx='4' fill='hsl(2,60%,54%)'/>` +
+  `<path d='M68 68 q14 -10 30 -2 q16 -8 24 2 l-2 6 -50 0 z' fill='#b8b2c4' stroke-width='3'/>` +
+  `<rect x='94' y='38' width='60' height='26' rx='4' fill='hsl(14,62%,52%)'/>` +
+  `<rect x='142' y='8' width='9' height='40' rx='4' fill='#c98a5b' stroke-width='3'/>` +
+  `<polygon points='132,44 166,44 158,64 142,64' fill='#8a839e' stroke-width='3'/>` +
+  `</g></svg>`;
+
+/* ---------------- state ---------------- */
+const BW = 11, BH = 5.4;       // brick size, % of site
+const GROUND = 88;             // ground line (top %)
+const MAX_BRICKS = 150;
+const SAVE_KEY = 'flocade-diy-v1';
+
+let store = { builds: [] };
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) store = JSON.parse(raw) || store;
+  if (!Array.isArray(store.builds)) store = { builds: [] };
+} catch (e) { store = { builds: [] }; }
+function persist() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(store)); } catch (e) {} }
+
+let bricks = [];   // {x, y, c, h, el}
+let blobs = [];    // {x, y, el}
+let actions = [];  // undo stack: {t:'brick'} | {t:'cement', brick}
+let editingId = null;
+let hinted = { cement: false, slide: false };
+
+/* ---------------- DOM ---------------- */
+const $ = (id) => document.getElementById(id);
+const site = $('site'), hint = $('hint'), toast = $('toast');
+const menuView = $('menuView'), galleryView = $('galleryView'), buildView = $('buildView');
+const backMenu = $('backMenu'), backArcade = $('backArcade');
+$('menuIcon').innerHTML = MENU_ICON;
+$('brickBowl').innerHTML = BRICKBOWL_SVG + `<span class='bowlLabel'>BRICKS</span>`;
+$('cementBowl').innerHTML = CEMENTBOWL_SVG + `<span class='bowlLabel'>CEMENT</span>`;
+$('saveBtn').innerHTML = SAVE_SVG;
+
+let toastTimer = null;
+function say(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+}
+function setHint(html) { hint.innerHTML = html; }
+
+/* ---------------- views ---------------- */
+function show(view) {
+  menuView.style.display = view === 'menu' ? 'flex' : 'none';
+  galleryView.style.display = view === 'gallery' ? 'block' : 'none';
+  buildView.style.display = view === 'build' ? 'block' : 'none';
+  backMenu.hidden = view === 'menu';
+  backArcade.hidden = view !== 'menu';
+  if (view === 'menu') setHint('Build things with bricks and cement!');
+  if (view === 'gallery') setHint('Your builds — tap one to keep building it!');
+  if (view === 'build') setHint('Tap or drag from the <b>bowls</b>. Cement first, then stack!');
+}
+backMenu.addEventListener('click', () => { blip(500, 0.07, 'triangle'); show('menu'); });
+$('newBtn').addEventListener('click', () => { blip(700, 0.08, 'triangle'); startBuild(null); });
+$('galleryBtn').addEventListener('click', () => { blip(700, 0.08, 'triangle'); renderGallery(); show('gallery'); });
+
+/* ---------------- gallery ---------------- */
+function thumbSVG(b) {
+  const rects = b.bricks.map((k) =>
+    `<rect x='${k.x}' y='${k.y}' width='${BW}' height='${BH}' rx='1' fill='hsl(${k.h},62%,52%)'/>` +
+    (k.c ? `<path d='M${k.x} ${k.y - 0.7} h${BW}' stroke='#b8b2c4' stroke-width='1.6'/>` : '')
+  ).join('');
+  return `<svg viewBox='0 40 100 55'><rect x='0' y='${GROUND}' width='100' height='12' fill='#6a4228'/>${rects}</svg>`;
+}
+function renderGallery() {
+  const grid = $('galleryGrid');
+  grid.innerHTML = '';
+  $('emptyGallery').hidden = store.builds.length > 0;
+  store.builds.forEach((b) => {
+    const card = document.createElement('div');
+    card.className = 'buildCard';
+    card.innerHTML = thumbSVG(b) + `<div class='name'>${b.name}</div>`;
+    card.addEventListener('click', () => { blip(700, 0.08, 'triangle'); startBuild(b.id); });
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '✕';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      store.builds = store.builds.filter((x) => x.id !== b.id);
+      persist();
+      blip(250, 0.12, 'sawtooth');
+      renderGallery();
+    });
+    card.appendChild(del);
+    grid.appendChild(card);
+  });
+}
+
+/* ---------------- build ---------------- */
+function startBuild(id) {
+  bricks.forEach((b) => b.el.remove());
+  blobs.forEach((b) => b.el.remove());
+  bricks = []; blobs = []; actions = [];
+  editingId = id;
+  if (id !== null) {
+    const b = store.builds.find((x) => x.id === id);
+    if (b) b.bricks.forEach((k) => addBrickEl({ x: k.x, y: k.y, c: k.c, h: k.h }));
+  }
+  show('build');
+}
+
+function addBrickEl(brick) {
+  const el = document.createElement('div');
+  el.className = 'brick' + (brick.c ? ' cem' : '');
+  el.style.width = BW + '%';
+  el.style.height = BH + '%';
+  el.innerHTML = brickSVG(brick.h);
+  el.style.left = brick.x + '%';
+  el.style.top = brick.y + '%';
+  brick.el = el;
+  site.appendChild(el);
+  bricks.push(brick);
+  return brick;
+}
+
+function siteXY(e) {
+  const r = site.getBoundingClientRect();
+  return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 };
+}
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+/* where does a brick released at (x, y) end up? */
+function resolveDrop(x, y, depth = 0) {
+  x = clamp(x, 0, 100 - BW);
+  y = clamp(y, 0, GROUND - BH);
+  const overlapping = bricks.filter((b) => Math.abs(b.x - x) < BW * 0.65);
+  const below = overlapping.filter((b) => b.y >= y - BH * 0.4);
+  if (!below.length) return { x, y: GROUND - BH, ok: true };
+  const support = below.reduce((m, b) => (b.y < m.y ? b : m));
+  if (support.c) return { x, y: support.y - BH, ok: true };
+  if (depth > 4) return { x, y: GROUND - BH, ok: false, support };
+  // no cement — slide off to the side and land there
+  const side = x + BW / 2 < support.x + BW / 2 ? support.x - BW - 1 : support.x + BW + 1;
+  const spot = resolveDrop(clamp(side, 0, 100 - BW), y, depth + 1);
+  return { ...spot, ok: false, support };
+}
+
+function placeBrick(x, y, h) {
+  if (bricks.length >= MAX_BRICKS) { say('That is SO many bricks! Save this one and start another.'); return null; }
+  const spot = resolveDrop(x, y);
+  const brick = addBrickEl({ x: spot.x, y: spot.y, c: false, h });
+  actions.push({ t: 'brick' });
+  if (spot.ok) {
+    brick.el.classList.add('plop');
+    blip(300 + Math.random() * 80, 0.09, 'triangle', 0.05);
+  } else {
+    // start on the dry support, then tumble down
+    brick.el.style.left = clamp(spot.support.x, 0, 100 - BW) + '%';
+    brick.el.style.top = (spot.support.y - BH) + '%';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      brick.el.classList.add('tumble');
+      brick.el.style.left = spot.x + '%';
+      brick.el.style.top = spot.y + '%';
+      setTimeout(() => brick.el.classList.remove('tumble'), 500);
+    }));
+    blip(160, 0.2, 'sawtooth', 0.05);
+    if (!hinted.slide) {
+      hinted.slide = true;
+      say('It slides off! Smear CEMENT on a brick to stack on it.');
+    }
+  }
+  return brick;
+}
+
+function smearOn(brick) {
+  if (brick.c) return false;
+  brick.c = true;
+  brick.el.classList.add('cem');
+  actions.push({ t: 'cement', brick });
+  blip(520, 0.12, 'sine', 0.055);
+  if (!hinted.cement) {
+    hinted.cement = true;
+    say('Squish! Now a brick will stick on top.');
+  }
+  return true;
+}
+
+/* ---------------- dragging from bowls & blobs ---------------- */
+function dragFromBowl(e, kind) {
+  e.preventDefault();
+  const bowl = e.currentTarget;
+  bowl.setPointerCapture(e.pointerId);
+  let carrying = null;
+  const h = 2 + Math.random() * 20; // brick hue
+  const start = siteXY(e);
+  let moved = false;
+
+  const onMove = (ev) => {
+    const p = siteXY(ev);
+    if (!moved && Math.hypot(p.x - start.x, p.y - start.y) > 2.5) {
+      moved = true;
+      carrying = makeCarry(kind, h);
+    }
+    if (carrying) {
+      carrying.style.left = clamp(p.x - BW / 2, -2, 100 - BW / 2) + '%';
+      carrying.style.top = clamp(p.y - BH / 2, 0, 96) + '%';
+    }
+  };
+  const onUp = (ev) => {
+    bowl.removeEventListener('pointermove', onMove);
+    bowl.removeEventListener('pointerup', onUp);
+    bowl.removeEventListener('pointercancel', onUp);
+    const p = siteXY(ev);
+    if (carrying) carrying.remove();
+    if (moved) {
+      if (kind === 'brick') placeBrick(p.x - BW / 2, p.y - BH / 2, h);
+      else dropBlob(p.x, p.y);
+    } else {
+      // plain tap: it pops out in front of the bowls
+      const bx = 4 + Math.random() * 22;
+      if (kind === 'brick') { placeBrick(bx, GROUND - BH, h); }
+      else { dropBlob(8 + Math.random() * 24, GROUND - 4); }
+      blip(700, 0.07, 'triangle');
+    }
+  };
+  bowl.addEventListener('pointermove', onMove);
+  bowl.addEventListener('pointerup', onUp);
+  bowl.addEventListener('pointercancel', onUp);
+}
+function makeCarry(kind, h) {
+  const el = document.createElement('div');
+  if (kind === 'brick') {
+    el.className = 'brick carrying';
+    el.style.width = BW + '%';
+    el.style.height = BH + '%';
+    el.innerHTML = brickSVG(h);
+  } else {
+    el.className = 'blob carrying';
+    el.style.width = BW * 0.8 + '%';
+    el.innerHTML = BLOB_SVG;
+  }
+  site.appendChild(el);
+  return el;
+}
+$('brickBowl').addEventListener('pointerdown', (e) => dragFromBowl(e, 'brick'));
+$('cementBowl').addEventListener('pointerdown', (e) => dragFromBowl(e, 'cement'));
+
+/* a loose cement blob in the world */
+function dropBlob(x, y) {
+  // dropped straight onto a brick?
+  const target = brickAt(x, y);
+  if (target && smearOn(target)) return;
+  const blob = { x: clamp(x - BW * 0.4, 0, 100 - BW * 0.8), y: clamp(y - 3, 0, GROUND - 5) };
+  const el = document.createElement('div');
+  el.className = 'blob';
+  el.style.width = BW * 0.8 + '%';
+  el.innerHTML = BLOB_SVG;
+  el.style.left = blob.x + '%';
+  el.style.top = blob.y + '%';
+  blob.el = el;
+  el.addEventListener('pointerdown', (e) => dragBlob(e, blob));
+  site.appendChild(el);
+  blobs.push(blob);
+  blip(260, 0.1, 'sine', 0.05);
+}
+function brickAt(x, y) {
+  // topmost brick under the point (a little generous)
+  const hits = bricks.filter((b) => x > b.x - 1 && x < b.x + BW + 1 && y > b.y - 2.5 && y < b.y + BH + 1.5);
+  if (!hits.length) return null;
+  return hits.reduce((m, b) => (b.y < m.y ? b : m));
+}
+function dragBlob(e, blob) {
+  e.preventDefault();
+  e.stopPropagation();
+  const el = blob.el;
+  el.setPointerCapture(e.pointerId);
+  el.classList.add('carrying');
+  const onMove = (ev) => {
+    const p = siteXY(ev);
+    el.style.left = clamp(p.x - BW * 0.4, -2, 100 - BW * 0.4) + '%';
+    el.style.top = clamp(p.y - 3, 0, 96) + '%';
+  };
+  const onUp = (ev) => {
+    el.removeEventListener('pointermove', onMove);
+    el.removeEventListener('pointerup', onUp);
+    el.removeEventListener('pointercancel', onUp);
+    el.classList.remove('carrying');
+    const p = siteXY(ev);
+    const target = brickAt(p.x, p.y);
+    if (target && smearOn(target)) {
+      blobs = blobs.filter((b) => b !== blob);
+      el.remove();
+    } else {
+      blob.x = clamp(p.x - BW * 0.4, 0, 100 - BW * 0.8);
+      blob.y = clamp(p.y - 3, 0, GROUND - 5);
+      el.style.left = blob.x + '%';
+      el.style.top = blob.y + '%';
+    }
+  };
+  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointerup', onUp);
+  el.addEventListener('pointercancel', onUp);
+}
+
+/* ---------------- undo & save ---------------- */
+$('undoBtn').addEventListener('click', () => {
+  const a = actions.pop();
+  if (!a) { blip(200, 0.1, 'sawtooth'); return; }
+  if (a.t === 'brick') {
+    const b = bricks.pop();
+    if (b) b.el.remove();
+  } else if (a.t === 'cement') {
+    a.brick.c = false;
+    a.brick.el.classList.remove('cem');
+  }
+  blip(400, 0.07);
+});
+
+$('saveBtn').addEventListener('click', () => {
+  if (!bricks.length) { say('Place some bricks first!'); return; }
+  const data = bricks.map((b) => ({ x: +b.x.toFixed(1), y: +b.y.toFixed(1), c: b.c, h: Math.round(b.h) }));
+  if (editingId !== null) {
+    const b = store.builds.find((x) => x.id === editingId);
+    if (b) b.bricks = data;
+  }
+  if (editingId === null || !store.builds.some((x) => x.id === editingId)) {
+    const id = Date.now();
+    store.builds.push({ id, name: 'BUILD ' + (store.builds.length + 1), bricks: data });
+    editingId = id;
+  }
+  persist();
+  const btn = $('saveBtn');
+  btn.classList.remove('saved');
+  void btn.offsetWidth;
+  btn.classList.add('saved');
+  blip(660, 0.1, 'triangle', 0.05);
+  setTimeout(() => blip(990, 0.12, 'triangle', 0.05), 110);
+  say('Saved to the gallery!');
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && buildView.style.display !== 'none') show('menu');
+  if ((e.key === 'z' && (e.ctrlKey || e.metaKey))) $('undoBtn').click();
+});
+
+/* debug hook for tests */
+window.__diy = {
+  bricks: () => bricks.map((b) => ({ x: b.x, y: b.y, c: b.c })),
+  blobs: () => blobs.length,
+  place: (x, y) => placeBrick(x, y, 10),
+  smearAt: (x, y) => { const b = brickAt(x, y); return b ? smearOn(b) : false; },
+  store: () => store,
+};
+
+show('menu');
+</script>
+</body>
+</html>
