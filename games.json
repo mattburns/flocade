@@ -210,6 +210,12 @@
     "description": "What do you want to be? Do work experience in ten jobs — prime minister, security guard, shopkeeper, astronaut, artist, guitarist, pianist, drummer, singer, dancer — and win by getting employed!"
   },
   {
+    "slug": "locked",
+    "title": "Locked",
+    "icon": "🗝️",
+    "description": "Locked in an escape room! Hunt for hidden keys, count clues to crack codes, press colour buttons in order and flip the lights off to find glowing numbers. 2 rooms per level, 20 levels — the first 5 against a 5-minute clock!"
+  },
+  {
     "slug": "stuck-at-the-store",
     "title": "Stuck At The Store",
     "icon": "🛍️",
