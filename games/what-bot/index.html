@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <!-- No user-scalable=no: iOS Safari ignores it, but installed home-screen apps
+       honour it, and there it can stop the keyboard appearing when you tap a
+       text field. Allowing zoom is friendlier anyway. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>What Bot — Flocade</title>
   <link rel="stylesheet" href="../../fonts/fonts.css">
   <style>
@@ -29,6 +32,13 @@
       -webkit-tap-highlight-color: transparent;
     }
     button { font-family: inherit; cursor: pointer; }
+    /* iOS won't focus a field that inherits user-select:none, and needs the tap
+       to reach it — spell both out so the keyboard always comes up. */
+    input, textarea, [contenteditable] {
+      -webkit-user-select: text;
+      user-select: text;
+      touch-action: manipulation;
+    }
 
     /* ---------- top bar ---------- */
     .topbar {
