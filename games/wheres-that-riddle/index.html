@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Where's that Riddle? — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem;
+      border-bottom: 2px solid #2a1b4d;
+      background: rgba(12, 4, 35, 0.95);
+      z-index: 5;
+    }
+    a.back { color: #00f0ff; text-decoration: none; white-space: nowrap; }
+    a.back:hover { text-shadow: 0 0 8px #00f0ff; }
+    .hud { display: flex; gap: 0.9rem; align-items: center; }
+    .hud span strong { color: #ffe600; }
+    .hud .diff { color: #ff2e88; text-transform: uppercase; }
+    .hud button {
+      background: none;
+      border: 1px solid #2a1b4d;
+      border-radius: 6px;
+      color: #9d8fc7;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 0.35rem 0.5rem;
+      cursor: pointer;
+    }
+    .hud button:hover { color: #00f0ff; border-color: #00f0ff; }
+
+    #stage {
+      position: relative;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.2rem;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(255, 46, 136, 0.08), transparent 45%),
+        radial-gradient(circle at 80% 80%, rgba(0, 240, 255, 0.08), transparent 45%);
+    }
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9;
+    }
+
+    .screen { width: 100%; max-width: 34rem; text-align: center; }
+    .screen[hidden] { display: none; }
+
+    h1.title {
+      font-family: 'Press Start 2P', monospace;
+      color: #ff2e88;
+      font-size: clamp(1.05rem, 4.6vw, 1.7rem);
+      line-height: 1.7;
+      text-shadow: 0 0 18px rgba(255, 46, 136, 0.8);
+      margin: 1.4rem 0 0.8rem;
+    }
+    .subtitle {
+      color: #9d8fc7;
+      font-size: 1rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .qmark {
+      font-size: 3rem;
+      margin-top: 1.2rem;
+      filter: drop-shadow(0 0 14px rgba(255, 230, 0, 0.7));
+    }
+
+    .diff-btn {
+      display: block;
+      width: 100%;
+      margin: 0.9rem 0;
+      padding: 1.1rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(0.75rem, 3vw, 1rem);
+      background: #1a0f38;
+      color: #e8e6f0;
+      border: 3px solid;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 0.08s, box-shadow 0.08s;
+    }
+    .diff-btn small {
+      display: block;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      color: #9d8fc7;
+      margin-top: 0.55rem;
+    }
+    .diff-btn.easy { border-color: #3dff8b; }
+    .diff-btn.medium { border-color: #ffe600; }
+    .diff-btn.hard { border-color: #ff2e88; }
+    .diff-btn:hover, .diff-btn:focus-visible {
+      transform: scale(1.03);
+      outline: none;
+    }
+    .diff-btn.easy:hover, .diff-btn.easy:focus-visible { box-shadow: 0 0 22px rgba(61, 255, 139, 0.5); }
+    .diff-btn.medium:hover, .diff-btn.medium:focus-visible { box-shadow: 0 0 22px rgba(255, 230, 0, 0.5); }
+    .diff-btn.hard:hover, .diff-btn.hard:focus-visible { box-shadow: 0 0 22px rgba(255, 46, 136, 0.5); }
+
+    .riddle-count {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem;
+      color: #00f0ff;
+      margin: 1.1rem 0 1.3rem;
+    }
+    .riddle-card {
+      background: #1a0f38;
+      border: 2px solid #2a1b4d;
+      border-radius: 16px;
+      padding: 1.6rem 1.4rem;
+      font-size: clamp(1.15rem, 4vw, 1.45rem);
+      line-height: 1.65;
+      color: #fff;
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.12);
+    }
+    .riddle-card.shake { animation: shake 0.4s; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-9px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-6px); }
+      80% { transform: translateX(4px); }
+    }
+
+    form.answer-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 1.4rem;
+    }
+    .answer-input {
+      flex: 1;
+      min-width: 0;
+      padding: 0.95rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 1.1rem;
+      background: #12063a;
+      color: #ffe600;
+      border: 2px solid #2a1b4d;
+      border-radius: 12px;
+      outline: none;
+    }
+    .answer-input:focus { border-color: #00f0ff; box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
+    .go-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.75rem;
+      padding: 0 1.2rem;
+      background: #ff2e88;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .go-btn:hover, .go-btn:focus-visible { box-shadow: 0 0 16px rgba(255, 46, 136, 0.7); outline: none; }
+
+    .feedback {
+      min-height: 2.2rem;
+      margin-top: 1.1rem;
+      font-size: 1rem;
+      color: #ff2e88;
+      font-weight: 600;
+    }
+    .feedback.good { color: #3dff8b; }
+
+    .correct-box[hidden] { display: none; }
+    .correct-box h2 {
+      font-family: 'Press Start 2P', monospace;
+      color: #3dff8b;
+      font-size: clamp(1rem, 4.5vw, 1.5rem);
+      margin: 1.6rem 0 1rem;
+      text-shadow: 0 0 16px rgba(61, 255, 139, 0.8);
+    }
+    .next-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem;
+      margin-top: 1rem;
+      padding: 1rem 1.6rem;
+      background: #1a0f38;
+      color: #ffe600;
+      border: 3px solid #ffe600;
+      border-radius: 14px;
+      cursor: pointer;
+    }
+    .next-btn:hover, .next-btn:focus-visible { box-shadow: 0 0 20px rgba(255, 230, 0, 0.6); outline: none; }
+
+    .all-done {
+      font-size: 1.05rem;
+      line-height: 1.7;
+      color: #e8e6f0;
+      margin-top: 1.4rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../../">&larr; ARCADE</a>
+    <div class="hud">
+      <span class="diff" id="hud-diff"></span>
+      <span id="hud-solved-wrap" hidden>SOLVED <strong id="hud-solved">0</strong></span>
+      <button id="hud-change" hidden>CHANGE</button>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="confetti"></canvas>
+
+    <div class="screen" id="screen-menu">
+      <div class="qmark">🕵️❓</div>
+      <h1 class="title">WHERE'S THAT RIDDLE?</h1>
+      <p class="subtitle">Tricky riddles to puzzle your brain.<br>Type your answer — close counts!<br>But it will NEVER tell you the answer&hellip;</p>
+      <button class="diff-btn easy" data-diff="easy">EASY<small>Warm up that brain</small></button>
+      <button class="diff-btn medium" data-diff="medium">MEDIUM<small>Proper head-scratchers</small></button>
+      <button class="diff-btn hard" data-diff="hard">HARD<small>Only for riddle masters</small></button>
+    </div>
+
+    <div class="screen" id="screen-play" hidden>
+      <p class="riddle-count" id="riddle-count"></p>
+      <div class="riddle-card" id="riddle-card"></div>
+
+      <div id="guess-box">
+        <form class="answer-row" id="answer-form">
+          <input class="answer-input" id="answer-input" type="text" inputmode="text"
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                 placeholder="type your answer…" aria-label="Your answer">
+          <button class="go-btn" type="submit">GO</button>
+        </form>
+        <p class="feedback" id="feedback"></p>
+      </div>
+
+      <div class="correct-box" id="correct-box" hidden>
+        <h2>&#10024; CORRECT! &#10024;</h2>
+        <p class="feedback good" id="correct-note"></p>
+        <button class="next-btn" id="next-btn">NEXT RIDDLE &#9654;</button>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-done" hidden>
+      <div class="qmark">🏆</div>
+      <h1 class="title">RIDDLE MASTER!</h1>
+      <p class="all-done" id="done-note"></p>
+      <button class="next-btn" id="again-btn">PICK A DIFFICULTY</button>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ---- The design (from the paper) ---------------------------------------
+  // When you open the app, you get asked easy, medium or hard. Lots of
+  // different riddles on each one. You type in the answer. If you get it
+  // wrong you try until you get it right — it NEVER tells you the answer.
+  // It doesn't have to be spot on, the answer can be just close.
+  // It doesn't save your progress (so no localStorage here, on purpose).
+
+  const RIDDLES = {
+    easy: [
+      { q: 'What has to be broken before you can use it?', a: ['egg'] },
+      { q: 'What has hands and a face, but can’t clap or smile?', a: ['clock', 'watch'] },
+      { q: 'What gets wetter and wetter the more it dries?', a: ['towel'] },
+      { q: 'What has an eye but cannot see?', a: ['needle', 'storm', 'hurricane'] },
+      { q: 'What kind of band never plays music?', a: ['rubber band', 'elastic band', 'hair band', 'rubber'] },
+      { q: 'What has teeth but cannot bite?', a: ['comb', 'zip', 'zipper', 'saw'] },
+      { q: 'What goes up but never ever comes down?', a: ['age', 'my age'] },
+      { q: 'I’m tall when I’m young and short when I’m old. What am I?', a: ['candle', 'pencil'] },
+      { q: 'What has a neck but no head?', a: ['bottle', 'shirt', 'guitar'] },
+      { q: 'What building has the most stories?', a: ['library', 'book shop', 'bookshop'] },
+      { q: 'What is full of holes but still holds water?', a: ['sponge'] },
+      { q: 'What can you catch but never throw?', a: ['cold', 'a cold'] },
+      { q: 'Where do fish keep their money?', a: ['riverbank', 'river bank', 'bank'] },
+      { q: 'What do you call a bear with no teeth?', a: ['gummy bear', 'gummi bear'] },
+      { q: 'What has one head, one foot and four legs?', a: ['bed'] },
+      { q: 'Some months have 31 days, some have 30. How many months have 28 days?', a: ['all', 'all of them', 'twelve', '12', 'every month', 'all twelve', 'all 12'] },
+      { q: 'What kind of room has no doors or windows?', a: ['mushroom'] },
+      { q: 'What falls in winter but never gets hurt?', a: ['snow', 'snowflake', 'snowflakes'] },
+      { q: 'What has legs but cannot walk?', a: ['table', 'chair', 'bed', 'desk'] },
+      { q: 'What did the ocean say to the beach? Nothing, it just… what?', a: ['waved', 'wave', 'waves'] },
+    ],
+    medium: [
+      { q: 'I speak without a mouth and hear without ears. Nobody can see me. What am I?', a: ['echo'] },
+      { q: 'What can travel all around the world while staying in a corner?', a: ['stamp', 'postage stamp'] },
+      { q: 'The more you take, the more you leave behind. What are they?', a: ['footsteps', 'footprints', 'steps'] },
+      { q: 'What has many keys but can’t open a single lock?', a: ['piano', 'keyboard'] },
+      { q: 'What can fill a whole room without taking up any space?', a: ['light', 'air', 'smell', 'sound'] },
+      { q: 'If you drop me I’m sure to crack, but smile at me and I’ll always smile back. What am I?', a: ['mirror'] },
+      { q: 'What word is spelled wrong in every single dictionary?', a: ['wrong', 'the word wrong'] },
+      { q: 'What belongs to you, but other people use it much more than you do?', a: ['name', 'my name', 'your name'] },
+      { q: 'I have branches, but no fruit, trunk or leaves. What am I?', a: ['bank'] },
+      { q: 'What runs all the way around a garden but never moves?', a: ['fence', 'wall', 'hedge'] },
+      { q: 'What can you keep even after giving it to someone else?', a: ['word', 'promise', 'your word', 'my word'] },
+      { q: 'What has a thumb and four fingers but is not alive?', a: ['glove', 'mitten'] },
+      { q: 'What gets bigger the more you take away from it?', a: ['hole'] },
+      { q: 'I follow you all day and copy your every move, but you can never touch me or catch me. What am I?', a: ['shadow', 'my shadow', 'your shadow'] },
+      { q: 'I have cities but no houses, forests but no trees, and water but no fish. What am I?', a: ['map', 'atlas'] },
+      { q: 'What invention lets you look right through a wall?', a: ['window'] },
+      { q: 'What goes up and down all day but never actually moves?', a: ['stairs', 'staircase', 'temperature'] },
+      { q: 'What is always in front of you, but can never be seen?', a: ['future', 'the future'] },
+      { q: 'What kind of coat is always wet when you put it on?', a: ['coat of paint', 'paint', 'a coat of paint'] },
+      { q: 'What has a bottom at the top?', a: ['legs', 'your legs', 'leg', 'a pair of legs'] },
+    ],
+    hard: [
+      { q: 'What comes once in a minute, twice in a moment, but never in a thousand years?', a: ['m', 'letter m', 'the letter m'] },
+      { q: 'The person who makes it, sells it. The person who buys it, never uses it. The person who uses it, never knows it. What is it?', a: ['coffin', 'casket'] },
+      { q: 'I am not alive, but I grow. I don’t have lungs, but I need air. Water kills me. What am I?', a: ['fire', 'flame'] },
+      { q: 'What five-letter word sounds exactly the same when you take away four of its letters?', a: ['queue'] },
+      { q: 'Forward I am heavy, but backward I am not. What am I?', a: ['ton', 'a ton'] },
+      { q: 'What occurs twice in a week, once in a year, but never in a day?', a: ['e', 'letter e', 'the letter e'] },
+      { q: 'A cowboy rides into town on Friday, stays three days, and rides out on Friday. How is that possible?', a: ['horse is called friday', 'horse is named friday', 'his horse is called friday', 'the horse is friday', 'friday is the horse', 'friday is his horse', 'horse'] },
+      { q: 'What can run but never walks, has a mouth but never talks, has a bed but never sleeps?', a: ['river'] },
+      { q: 'You can take away all of my letters and I will stay exactly the same. What am I?', a: ['postman', 'mailman', 'postbox', 'mailbox', 'post box', 'mail box', 'postie'] },
+      { q: 'What can you see in the middle of March and April that you can never see at the beginning or end of either month?', a: ['r', 'letter r', 'the letter r'] },
+      { q: 'The more of me there is, the less you can see. What am I?', a: ['darkness', 'dark', 'fog', 'the dark'] },
+      { q: 'What five-letter word becomes shorter when you add two letters to it?', a: ['short'] },
+      { q: 'What has 13 hearts, but no brain and no body?', a: ['deck of cards', 'pack of cards', 'cards', 'card deck'] },
+      { q: 'Poor people have it. Rich people need it. If you eat it, you die. What is it?', a: ['nothing'] },
+      { q: 'What is always coming, but never actually arrives?', a: ['tomorrow'] },
+      { q: 'If you have me, you want to share me. But if you share me, you no longer have me. What am I?', a: ['secret', 'a secret'] },
+      { q: 'Which weighs more: a pound of feathers or a pound of bricks?', a: ['neither', 'same', 'the same', 'they weigh the same', 'equal', 'they are the same', 'neither they weigh the same'] },
+      { q: 'I am an odd number. Take away one letter and I become even. What number am I?', a: ['seven', '7'] },
+      { q: 'What breaks the moment you say its name?', a: ['silence'] },
+      { q: 'Two fathers and two sons go fishing. They each catch one fish, but only three fish are caught. How?', a: ['grandfather father and son', 'grandad dad and son', 'grandpa father son', 'three generations', 'one is a grandfather', 'grandfather son grandson', 'there are only three people', 'three people'] },
+    ],
+  };
+
+  // ---- Close-enough answer checking ----------------------------------------
+  const STOPWORDS = new Set(['a', 'an', 'the', 'my', 'your', 'his', 'her', 'their', 'our',
+    'it', 'its', 'is', 'was', 'are', 'im', 'i', 'am', 'be', 'you', 'they', 'them',
+    'of', 'to', 'in', 'on', 'and', 'that', 'this', 'because']);
+
+  function normalize(s) {
+    const words = s.toLowerCase()
+      .replace(/[’']/g, '')
+      .replace(/[^a-z0-9 ]+/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w && !STOPWORDS.has(w));
+    return words.join(' ');
+  }
+
+  function levenshtein(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 99;
+    const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const cur = row[j];
+        row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+        prev = cur;
+      }
+    }
+    return row[b.length];
+  }
+
+  function depluralize(w) {
+    if (w.length > 3 && w.endsWith('es')) return w.slice(0, -2);
+    if (w.length > 2 && w.endsWith('s')) return w.slice(0, -1);
+    return w;
+  }
+
+  // "It doesn't have to be spot on, the answer given can be just close."
+  function isClose(guessRaw, answers) {
+    const guess = normalize(guessRaw);
+    if (!guess) return false;
+    const guessSingular = guess.split(' ').map(depluralize).join(' ');
+    for (const ansRaw of answers) {
+      const ans = normalize(ansRaw);
+      if (!ans) continue;
+      const ansSingular = ans.split(' ').map(depluralize).join(' ');
+      const tol = ans.length <= 4 ? (ans.length <= 2 ? 0 : 1) : 2;
+      for (const g of [guess, guessSingular]) {
+        for (const a of [ans, ansSingular]) {
+          if (g === a) return true;
+          if (levenshtein(g, a) <= tol) return true;
+          // The right words buried in a longer guess ("it must be an egg!").
+          if (a.length >= 3 && (' ' + g + ' ').includes(' ' + a + ' ')) return true;
+        }
+      }
+      // Multi-word answers: enough of the important words match.
+      const ansWords = ansSingular.split(' ').filter((w) => w.length >= 3);
+      if (ansWords.length >= 2) {
+        const gw = new Set(guessSingular.split(' '));
+        const hits = ansWords.filter((w) => gw.has(w) || [...gw].some((x) => levenshtein(x, w) <= 1)).length;
+        if (hits >= Math.ceil(ansWords.length * 0.6)) return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- Audio -------------------------------------------------------------------
+  let audio = null;
+  function ac() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+    }
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function tone(freq, dur, type, vol, slideTo) {
+    const a = ac();
+    if (!a) return;
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.07, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start();
+    o.stop(a.currentTime + dur);
+  }
+  const sfx = {
+    pick: () => tone(600, 0.08, 'square', 0.06, 900),
+    wrong: () => tone(170, 0.22, 'sawtooth', 0.08, 100),
+    right: () => { tone(523, 0.1, 'square', 0.07); setTimeout(() => tone(659, 0.1, 'square', 0.07), 100); setTimeout(() => tone(1047, 0.22, 'square', 0.08), 200); },
+    master: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.15, 'square', 0.08), i * 120)),
+  };
+
+  // ---- Confetti -------------------------------------------------------------------
+  const confettiCanvas = document.getElementById('confetti');
+  const cctx = confettiCanvas.getContext('2d');
+  let confetti = [];
+  function popConfetti() {
+    confettiCanvas.width = innerWidth;
+    confettiCanvas.height = innerHeight;
+    const colors = ['#ff2e88', '#00f0ff', '#ffe600', '#3dff8b', '#9d4edd'];
+    for (let i = 0; i < 90; i++) {
+      confetti.push({
+        x: innerWidth / 2 + (Math.random() - 0.5) * 120,
+        y: innerHeight * 0.35,
+        vx: (Math.random() - 0.5) * 500,
+        vy: -150 - Math.random() * 380,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 12,
+        w: 5 + Math.random() * 6,
+        color: colors[i % colors.length],
+        t: 0,
+      });
+    }
+  }
+  let lastT = performance.now();
+  (function confettiLoop(now) {
+    const dt = Math.min(0.05, ((now || performance.now()) - lastT) / 1000);
+    lastT = now || performance.now();
+    if (confetti.length) {
+      cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+      confetti.forEach((c) => {
+        c.t += dt;
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+        c.vy += 900 * dt;
+        c.rot += c.vr * dt;
+        cctx.save();
+        cctx.translate(c.x, c.y);
+        cctx.rotate(c.rot);
+        cctx.globalAlpha = Math.max(0, 1 - c.t / 1.8);
+        cctx.fillStyle = c.color;
+        cctx.fillRect(-c.w / 2, -c.w / 2, c.w, c.w * 0.6);
+        cctx.restore();
+      });
+      confetti = confetti.filter((c) => c.t < 1.8 && c.y < innerHeight + 40);
+      if (!confetti.length) cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    }
+    requestAnimationFrame(confettiLoop);
+  })();
+
+  // ---- Game flow --------------------------------------------------------------------
+  const screenMenu = document.getElementById('screen-menu');
+  const screenPlay = document.getElementById('screen-play');
+  const screenDone = document.getElementById('screen-done');
+  const hudDiff = document.getElementById('hud-diff');
+  const hudSolvedWrap = document.getElementById('hud-solved-wrap');
+  const hudSolved = document.getElementById('hud-solved');
+  const hudChange = document.getElementById('hud-change');
+  const riddleCount = document.getElementById('riddle-count');
+  const riddleCard = document.getElementById('riddle-card');
+  const guessBox = document.getElementById('guess-box');
+  const answerForm = document.getElementById('answer-form');
+  const answerInput = document.getElementById('answer-input');
+  const feedback = document.getElementById('feedback');
+  const correctBox = document.getElementById('correct-box');
+  const correctNote = document.getElementById('correct-note');
+  const nextBtn = document.getElementById('next-btn');
+  const doneNote = document.getElementById('done-note');
+  const againBtn = document.getElementById('again-btn');
+
+  const TRY_AGAIN = [
+    'Nope — try again!',
+    'Not that… keep thinking!',
+    'Hmm, that’s not it!',
+    'Good try! Have another go.',
+    'Still a mystery… guess again!',
+    'Not quite — you’ll get it!',
+  ];
+  const PRAISE = ['Genius!', 'Brainbox!', 'Nailed it!', 'Too clever!', 'Riddle wizard!'];
+
+  let difficulty = null;
+  let order = [];
+  let index = 0;
+  let solved = 0;
+  let wrongStreak = 0;
+
+  function showScreen(el) {
+    [screenMenu, screenPlay, screenDone].forEach((s) => { s.hidden = s !== el; });
+  }
+
+  function pickDifficulty(diff) {
+    difficulty = diff;
+    order = [...RIDDLES[diff]].sort(() => Math.random() - 0.5);
+    index = 0;
+    solved = 0;
+    hudDiff.textContent = diff;
+    hudSolved.textContent = '0';
+    hudSolvedWrap.hidden = false;
+    hudChange.hidden = false;
+    sfx.pick();
+    nextRiddle();
+  }
+
+  function nextRiddle() {
+    if (index >= order.length) { allDone(); return; }
+    showScreen(screenPlay);
+    riddleCount.textContent = 'RIDDLE ' + (index + 1) + ' OF ' + order.length;
+    riddleCard.textContent = order[index].q;
+    guessBox.hidden = false;
+    correctBox.hidden = true;
+    feedback.textContent = '';
+    feedback.classList.remove('good');
+    answerInput.value = '';
+    wrongStreak = 0;
+    answerInput.focus();
+  }
+
+  function allDone() {
+    showScreen(screenDone);
+    doneNote.innerHTML = 'You solved all ' + order.length + ' ' + difficulty.toUpperCase() +
+      ' riddles!<br>Your brain must be enormous.';
+    sfx.master();
+    popConfetti();
+  }
+
+  answerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const guess = answerInput.value;
+    if (!normalize(guess)) { answerInput.focus(); return; }
+    if (isClose(guess, order[index].a)) {
+      solved++;
+      hudSolved.textContent = String(solved);
+      sfx.right();
+      popConfetti();
+      guessBox.hidden = true;
+      correctBox.hidden = false;
+      correctNote.textContent = PRAISE[Math.floor(Math.random() * PRAISE.length)];
+      nextBtn.focus();
+    } else {
+      // Wrong: no answer given, ever — just try again.
+      wrongStreak++;
+      sfx.wrong();
+      riddleCard.classList.remove('shake');
+      void riddleCard.offsetWidth; // restart the animation
+      riddleCard.classList.add('shake');
+      feedback.textContent = wrongStreak >= 5
+        ? 'Tough one! But no clues from me… try again!'
+        : TRY_AGAIN[Math.floor(Math.random() * TRY_AGAIN.length)];
+      answerInput.select();
+    }
+  });
+
+  nextBtn.addEventListener('click', () => { index++; nextRiddle(); });
+  againBtn.addEventListener('click', () => {
+    hudSolvedWrap.hidden = true;
+    hudChange.hidden = true;
+    hudDiff.textContent = '';
+    showScreen(screenMenu);
+  });
+  hudChange.addEventListener('click', () => againBtn.click());
+
+  document.querySelectorAll('.diff-btn').forEach((btn) => {
+    btn.addEventListener('click', () => pickDifficulty(btn.dataset.diff));
+  });
+
+  // State peek for automated testing.
+  window.__riddleState = () => ({
+    difficulty, index, solved,
+    total: order.length,
+    current: order[index] ? order[index].q : null,
+  });
+  window.__riddleCheck = (guess) => order[index] ? isClose(guess, order[index].a) : null;
+  </script>
+</body>
+</html>
