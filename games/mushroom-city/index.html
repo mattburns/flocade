@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mushroom City — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #140430;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --purple: #b38bff;
+      --card: #1d0b3d;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: #f3ecff;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    canvas { position: fixed; inset: 0; display: block; }
+
+    #ui { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+    #ui > * { pointer-events: auto; }
+
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 0.6rem; padding: 0.7rem 0.9rem;
+      font-family: 'Press Start 2P', monospace; font-size: 0.6rem;
+      background: linear-gradient(rgba(20, 4, 48, 0.9), rgba(20, 4, 48, 0));
+    }
+    a.back { color: var(--cyan); text-decoration: none; white-space: nowrap; }
+    a.back:hover { text-shadow: 0 0 8px var(--cyan); }
+    .hud { color: var(--pink); }
+    .hud strong { color: var(--yellow); }
+
+    /* joystick */
+    #joy {
+      position: fixed; left: 18px; bottom: 18px;
+      width: 130px; height: 130px; border-radius: 50%;
+      background: rgba(179, 139, 255, 0.16);
+      border: 3px solid rgba(0, 240, 255, 0.55);
+      touch-action: none;
+    }
+    #joy .thumb {
+      position: absolute; left: 50%; top: 50%;
+      width: 56px; height: 56px; margin: -28px 0 0 -28px;
+      border-radius: 50%;
+      background: rgba(255, 46, 136, 0.85);
+      border: 3px solid #fff;
+      box-shadow: 0 0 14px rgba(255, 46, 136, 0.8);
+    }
+
+    .toggle {
+      position: fixed; right: 14px;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: rgba(29, 11, 61, 0.9);
+      border: 3px solid var(--purple);
+      font-size: 1.3rem; cursor: pointer; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .toggle.off { opacity: 0.5; }
+    #gyroBtn { bottom: 90px; }
+    #muteBtn { bottom: 24px; }
+
+    /* talk button */
+    #talkBtn {
+      position: fixed; right: 14px; bottom: 156px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px;
+      width: 92px; height: 92px; border-radius: 50%;
+      background: var(--pink); color: #fff;
+      border: 4px solid #fff;
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+      cursor: pointer;
+      box-shadow: 0 0 24px rgba(255, 46, 136, 0.85);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    #talkBtn[hidden] { display: none; }
+    #talkBtn .em { font-size: 1.5rem; }
+    @keyframes pulse { 50% { transform: scale(1.08); } }
+
+    /* speech card */
+    #dialogue {
+      position: fixed; top: 54px; left: 50%; transform: translateX(-50%);
+      width: min(92vw, 30rem);
+      background: var(--card);
+      border: 4px solid var(--cyan);
+      border-radius: 20px;
+      padding: 1rem 1.1rem 0.9rem;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.35);
+      cursor: pointer;
+    }
+    #dialogue[hidden] { display: none; }
+    #dialogue::after {
+      content: ''; position: absolute; left: 50%; bottom: -18px;
+      margin-left: -14px;
+      border: 14px solid transparent;
+      border-top-color: var(--cyan);
+    }
+    #dlgName {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem; color: var(--yellow);
+      display: block; margin-bottom: 0.6rem;
+    }
+    #dlgText { font-size: 1.05rem; line-height: 1.55; color: #f3ecff; }
+    #dlgHint {
+      margin-top: 0.7rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; color: var(--purple);
+    }
+
+    /* modal screens */
+    .modal {
+      position: fixed; inset: 0; z-index: 10;
+      background: rgba(10, 2, 26, 0.82);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem;
+    }
+    .card {
+      background: var(--card);
+      border: 4px solid var(--pink);
+      border-radius: 24px;
+      padding: 1.5rem;
+      max-width: 400px; width: 100%;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(255, 46, 136, 0.4);
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace; color: var(--pink);
+      font-size: clamp(1.05rem, 5vw, 1.5rem); line-height: 1.6; margin-bottom: 0.4rem;
+      text-shadow: 0 0 18px rgba(255, 46, 136, 0.8);
+    }
+    .byline {
+      font-family: 'Press Start 2P', monospace; font-size: 0.6rem;
+      color: var(--yellow); margin-bottom: 0.9rem;
+    }
+    .card p { color: #f3ecff; font-size: 1.02rem; line-height: 1.6; margin-bottom: 1rem; }
+    .controls-help { color: var(--cyan); font-size: 0.88rem; line-height: 1.9; margin-bottom: 1rem; }
+    .card .btn {
+      background: var(--pink); color: #fff; border: none;
+      border-radius: 999px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem; padding: 0.95rem 1.5rem; cursor: pointer; margin: 0.25rem;
+      box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
+    }
+    .card .btn:active { transform: translateY(4px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <div class="topbar">
+      <a class="back" href="../../">&larr; ARCADE</a>
+      <span class="hud">FRIENDS <strong id="hud-friends">0</strong>/<strong id="hud-total">0</strong></span>
+    </div>
+    <div id="joy"><div class="thumb"></div></div>
+    <button class="toggle off" id="gyroBtn" title="Tilt to look">🔄</button>
+    <button class="toggle" id="muteBtn" title="Sound">🔊</button>
+    <button id="talkBtn" hidden><span class="em">💬</span>TALK</button>
+    <div id="dialogue" hidden>
+      <span id="dlgName"></span>
+      <p id="dlgText"></p>
+      <div id="dlgHint">TAP TO CARRY ON</div>
+    </div>
+  </div>
+  <div id="screen"></div>
+
+  <script type="module">
+    import * as THREE from './three.module.min.js';
+
+    // ============================================================
+    // Mushroom City — a world by Tilly.
+    // Everyone's house is a mushroom, the people are covered in
+    // mushrooms, the whole city is mushrooms. You can walk about,
+    // talk to people, and the NPCs come over to you.
+    // ============================================================
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x140430);
+    scene.fog = new THREE.Fog(0x140430, 30, 90);
+
+    const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 220);
+
+    scene.add(new THREE.HemisphereLight(0xb49bff, 0x38265e, 1.15));
+    const moon = new THREE.DirectionalLight(0xcfd9ff, 0.5);
+    moon.position.set(-14, 26, -10);
+    scene.add(moon);
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+
+    // ---- caches so a whole city of mushrooms stays cheap ----
+    const matCache = new Map();
+    function mat(color, rough = 0.8) {
+      const key = 'm' + color + rough;
+      if (!matCache.has(key)) matCache.set(key, new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0 }));
+      return matCache.get(key);
+    }
+    function glow(color, strength = 0.75, rough = 0.55) {
+      const key = 'g' + color + strength + rough;
+      if (!matCache.has(key)) {
+        matCache.set(key, new THREE.MeshStandardMaterial({
+          color, roughness: rough, metalness: 0,
+          emissive: color, emissiveIntensity: strength,
+        }));
+      }
+      return matCache.get(key);
+    }
+    const GEO = {
+      sph: new THREE.SphereGeometry(0.5, 16, 12),
+      dome: new THREE.SphereGeometry(0.5, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.5),
+      cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 16),
+      taper: new THREE.CylinderGeometry(0.42, 0.5, 1, 16),
+      cone: new THREE.ConeGeometry(0.5, 1, 14),
+      box: new THREE.BoxGeometry(1, 1, 1),
+      tor: new THREE.TorusGeometry(0.5, 0.16, 8, 16),
+      circle: new THREE.CircleGeometry(0.5, 20),
+    };
+
+    const obstacles = []; // {x, z, r}
+    function part(parent, geoKey, material, sx, sy, sz, x, y, z, rx = 0, ry = 0, rz = 0) {
+      const m = new THREE.Mesh(GEO[geoKey], material);
+      m.scale.set(sx, sy, sz);
+      m.position.set(x, y, z);
+      m.rotation.set(rx, ry, rz);
+      parent.add(m);
+      return m;
+    }
+
+    const NEON = [0xff2e88, 0x00f0ff, 0xffe600, 0xb38bff, 0x3dff8b, 0xff9e57];
+
+    // ============================================================
+    // Ground & sky
+    // ============================================================
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(80, 56), mat(0x2c1c52));
+    ground.rotation.x = -Math.PI / 2;
+    scene.add(ground);
+
+    // glowing moss plaza + ring road
+    const plaza = new THREE.Mesh(new THREE.CircleGeometry(9, 40), glow(0x3a2a68, 0.25));
+    plaza.rotation.x = -Math.PI / 2;
+    plaza.position.y = 0.02;
+    scene.add(plaza);
+    const ringRoad = new THREE.Mesh(new THREE.RingGeometry(15.5, 19.5, 56), glow(0x40306f, 0.22));
+    ringRoad.rotation.x = -Math.PI / 2;
+    ringRoad.position.y = 0.02;
+    scene.add(ringRoad);
+    // spokes from the plaza out to the ring
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + Math.PI / 8;
+      const spoke = new THREE.Mesh(new THREE.PlaneGeometry(3, 11), glow(0x40306f, 0.22));
+      spoke.rotation.x = -Math.PI / 2;
+      spoke.rotation.z = -a;
+      spoke.position.set(Math.sin(a) * 12.5, 0.021, Math.cos(a) * 12.5);
+      scene.add(spoke);
+    }
+
+    // stars
+    (function stars() {
+      const g = new THREE.BufferGeometry();
+      const pts = [];
+      for (let i = 0; i < 260; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 90 + Math.random() * 60;
+        const y = 20 + Math.random() * 70;
+        pts.push(Math.sin(a) * r, y, Math.cos(a) * r);
+      }
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff0ff, size: 1.1, sizeAttenuation: true })));
+    })();
+
+    // drifting spores
+    const spores = (function makeSpores() {
+      const N = 220;
+      const g = new THREE.BufferGeometry();
+      const pos = new Float32Array(N * 3);
+      for (let i = 0; i < N; i++) {
+        const a = Math.random() * Math.PI * 2, d = Math.random() * 55;
+        pos[i * 3] = Math.sin(a) * d;
+        pos[i * 3 + 1] = Math.random() * 14;
+        pos[i * 3 + 2] = Math.cos(a) * d;
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const p = new THREE.Points(g, new THREE.PointsMaterial({
+        color: 0xffe6ff, size: 0.22, transparent: true, opacity: 0.75, sizeAttenuation: true,
+      }));
+      scene.add(p);
+      return p;
+    })();
+
+    // ============================================================
+    // Mushrooms — the entire city is made of them
+    // ============================================================
+
+    // A plain decorative toadstool.
+    function toadstool(x, z, capColor, scale = 1, spotted = true, solid = true) {
+      const g = new THREE.Group();
+      const stemH = 1.1, capR = 0.75;
+      part(g, 'taper', mat(0xf6ecd9), 0.34, stemH, 0.34, 0, stemH / 2, 0);
+      part(g, 'dome', glow(capColor, 0.55), capR * 2, capR * 1.5, capR * 2, 0, stemH, 0);
+      if (spotted) {
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2 + Math.random();
+          const d = 0.2 + Math.random() * 0.42;
+          part(g, 'sph', glow(0xfff5fb, 0.5), 0.16, 0.09, 0.16,
+            Math.sin(a) * d, stemH + Math.sqrt(Math.max(0, capR * capR - d * d)) * 1.4, Math.cos(a) * d);
+        }
+      }
+      g.position.set(x, 0, z);
+      g.scale.setScalar(scale);
+      scene.add(g);
+      if (solid) obstacles.push({ x, z, r: 0.55 * scale });
+      return g;
+    }
+
+    // A tall glowing mushroom "tree".
+    function mushroomTree(x, z, capColor, h = 5, scale = 1) {
+      const g = new THREE.Group();
+      part(g, 'taper', mat(0xe7d8f5), 0.42, h, 0.42, 0, h / 2, 0);
+      part(g, 'dome', glow(capColor, 0.7), 3.2, 2.0, 3.2, 0, h, 0);
+      part(g, 'tor', glow(capColor, 0.5), 2.6, 2.6, 0.6, 0, h - 0.05, 0, Math.PI / 2);
+      // gills underneath
+      part(g, 'circle', glow(capColor, 0.9), 2.9, 2.9, 1, 0, h - 0.02, 0, Math.PI / 2);
+      g.position.set(x, 0, z);
+      g.scale.setScalar(scale);
+      scene.add(g);
+      obstacles.push({ x, z, r: 0.55 * scale });
+      return g;
+    }
+
+    // Mushroom street lamp.
+    function lamp(x, z, color) {
+      const g = new THREE.Group();
+      part(g, 'taper', mat(0xe7d8f5), 0.24, 2.6, 0.24, 0, 1.3, 0);
+      part(g, 'dome', glow(color, 1.1), 1.5, 1.0, 1.5, 0, 2.6, 0);
+      part(g, 'sph', glow(color, 1.4), 0.5, 0.5, 0.5, 0, 2.5, 0);
+      g.position.set(x, 0, z);
+      scene.add(g);
+      obstacles.push({ x, z, r: 0.35 });
+      return g;
+    }
+
+    // Mushroom bench: a fat stem with a flat cap to sit on.
+    function bench(x, z, color) {
+      const g = new THREE.Group();
+      part(g, 'cyl', mat(0xf6ecd9), 0.5, 0.5, 0.5, 0, 0.25, 0);
+      part(g, 'dome', glow(color, 0.4), 2.2, 0.7, 1.3, 0, 0.5, 0);
+      g.position.set(x, 0, z);
+      scene.add(g);
+      obstacles.push({ x, z, r: 0.9 });
+    }
+
+    // ---- Mushroom houses: hollow stems with a doorway you walk through ----
+    const DOOR_HALF = 0.42; // radians of the door gap, centred on local +z
+
+    function mushroomHouse(opts) {
+      const { x, z, ry, cap, capR = 4.6, stemR = 2.5, stemH = 4.4, spots = true, inside } = opts;
+      const g = new THREE.Group();
+
+      // hollow stem with a door gap (theta 0 == local +z)
+      const wallGeo = new THREE.CylinderGeometry(stemR, stemR * 1.12, stemH, 28, 1, true,
+        DOOR_HALF, Math.PI * 2 - DOOR_HALF * 2);
+      // faintly luminous flesh, so the inside of a mushroom isn't pitch dark
+      const wall = new THREE.Mesh(wallGeo, new THREE.MeshStandardMaterial({
+        color: 0xf3e6d2, roughness: 0.85, metalness: 0, side: THREE.DoubleSide,
+        emissive: 0x6a5490, emissiveIntensity: 0.45,
+      }));
+      wall.position.y = stemH / 2;
+      g.add(wall);
+
+      // door frame posts either side of the gap
+      for (const s of [-1, 1]) {
+        const a = s * DOOR_HALF;
+        part(g, 'cyl', glow(cap, 0.35), 0.3, stemH, 0.3, Math.sin(a) * stemR, stemH / 2, Math.cos(a) * stemR);
+      }
+
+      // cap
+      part(g, 'dome', glow(cap, 0.6), capR * 2, capR * 1.45, capR * 2, 0, stemH - 0.15, 0);
+      part(g, 'circle', glow(cap, 0.85), capR * 1.9, capR * 1.9, 1, 0, stemH - 0.18, 0, Math.PI / 2); // glowing gills = ceiling
+      if (spots) {
+        for (let i = 0; i < 7; i++) {
+          const a = (i / 7) * Math.PI * 2 + 0.4;
+          const d = capR * (0.3 + Math.random() * 0.5);
+          const y = stemH - 0.15 + Math.sqrt(Math.max(0, capR * capR - d * d)) * 1.42;
+          part(g, 'sph', glow(0xfff5fb, 0.55), 0.8, 0.32, 0.8, Math.sin(a) * d, y, Math.cos(a) * d);
+        }
+      }
+
+      // glowing windows around the stem (never over the doorway)
+      for (const a of [Math.PI * 0.55, -Math.PI * 0.55, Math.PI]) {
+        part(g, 'sph', glow(0xffe600, 1.1), 0.8, 1.0, 0.35,
+          Math.sin(a) * stemR * 1.02, 2.4, Math.cos(a) * stemR * 1.02, 0, a, 0);
+      }
+
+      // interior floor + furniture (every home is different inside)
+      part(g, 'circle', mat(0x4a3570), stemR * 1.9, stemR * 1.9, 1, 0, 0.05, 0, -Math.PI / 2);
+      if (inside) inside(g, stemR);
+
+      g.position.set(x, 0, z);
+      g.rotation.y = ry;
+      scene.add(g);
+
+      // collision: posts around the stem, leaving the doorway open
+      const N = 22;
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        const da = Math.atan2(Math.sin(a), Math.cos(a));
+        if (Math.abs(da) < DOOR_HALF + 0.12) continue; // the way in
+        const lx = Math.sin(a) * (stemR + 0.15), lz = Math.cos(a) * (stemR + 0.15);
+        obstacles.push({
+          x: x + lx * Math.cos(ry) + lz * Math.sin(ry),
+          z: z - lx * Math.sin(ry) + lz * Math.cos(ry),
+          r: 0.42,
+        });
+      }
+      return g;
+    }
+
+    // --- furniture bits used inside houses ---
+    function mBed(g, x, z, color) {
+      part(g, 'dome', glow(color, 0.35), 2.0, 0.9, 1.4, x, 0.06, z);
+      part(g, 'sph', mat(0xfff5fb), 0.7, 0.35, 0.5, x - 0.6, 0.5, z);
+    }
+    function mTable(g, x, z, color) {
+      part(g, 'taper', mat(0xf6ecd9), 0.3, 0.8, 0.3, x, 0.4, z);
+      part(g, 'dome', glow(color, 0.4), 1.7, 0.5, 1.7, x, 0.75, z);
+    }
+    function mStool(g, x, z, color) {
+      part(g, 'taper', mat(0xf6ecd9), 0.2, 0.45, 0.2, x, 0.22, z);
+      part(g, 'dome', glow(color, 0.4), 0.8, 0.35, 0.8, x, 0.42, z);
+    }
+    function mLamp(g, x, z, color) {
+      part(g, 'cyl', mat(0xe7d8f5), 0.12, 1.4, 0.12, x, 0.7, z);
+      part(g, 'dome', glow(color, 1.3), 0.9, 0.7, 0.9, x, 1.4, z);
+    }
+    function mShelf(g, x, z, ry, color, things) {
+      part(g, 'box', mat(0xd8c3a8), 2.2, 0.12, 0.5, x, 1.2, z, 0, ry, 0);
+      part(g, 'box', mat(0xd8c3a8), 2.2, 0.12, 0.5, x, 1.8, z, 0, ry, 0);
+      for (let i = 0; i < things; i++) {
+        const off = -0.75 + i * 0.5;
+        const lx = x + Math.cos(ry) * off, lz = z - Math.sin(ry) * off;
+        const c = NEON[(i + things) % NEON.length];
+        part(g, 'taper', mat(0xf6ecd9), 0.12, 0.3, 0.12, lx, 1.41, lz);
+        part(g, 'dome', glow(c, 0.5), 0.4, 0.28, 0.4, lx, 1.55, lz);
+        part(g, 'dome', glow(color, 0.5), 0.36, 0.26, 0.36, lx, 2.0, lz);
+      }
+    }
+    function mRug(g, x, z, color, r = 1.5) {
+      part(g, 'circle', glow(color, 0.3), r * 2, r * 2, 1, x, 0.055, z, -Math.PI / 2);
+    }
+
+    // ============================================================
+    // Laying out the city
+    // ============================================================
+
+    // The Mother Mushroom in the middle of the plaza
+    (function motherMushroom() {
+      const g = new THREE.Group();
+      part(g, 'taper', mat(0xf6ecd9), 1.9, 9, 1.9, 0, 4.5, 0);
+      part(g, 'dome', glow(0xff2e88, 0.7), 11, 6.4, 11, 0, 8.8, 0);
+      part(g, 'circle', glow(0xff8ec0, 0.9), 10.4, 10.4, 1, 0, 8.7, 0, Math.PI / 2);
+      part(g, 'tor', glow(0xff2e88, 0.5), 9, 9, 1.2, 0, 8.6, 0, Math.PI / 2);
+      for (let i = 0; i < 9; i++) {
+        const a = (i / 9) * Math.PI * 2;
+        const d = 1.6 + Math.random() * 3.2;
+        part(g, 'sph', glow(0xfff5fb, 0.6), 1.5, 0.6, 1.5,
+          Math.sin(a) * d, 8.8 + Math.sqrt(Math.max(0, 30 - d * d)) * 1.05, Math.cos(a) * d);
+      }
+      // baby mushrooms around the base
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + 0.3;
+        toadstool(Math.sin(a) * 3.4, Math.cos(a) * 3.4, NEON[i % NEON.length], 0.8 + Math.random() * 0.4);
+      }
+      scene.add(g);
+      obstacles.push({ x: 0, z: 0, r: 2.4 });
+    })();
+
+    // Eight mushroom homes in a ring, doors facing the plaza
+    const HOUSES = [
+      { cap: 0xff2e88, name: 'Button' },
+      { cap: 0x00f0ff, name: 'Truffle' },
+      { cap: 0xffe600, name: 'Puffball' },
+      { cap: 0xb38bff, name: 'Morel' },
+      { cap: 0x3dff8b, name: 'Gilly' },
+      { cap: 0xff9e57, name: 'Shiitake' },
+      { cap: 0xff5ad2, name: 'Chanty' },
+      { cap: 0x7ee8fa, name: 'Inky' },
+    ];
+    const HOUSE_R = 24;
+    HOUSES.forEach((h, i) => {
+      const a = (i / HOUSES.length) * Math.PI * 2 + Math.PI / 8;
+      const x = Math.sin(a) * HOUSE_R, z = Math.cos(a) * HOUSE_R;
+      const ry = a + Math.PI; // rotate so local +z (the doorway) points back at the plaza
+      const capR = 4.2 + (i % 3) * 0.55;
+      mushroomHouse({
+        x, z, ry, cap: h.cap, capR, stemR: 2.4 + (i % 2) * 0.35, stemH: 4.2 + (i % 3) * 0.4,
+        spots: i % 4 !== 2,
+        inside: (g, stemR) => {
+          // each home is furnished differently — different mushroom people live here
+          const kind = i % 4;
+          mRug(g, 0, 0, h.cap, stemR * 0.55);
+          if (kind === 0) { mBed(g, -1.1, -0.8, h.cap); mLamp(g, 1.2, -1.1, 0x00f0ff); mStool(g, 1.1, 0.7, 0xffe600); }
+          else if (kind === 1) { mTable(g, 0, -0.9, h.cap); mStool(g, -1.2, 0.2, 0x3dff8b); mStool(g, 1.2, 0.2, 0xff9e57); mShelf(g, 0, -stemR + 0.5, 0, h.cap, 3); }
+          else if (kind === 2) { mShelf(g, 0, -stemR + 0.5, 0, h.cap, 4); mTable(g, 0.9, 0.4, 0xb38bff); mLamp(g, -1.3, -0.9, 0xff2e88); }
+          else { mBed(g, 1.1, -0.9, h.cap); mTable(g, -1.1, 0.3, 0x00f0ff); mLamp(g, 0.2, -1.6, 0xffe600); }
+        },
+      });
+      // a lamp and a couple of toadstools by each front door
+      const dx = Math.sin(a) * (HOUSE_R - 4.6), dz = Math.cos(a) * (HOUSE_R - 4.6);
+      lamp(dx + Math.cos(a) * 3.4, dz - Math.sin(a) * 3.4, h.cap);
+      toadstool(dx - Math.cos(a) * 3.1, dz + Math.sin(a) * 3.1, NEON[(i + 2) % NEON.length], 0.9);
+    });
+
+    // Plaza lamps and benches
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.5;
+      lamp(Math.sin(a) * 8, Math.cos(a) * 8, NEON[i % NEON.length]);
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      bench(Math.sin(a) * 5.6, Math.cos(a) * 5.6, NEON[(i + 3) % NEON.length]);
+    }
+
+    // Mushroom forest ringing the city
+    for (let i = 0; i < 26; i++) {
+      const a = (i / 26) * Math.PI * 2 + Math.random() * 0.2;
+      const d = 34 + Math.random() * 20;
+      mushroomTree(Math.sin(a) * d, Math.cos(a) * d, NEON[i % NEON.length], 4 + Math.random() * 4, 0.85 + Math.random() * 0.7);
+    }
+    // scattered little ones everywhere
+    for (let i = 0; i < 90; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 10 + Math.random() * 45;
+      const x = Math.sin(a) * d, z = Math.cos(a) * d;
+      // keep the ring road and doorways clear-ish
+      if (Math.abs(Math.hypot(x, z) - HOUSE_R) < 5.5) continue;
+      toadstool(x, z, NEON[Math.floor(Math.random() * NEON.length)], 0.45 + Math.random() * 0.7, Math.random() < 0.6, false);
+    }
+
+    // ============================================================
+    // The mushroom people — covered in mushrooms, of course
+    // ============================================================
+    function makeMushroomPerson(p) {
+      const g = new THREE.Group();
+      const skinM = mat(p.skin, 0.75);
+      const capM = glow(p.cap, 0.55);
+      const clothM = mat(p.cloth, 0.85);
+
+      // stubby legs & feet
+      for (const sx of [-0.15, 0.15]) {
+        part(g, 'cyl', clothM, 0.18, 0.42, 0.18, sx, 0.21, 0);
+        part(g, 'sph', mat(0xf6ecd9), 0.24, 0.16, 0.32, sx, 0.06, 0.05);
+      }
+      // round body
+      part(g, 'sph', clothM, 0.66, 0.72, 0.62, 0, 0.75, 0);
+      // arms
+      for (const sx of [-0.36, 0.36]) {
+        part(g, 'cyl', clothM, 0.15, 0.5, 0.15, sx, 0.78, 0, 0, 0, sx > 0 ? -0.25 : 0.25);
+        part(g, 'sph', skinM, 0.2, 0.2, 0.2, sx * 1.22, 0.54, 0);
+      }
+      // head
+      part(g, 'sph', skinM, 0.62, 0.6, 0.6, 0, 1.32, 0);
+      // THE hat: a big mushroom cap for a head-top
+      part(g, 'dome', capM, 1.16, 0.8, 1.16, 0, 1.4, 0);
+      if (p.spots !== false) {
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + 0.6;
+          const d = 0.18 + Math.random() * 0.24;
+          part(g, 'sph', glow(0xfff5fb, 0.5), 0.19, 0.08, 0.19,
+            Math.sin(a) * d, 1.4 + Math.sqrt(Math.max(0, 0.34 - d * d)) * 1.35, Math.cos(a) * d);
+        }
+      }
+      // little mushrooms growing all over them
+      const sprouts = [
+        [0.42, 0.95, 0.15], [-0.45, 1.02, -0.1], [0.3, 0.55, -0.42],
+        [-0.28, 0.62, 0.4], [0.16, 1.18, -0.5],
+      ];
+      sprouts.forEach(([sx, sy, sz], i) => {
+        const c = NEON[(i + p.sproutSeed) % NEON.length];
+        const s = 0.6 + (i % 3) * 0.18;
+        part(g, 'taper', mat(0xf6ecd9), 0.1 * s, 0.26 * s, 0.1 * s, sx, sy, sz);
+        part(g, 'dome', glow(c, 0.8), 0.34 * s, 0.24 * s, 0.34 * s, sx, sy + 0.12 * s, sz);
+      });
+      // kawaii face (front = +z)
+      const eyeDark = mat(0x2b1b3d, 0.4), eyeWhite = mat(0xffffff, 0.3);
+      for (const sx of [-0.19, 0.19]) {
+        const e = part(g, 'sph', eyeDark, 0.15, 0.19, 0.09, sx, 1.34, 0.53);
+        part(g, 'sph', eyeWhite, 0.06, 0.06, 0.05, sx + 0.05, 1.4, 0.58);
+        part(g, 'sph', eyeWhite, 0.03, 0.03, 0.03, sx - 0.04, 1.29, 0.585);
+        e.userData.isEye = true;
+      }
+      for (const sx of [-0.36, 0.36]) {
+        part(g, 'sph', mat(0xff9ec7, 0.5), 0.17, 0.11, 0.06, sx, 1.22, 0.46, 0, sx > 0 ? -0.6 : 0.6, 0);
+      }
+      part(g, 'sph', eyeDark, 0.1, 0.09, 0.06, 0, 1.19, 0.56);
+      return g;
+    }
+
+    // Ten neighbours, each with things to say
+    const NPC_DATA = [
+      {
+        name: 'Button', cap: 0xff2e88, cloth: 0x8b3fa8, skin: 0xf3d9b0, sproutSeed: 0,
+        lines: [
+          'Hello! Welcome to Mushroom City! I grew this hat myself, you know.',
+          'My house is a mushroom. So is my neighbour\'s. So is EVERYTHING, really.',
+          'If you stand still long enough, someone always comes over to say hi.',
+          'Careful where you sit — half the benches are still growing!',
+        ],
+      },
+      {
+        name: 'Truffle', cap: 0x00f0ff, cloth: 0x1f5f8b, skin: 0xd6a97a, sproutSeed: 1,
+        lines: [
+          'I bake mushroom buns. Guess what they\'re made of. Go on, guess.',
+          'My oven is inside a mushroom. My flour is ground mushroom. I have a problem.',
+          'Everyone here is covered in mushrooms. It\'s just the fashion.',
+          'Come inside my house sometime! The door\'s the gap in the stem.',
+        ],
+      },
+      {
+        name: 'Puffball', cap: 0xffe600, cloth: 0xd98f2b, skin: 0x8d5a34, sproutSeed: 2,
+        lines: [
+          'BOING! Sorry. I get excited when new people walk about the city.',
+          'I saw you coming from ALL the way over there and ran straight over!',
+          'Want to race round the ring road? I always lose. I don\'t mind.',
+          'When I sneeze, spores go everywhere. Everyone says it\'s fine.',
+        ],
+      },
+      {
+        name: 'Morel', cap: 0xb38bff, cloth: 0x4a3570, skin: 0xf3d9b0, sproutSeed: 3,
+        lines: [
+          'I am the mayor of Mushroom City. It\'s mostly a mushroom-related job.',
+          'Our city plan is simple: grow a mushroom, live in it, grow another.',
+          'The big pink one in the middle? That\'s the Mother Mushroom. We all came from her.',
+          'Do have a wander. Everyone will come and talk to you, they always do.',
+        ],
+      },
+      {
+        name: 'Gilly', cap: 0x3dff8b, cloth: 0x2c7a4b, skin: 0xc08552, sproutSeed: 4,
+        lines: [
+          'I garden mushrooms. On the ground, on the roofs, on my own arms.',
+          'This little one on my shoulder is called Steve. Say hello to Steve.',
+          'Do you have mushrooms growing on YOU yet? Give it a day or two.',
+          'Water, dark, patience. That\'s all a mushroom really wants.',
+        ],
+      },
+      {
+        name: 'Shiitake', cap: 0xff9e57, cloth: 0x9b4a1f, skin: 0x6b4226, sproutSeed: 5,
+        lines: [
+          'I play the mushroom drums. You hit the caps. They go BOOMF.',
+          'Every mushroom has a different note. Mine is a sort of squishy G.',
+          'The lamps here glow in time with the music if you listen closely.',
+          'Come find me at night. It\'s always night, so — now works!',
+        ],
+      },
+      {
+        name: 'Chanty', cap: 0xff5ad2, cloth: 0xa8246e, skin: 0xe0b183, sproutSeed: 1,
+        lines: [
+          'Ooh, a visitor! We don\'t get many. Mind the spores, they tickle.',
+          'My cap is frilly. It took AGES. Do you like it?',
+          'I know everyone in this city. All of them. All the mushroom ones.',
+          'The glowing gills under the roofs are our ceiling lights. Clever, no?',
+        ],
+      },
+      {
+        name: 'Inky', cap: 0x7ee8fa, cloth: 0x2b3a6b, skin: 0x8d5a34, sproutSeed: 3,
+        lines: [
+          'I keep watch at night. Which is always. So I never stop working.',
+          'Nothing bad ever happens here. Mostly I just wave at people.',
+          'If you get lost, walk towards the big pink glow. That\'s the middle.',
+          'The forest round the edge is mushrooms too. It\'s mushrooms all the way out.',
+        ],
+      },
+      {
+        name: 'Porto', cap: 0x9d5cff, cloth: 0x543a8b, skin: 0xc08552, sproutSeed: 0,
+        lines: [
+          'Hello. I am. Very. Slow. But I got here. Eventually.',
+          'Big cap, you see. Lot of weight to carry about.',
+          'I have been walking over to say hello to you since Tuesday.',
+          'Take your time in our city. Everything grows slowly here.',
+        ],
+      },
+      {
+        name: 'Enoki', cap: 0xfff0b8, cloth: 0xc9a227, skin: 0xf3d9b0, spots: false, sproutSeed: 2,
+        lines: [
+          'HiHiHi! I\'m Enoki! I\'m small and there are lots of me!',
+          'Skinny stem, tiny cap, very fast legs. That\'s the whole of me.',
+          'You walked here? Wow. Most people just grow where they are.',
+          'Talk to everyone! Then everyone will be your friend. That\'s maths.',
+        ],
+      },
+    ];
+
+    const npcs = [];
+    NPC_DATA.forEach((d, i) => {
+      const g = makeMushroomPerson(d);
+      const a = (i / NPC_DATA.length) * Math.PI * 2 + 0.35;
+      const d0 = 11 + (i % 4) * 3.2;
+      const x = Math.sin(a) * d0, z = Math.cos(a) * d0;
+      g.position.set(x, 0, z);
+      g.rotation.y = Math.atan2(-x, -z);
+      const scale = d.name === 'Enoki' ? 0.72 : d.name === 'Porto' ? 1.22 : 0.92 + (i % 3) * 0.08;
+      g.scale.setScalar(scale);
+      scene.add(g);
+
+      // a little 💬 that pops up over their head
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 128;
+      const c = cv.getContext('2d');
+      c.font = '96px serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('💬', 64, 70);
+      const bubble = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+      bubble.scale.setScalar(0.9);
+      bubble.position.set(0, 2.5, 0);
+      bubble.visible = false;
+      g.add(bubble);
+
+      npcs.push({
+        data: d, group: g, bubble, scale,
+        state: 'wander',           // wander | coming | chat
+        homeX: x, homeZ: z,
+        tx: x, tz: z, wt: Math.random() * 4,
+        speed: d.name === 'Porto' ? 0.9 : d.name === 'Enoki' ? 2.6 : 1.5 + Math.random() * 0.6,
+        yaw: g.rotation.y,
+        phase: Math.random() * 6.28,
+        line: 0, met: false, cooldown: 0, bestDist: Infinity, stuckT: 0,
+      });
+    });
+    document.getElementById('hud-total').textContent = String(npcs.length);
+
+    // ============================================================
+    // Player & controls
+    // ============================================================
+    const player = { x: 0, z: 13, yaw: Math.PI, pitch: 0 };
+    const EYE = 1.55, RADIUS = 0.5, WORLD_R = 62, SPEED = 5.2;
+    const move = { f: 0, s: 0 };
+
+    function resolveCollisions(nx, nz, radius = RADIUS, limit = WORLD_R) {
+      for (const o of obstacles) {
+        const dx = nx - o.x, dz = nz - o.z;
+        const dist = Math.hypot(dx, dz), min = o.r + radius;
+        if (dist < min && dist > 0.0001) {
+          nx = o.x + (dx / dist) * min;
+          nz = o.z + (dz / dist) * min;
+        }
+      }
+      const dc = Math.hypot(nx, nz);
+      if (dc > limit) { nx = (nx / dc) * limit; nz = (nz / dc) * limit; }
+      return [nx, nz];
+    }
+
+    const joy = document.getElementById('joy');
+    const thumb = joy.querySelector('.thumb');
+    let joyId = null;
+    function setJoy(cx, cy) {
+      const r = joy.getBoundingClientRect();
+      let dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+      const max = r.width / 2, d = Math.hypot(dx, dy);
+      if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+      thumb.style.transform = `translate(${dx}px, ${dy}px)`;
+      move.s = dx / max;
+      move.f = -dy / max;
+    }
+    joy.addEventListener('pointerdown', e => { joyId = e.pointerId; setJoy(e.clientX, e.clientY); joy.setPointerCapture(e.pointerId); });
+    joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) setJoy(e.clientX, e.clientY); });
+    function endJoy(e) { if (e.pointerId === joyId) { joyId = null; thumb.style.transform = ''; move.f = move.s = 0; } }
+    joy.addEventListener('pointerup', endJoy);
+    joy.addEventListener('pointercancel', endJoy);
+
+    let lookId = null, lastLook = null;
+    renderer.domElement.addEventListener('pointerdown', e => { lookId = e.pointerId; lastLook = { x: e.clientX, y: e.clientY }; });
+    addEventListener('pointermove', e => {
+      if (e.pointerId !== lookId || gyroOn) return;
+      player.yaw -= (e.clientX - lastLook.x) * 0.005;
+      player.pitch -= (e.clientY - lastLook.y) * 0.005;
+      player.pitch = Math.max(-1.2, Math.min(1.2, player.pitch));
+      lastLook = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener('pointerup', e => { if (e.pointerId === lookId) lookId = null; });
+
+    const keys = {};
+    addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'KeyE' || e.code === 'Space' || e.code === 'Enter') {
+        if (started) { e.preventDefault(); doTalk(); }
+      }
+    });
+    addEventListener('keyup', e => { keys[e.code] = false; });
+    function readKeys() {
+      let f = 0, s = 0;
+      if (keys.KeyW || keys.ArrowUp) f += 1;
+      if (keys.KeyS || keys.ArrowDown) f -= 1;
+      if (keys.KeyD || keys.ArrowRight) s += 1;
+      if (keys.KeyA || keys.ArrowLeft) s -= 1;
+      if (f || s) { move.f = f; move.s = s; }
+    }
+
+    let gyroOn = false, gyroBase = null;
+    const gyroBtn = document.getElementById('gyroBtn');
+    gyroBtn.addEventListener('click', async () => {
+      if (!gyroOn) {
+        if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) {
+          try { const p = await DeviceOrientationEvent.requestPermission(); if (p !== 'granted') return; } catch (e) { return; }
+        }
+        gyroOn = true; gyroBase = null; gyroBtn.classList.remove('off');
+      } else {
+        gyroOn = false; gyroBtn.classList.add('off');
+      }
+    });
+    addEventListener('deviceorientation', e => {
+      if (!gyroOn || e.alpha === null) return;
+      if (!gyroBase) gyroBase = e.alpha;
+      let d = ((e.alpha - gyroBase + 540) % 360) - 180;
+      player.yaw = -d * Math.PI / 180;
+      player.pitch = Math.max(-1.2, Math.min(1.2, ((e.beta ?? 90) - 90) * Math.PI / 180));
+    });
+
+    // ============================================================
+    // Sound
+    // ============================================================
+    let actx = null, ambientGain = null, muted = false;
+    function initAudio() {
+      if (actx) return;
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      ambientGain = actx.createGain();
+      ambientGain.gain.value = 0.035;
+      ambientGain.connect(actx.destination);
+      [174.6, 220, 261.6].forEach((f, i) => {
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        const lfo = actx.createOscillator(), lg = actx.createGain();
+        lfo.frequency.value = 0.05 + i * 0.04; lg.gain.value = 0.5;
+        lfo.connect(lg).connect(g.gain);
+        g.gain.value = 0.5;
+        o.connect(g).connect(ambientGain);
+        o.start(); lfo.start();
+      });
+    }
+    function blip(freq = 620, dur = 0.08) {
+      if (!actx || muted) return;
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(freq, actx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(freq * 1.5, actx.currentTime + dur);
+      g.gain.setValueAtTime(0.09, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g).connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur);
+    }
+    const muteBtn = document.getElementById('muteBtn');
+    muteBtn.addEventListener('click', () => {
+      muted = !muted;
+      if (ambientGain) ambientGain.gain.value = muted ? 0 : 0.035;
+      muteBtn.textContent = muted ? '🔇' : '🔊';
+      muteBtn.classList.toggle('off', muted);
+    });
+
+    // ============================================================
+    // Talking
+    // ============================================================
+    const talkBtn = document.getElementById('talkBtn');
+    const dialogue = document.getElementById('dialogue');
+    const dlgName = document.getElementById('dlgName');
+    const dlgText = document.getElementById('dlgText');
+    const hudFriends = document.getElementById('hud-friends');
+    const screenDiv = document.getElementById('screen');
+    let nearest = null, talking = null, friends = 0;
+
+    function doTalk() {
+      if (talking) {                     // next line, or end
+        talking.line++;
+        if (talking.line >= talking.data.lines.length) {
+          endTalk();
+          return;
+        }
+        dlgText.textContent = talking.data.lines[talking.line];
+        blip(700 + Math.random() * 120);
+        return;
+      }
+      if (!nearest) return;
+      talking = nearest;
+      talking.state = 'chat';
+      talking.line = 0;
+      dlgName.textContent = talking.data.name;
+      dlgText.textContent = talking.data.lines[0];
+      dialogue.hidden = false;
+      talkBtn.hidden = true;
+      blip(760);
+      if (!talking.met) {
+        talking.met = true;
+        friends++;
+        hudFriends.textContent = String(friends);
+        if (friends === npcs.length) setTimeout(showAllFriends, 700);
+      }
+    }
+    function endTalk() {
+      if (talking) {
+        talking.cooldown = 6;
+        talking.state = 'wander';
+        talking.wt = 0;
+        talking = null;
+      }
+      dialogue.hidden = true;
+      blip(430, 0.1);
+    }
+    talkBtn.addEventListener('click', doTalk);
+    dialogue.addEventListener('click', doTalk);
+
+    function showAllFriends() {
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <h1>EVERYONE'S<br>YOUR FRIEND!</h1>
+        <div style="font-size:2.4rem">🍄🎉🍄</div>
+        <p>You talked to all ${npcs.length} mushroom people in Mushroom City. They're all very pleased about it.</p>
+        <button class="btn" data-act="close">KEEP EXPLORING</button>
+      </div></div>`;
+      screenDiv.querySelector('[data-act=close]').addEventListener('click', () => { screenDiv.innerHTML = ''; });
+    }
+
+    // ============================================================
+    // Main loop
+    // ============================================================
+    const clock = new THREE.Clock();
+    let started = false;
+
+    const NOTICE_R = 15;   // they spot you from here and come over
+    const CHAT_R = 2.6;    // and stop about here
+    const TALK_R = 3.6;    // you can talk to whoever is this close
+
+    // Mushroom people bump into mushrooms too — they walk round them, not through.
+    function moveNpc(n, stepX, stepZ) {
+      const g = n.group;
+      const [nx, nz] = resolveCollisions(g.position.x + stepX, g.position.z + stepZ, 0.45, WORLD_R);
+      g.position.x = nx;
+      g.position.z = nz;
+    }
+
+    function pickWanderTarget(n) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 2 + Math.random() * 6;
+      let tx = n.homeX + Math.sin(a) * d, tz = n.homeZ + Math.cos(a) * d;
+      const dist = Math.hypot(tx, tz);
+      if (dist > 20) { tx = (tx / dist) * 20; tz = (tz / dist) * 20; } // stay inside the ring road
+      if (dist < 3.6) { tx *= 1.8; tz *= 1.8; }
+      n.tx = tx; n.tz = tz;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(0.05, clock.getDelta());
+      const t = clock.elapsedTime;
+
+      if (started) {
+        readKeys();
+        if (move.f || move.s) {
+          const fwdX = -Math.sin(player.yaw), fwdZ = -Math.cos(player.yaw);
+          const rgtX = Math.cos(player.yaw), rgtZ = -Math.sin(player.yaw);
+          let vx = fwdX * move.f + rgtX * move.s;
+          let vz = fwdZ * move.f + rgtZ * move.s;
+          const vm = Math.hypot(vx, vz) || 1;
+          [player.x, player.z] = resolveCollisions(
+            player.x + (vx / vm) * SPEED * dt,
+            player.z + (vz / vm) * SPEED * dt,
+          );
+        }
+        if (joyId === null && !keys.KeyW && !keys.KeyS && !keys.KeyA && !keys.KeyD &&
+            !keys.ArrowUp && !keys.ArrowDown && !keys.ArrowLeft && !keys.ArrowRight) {
+          move.f = move.s = 0;
+        }
+      }
+
+      camera.position.set(player.x, EYE + Math.sin(t * 1.4) * 0.02, player.z);
+      camera.rotation.set(player.pitch, player.yaw, 0, 'YXZ');
+
+      // ---- mushroom people ----
+      // They crowd round you, so track the nearest overall AND the nearest
+      // stranger — talking should offer someone new before a repeat.
+      let best = null, bestD = Infinity, fresh = null, freshD = Infinity;
+      for (const n of npcs) {
+        const g = n.group;
+        const dx = player.x - g.position.x, dz = player.z - g.position.z;
+        const distToPlayer = Math.hypot(dx, dz);
+        if (n.cooldown > 0) n.cooldown -= dt;
+
+        if (started) {
+          if (n.state === 'chat') {
+            // face the player while chatting
+            n.yaw = Math.atan2(dx, dz);
+            if (n !== talking && distToPlayer > TALK_R + 2.5) { n.state = 'wander'; n.wt = 0; }
+          } else if (n.state === 'coming') {
+            if (distToPlayer > CHAT_R) {
+              const sp = n.speed * (distToPlayer > 8 ? 1.25 : 1);
+              moveNpc(n, (dx / distToPlayer) * sp * dt, (dz / distToPlayer) * sp * dt);
+              n.yaw = Math.atan2(dx, dz);
+              g.position.y = Math.abs(Math.sin(t * 7 + n.phase)) * 0.09; // bouncy walk
+              // if a mushroom is in the way (you're indoors, say), give up eventually
+              if (distToPlayer < n.bestDist - 0.1) { n.bestDist = distToPlayer; n.stuckT = 0; }
+              else n.stuckT += dt;
+              if (n.stuckT > 4) { n.state = 'wander'; n.wt = 0; n.cooldown = 6; }
+            } else {
+              n.state = 'chat';
+              g.position.y = 0;
+            }
+            if (distToPlayer > NOTICE_R + 8) { n.state = 'wander'; n.wt = 0; }
+          } else {
+            // wander — but come over if the player is nearby
+            if (distToPlayer < NOTICE_R && n.cooldown <= 0) {
+              n.state = 'coming';
+              n.bestDist = distToPlayer;
+              n.stuckT = 0;
+              if (!n.noticed) { n.noticed = true; blip(520 + Math.random() * 200, 0.06); }
+            } else {
+              n.wt -= dt;
+              if (n.wt <= 0) { pickWanderTarget(n); n.wt = 3 + Math.random() * 4; }
+              const wx = n.tx - g.position.x, wz = n.tz - g.position.z;
+              const wd = Math.hypot(wx, wz);
+              if (wd > 0.15) {
+                moveNpc(n, (wx / wd) * n.speed * 0.45 * dt, (wz / wd) * n.speed * 0.45 * dt);
+                n.yaw = Math.atan2(wx, wz);
+                g.position.y = Math.abs(Math.sin(t * 4.5 + n.phase)) * 0.05;
+              } else {
+                g.position.y = Math.abs(Math.sin(t * 1.8 + n.phase)) * 0.03;
+              }
+            }
+            if (distToPlayer > NOTICE_R + 4) n.noticed = false;
+          }
+        } else {
+          g.position.y = Math.abs(Math.sin(t * 1.8 + n.phase)) * 0.03;
+        }
+
+        // smooth turn
+        const diff = ((n.yaw - g.rotation.y + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        g.rotation.y += diff * Math.min(1, dt * 7);
+
+        // bubble over anyone heading for you or stood chatting
+        n.bubble.visible = started && !talking && (n.state === 'coming' || n.state === 'chat') && distToPlayer < NOTICE_R;
+        n.bubble.position.y = 2.45 / n.scale + Math.sin(t * 3 + n.phase) * 0.06;
+
+        if (distToPlayer < bestD) { bestD = distToPlayer; best = n; }
+        if (!n.met && distToPlayer < freshD) { freshD = distToPlayer; fresh = n; }
+      }
+
+      // who can we talk to? a new face in range wins over one we've met
+      nearest = !started ? null
+        : (freshD < TALK_R) ? fresh
+        : (bestD < TALK_R) ? best
+        : null;
+      if (!talking) talkBtn.hidden = !nearest;
+      if (talking && Math.hypot(player.x - talking.group.position.x, player.z - talking.group.position.z) > TALK_R + 3) {
+        endTalk(); // walked off mid-chat
+      }
+
+      // drifting spores
+      const pos = spores.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        let y = pos.getY(i) + dt * 0.35;
+        if (y > 15) y = 0;
+        pos.setY(i, y);
+        pos.setX(i, pos.getX(i) + Math.sin(t * 0.4 + i) * dt * 0.12);
+      }
+      pos.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ============================================================
+    // Intro
+    // ============================================================
+    function showIntro() {
+      screenDiv.innerHTML = `<div class="modal"><div class="card">
+        <h1>MUSHROOM CITY</h1>
+        <div class="byline">A WORLD BY TILLY</div>
+        <div style="font-size:2.4rem">🍄🏙️🍄</div>
+        <p>Everyone's house is a mushroom. The people are covered in mushrooms. The whole city is mushrooms!</p>
+        <p>Walk about and say hello — and if you stand near someone, they'll come over to talk to <em>you</em>.</p>
+        <div class="controls-help">🕹️ Drag the circle to walk<br>👆 Swipe the screen to look<br>💬 Tap TALK when someone's close<br>⌨️ Or WASD + E to chat</div>
+        <button class="btn" data-act="go">GO EXPLORE</button>
+      </div></div>`;
+      screenDiv.querySelector('[data-act=go]').addEventListener('click', () => {
+        screenDiv.innerHTML = '';
+        started = true;
+        initAudio();
+        if (actx && actx.state === 'suspended') actx.resume();
+      });
+    }
+    showIntro();
+
+    // State peek for automated testing.
+    window.__mc = {
+      player,
+      start: () => { started = true; screenDiv.innerHTML = ''; },
+      talk: doTalk,
+      state: () => ({
+        friends,
+        talking: talking ? talking.data.name : null,
+        line: talking ? talking.line : -1,
+        nearest: nearest ? nearest.data.name : null,
+        talkVisible: !talkBtn.hidden,
+        npcs: npcs.map(n => ({
+          name: n.data.name, state: n.state, met: n.met,
+          x: +n.group.position.x.toFixed(2), z: +n.group.position.z.toFixed(2),
+          dist: +Math.hypot(player.x - n.group.position.x, player.z - n.group.position.z).toFixed(2),
+        })),
+      }),
+      counts: () => ({ obstacles: obstacles.length, npcs: npcs.length }),
+    };
+  </script>
+</body>
+</html>
