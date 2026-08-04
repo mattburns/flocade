@@ -52,6 +52,12 @@ body {
 
 /* Install pill */
 
+/* display:inline-flex would override the hidden attribute's display:none,
+   so hidden must win explicitly or the pill shows even when dismissed/installed */
+.install-pill[hidden] {
+  display: none;
+}
+
 .install-pill {
   margin-top: 1.75rem;
   display: inline-flex;
