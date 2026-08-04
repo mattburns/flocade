@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- No user-scalable=no/maximum-scale: iOS Safari ignores them, but installed
+       home-screen apps honour them, and there they can stop the keyboard
+       appearing when you tap a text field. Allowing zoom is friendlier anyway. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>I Ate an Author — Flocade</title>
   <link rel="stylesheet" href="../../fonts/fonts.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✍️</text></svg>">
@@ -21,6 +24,13 @@
       --arcade: 'Press Start 2P', monospace;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* iOS won't focus a field that inherits user-select:none, and needs the tap
+       to reach it — spell both out so the keyboard always comes up. */
+    input, textarea, [contenteditable] {
+      -webkit-user-select: text;
+      user-select: text;
+      touch-action: manipulation;
+    }
     html, body { height: 100%; }
     body {
       background: var(--bg);
