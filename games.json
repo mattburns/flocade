@@ -174,6 +174,12 @@
     "description": "Spin a 3D die with a drag, then tap its faces in order — 1, 2, 3… Correct taps buy you time! Levels climb from D6 to D20, with dots or numbers."
   },
   {
+    "slug": "what-bot",
+    "title": "What Bot",
+    "icon": "💬",
+    "description": "Like a messaging app, but there's one friend to talk to and they're an A.I. Name them, draw both your pictures, and chat away — your chat is saved, and they never stop reminding you they're not real."
+  },
+  {
     "slug": "mushroom-city",
     "title": "Mushroom City",
     "icon": "🍄",

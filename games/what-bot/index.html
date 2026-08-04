@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>What Bot — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --purple: #b38bff;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ---------- top bar ---------- */
+    .topbar {
+      flex: none;
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.8rem;
+      background: var(--panel);
+      border-bottom: 2px solid var(--panel2);
+    }
+    a.back {
+      color: var(--cyan); text-decoration: none;
+      font-family: 'Press Start 2P', monospace; font-size: 0.6rem;
+      white-space: nowrap;
+    }
+    .who { display: flex; align-items: center; gap: 0.55rem; min-width: 0; flex: 1; }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      border: 2px solid var(--cyan);
+      background: var(--panel2);
+      object-fit: cover; flex: none;
+      image-rendering: auto;
+    }
+    .whoText { min-width: 0; }
+    .whoName {
+      font-family: 'Press Start 2P', monospace; font-size: 0.72rem; color: var(--yellow);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .whoSub { font-size: 0.7rem; color: var(--dim); margin-top: 3px; }
+    .menuBtn {
+      flex: none;
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--text); font-size: 1.1rem; width: 40px; height: 40px;
+    }
+    .menuBtn:hover { border-color: var(--pink); }
+
+    /* ---------- chat ---------- */
+    #chatWrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .notReal {
+      flex: none;
+      background: rgba(255, 46, 136, 0.14);
+      border-bottom: 1px solid rgba(255, 46, 136, 0.4);
+      color: #ffc3dd;
+      font-size: 0.78rem; text-align: center; padding: 0.45rem 0.8rem;
+    }
+    #messages {
+      flex: 1; overflow-y: auto; padding: 0.9rem 0.8rem 0.4rem;
+      display: flex; flex-direction: column; gap: 0.55rem;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(179, 139, 255, 0.07), transparent 45%),
+        radial-gradient(circle at 85% 80%, rgba(0, 240, 255, 0.07), transparent 45%);
+      scroll-behavior: smooth;
+    }
+    .row { display: flex; gap: 0.5rem; align-items: flex-end; max-width: 100%; }
+    .row.you { flex-direction: row-reverse; }
+    .row .avatar { width: 32px; height: 32px; border-width: 2px; }
+    .bubble {
+      max-width: min(74%, 27rem);
+      padding: 0.65rem 0.85rem;
+      border-radius: 18px;
+      font-size: 1rem; line-height: 1.5;
+      word-wrap: break-word; overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+    .row.bot .bubble {
+      background: var(--panel2);
+      border: 2px solid rgba(0, 240, 255, 0.55);
+      border-bottom-left-radius: 5px;
+    }
+    .row.you .bubble {
+      background: #3d0f43;
+      border: 2px solid rgba(255, 46, 136, 0.75);
+      border-bottom-right-radius: 5px;
+    }
+    .time { font-size: 0.62rem; color: var(--dim); margin-top: 0.3rem; }
+    .note {
+      align-self: center; text-align: center;
+      max-width: 32rem;
+      font-size: 0.78rem; color: #ffc3dd;
+      background: rgba(255, 46, 136, 0.12);
+      border: 1px dashed rgba(255, 46, 136, 0.5);
+      border-radius: 12px;
+      padding: 0.45rem 0.8rem;
+      margin: 0.15rem 0;
+    }
+    .typing .bubble { color: var(--dim); letter-spacing: 3px; }
+
+    /* ---------- composer ---------- */
+    .composer {
+      flex: none;
+      display: flex; gap: 0.5rem; padding: 0.6rem 0.7rem;
+      background: var(--panel);
+      border-top: 2px solid var(--panel2);
+    }
+    .composer input {
+      flex: 1; min-width: 0;
+      background: var(--bg); color: var(--text);
+      border: 2px solid var(--panel2); border-radius: 999px;
+      padding: 0.8rem 1rem; font-size: 1rem; font-family: inherit;
+      outline: none;
+    }
+    .composer input:focus { border-color: var(--cyan); }
+    .sendBtn {
+      flex: none;
+      background: var(--pink); color: #fff; border: none;
+      border-radius: 50%; width: 50px; height: 50px; font-size: 1.3rem;
+    }
+    .sendBtn:active { transform: scale(0.94); }
+
+    /* ---------- screens & modals ---------- */
+    .screen {
+      position: fixed; inset: 0; z-index: 20;
+      background: rgba(6, 1, 16, 0.94);
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex; align-items: flex-start; justify-content: center;
+    }
+    .screen[hidden] { display: none; }
+    .card {
+      background: var(--panel);
+      border: 3px solid var(--pink);
+      border-radius: 20px;
+      padding: 1.2rem;
+      width: 100%; max-width: 27rem;
+      margin: auto;
+      box-shadow: 0 0 30px rgba(255, 46, 136, 0.3);
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.6vw, 1.35rem);
+      color: var(--pink); text-align: center; line-height: 1.6;
+      text-shadow: 0 0 16px rgba(255, 46, 136, 0.7);
+    }
+    .byline {
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+      color: var(--yellow); text-align: center; margin: 0.5rem 0 0.9rem;
+    }
+    .card h2 {
+      font-family: 'Press Start 2P', monospace; font-size: 0.7rem;
+      color: var(--cyan); margin: 1rem 0 0.6rem;
+    }
+    .card p { font-size: 0.93rem; line-height: 1.6; color: var(--text); margin-bottom: 0.7rem; }
+    .card p.small { font-size: 0.83rem; color: var(--dim); }
+    .field {
+      width: 100%;
+      background: var(--bg); color: var(--text);
+      border: 2px solid var(--panel2); border-radius: 12px;
+      padding: 0.75rem 0.9rem; font-size: 1rem; font-family: inherit;
+      outline: none;
+    }
+    .field:focus { border-color: var(--cyan); }
+    .btn {
+      background: var(--pink); color: #fff; border: none;
+      border-radius: 999px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.7rem; padding: 0.9rem 1.2rem;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+      width: 100%; margin-top: 0.9rem;
+    }
+    .btn:active { transform: translateY(3px); box-shadow: none; }
+    .btn.ghost {
+      background: none; border: 2px solid var(--panel2); color: var(--text);
+      box-shadow: none;
+    }
+    .btn.danger { background: #d11a4e; }
+    .btnRow { display: flex; gap: 0.5rem; }
+    .btnRow .btn { margin-top: 0.9rem; }
+
+    /* ---------- drawing pad ---------- */
+    .pad { display: flex; flex-direction: column; align-items: center; gap: 0.55rem; }
+    .padCanvas {
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      border: 3px solid var(--cyan);
+      background: #fff;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    .swatches { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 17rem; }
+    .sw {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.35);
+    }
+    .sw.on { border-color: #fff; transform: scale(1.18); }
+    .padTools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+    .tbtn {
+      background: var(--panel2); color: var(--text);
+      border: 2px solid transparent; border-radius: 10px;
+      padding: 0.45rem 0.6rem; font-size: 0.85rem;
+    }
+    .tbtn.on { border-color: var(--yellow); }
+    .sizes { display: flex; gap: 6px; align-items: center; }
+    .sizeDot { background: var(--panel2); border: 2px solid transparent; border-radius: 50%; width: 34px; height: 34px; display: grid; place-items: center; }
+    .sizeDot.on { border-color: var(--yellow); }
+    .sizeDot i { display: block; background: var(--text); border-radius: 50%; }
+  </style>
+</head>
+<body>
+  <!-- ============ CHAT ============ -->
+  <div class="topbar">
+    <a class="back" href="../../">&larr;</a>
+    <div class="who">
+      <img class="avatar" id="botAvatar" alt="">
+      <div class="whoText">
+        <div class="whoName" id="botNameLabel">Ruby</div>
+        <div class="whoSub">🤖 not a real person</div>
+      </div>
+    </div>
+    <button class="menuBtn" id="menuBtn" title="Menu">⋮</button>
+  </div>
+
+  <div id="chatWrap">
+    <div class="notReal" id="notRealBanner">Just so you know: <b id="botNameBanner">Ruby</b> is a pretend AI friend made of code. Not a real person!</div>
+    <div id="messages"></div>
+    <form class="composer" id="composer">
+      <input id="input" type="text" placeholder="Type a message…" autocomplete="off"
+             autocorrect="on" autocapitalize="sentences" maxlength="500" aria-label="Message">
+      <button class="sendBtn" type="submit" title="Send">➤</button>
+    </form>
+  </div>
+
+  <!-- ============ SETUP ============ -->
+  <div class="screen" id="setupScreen" hidden>
+    <div class="card">
+      <h1>WHAT BOT</h1>
+      <div class="byline">BY FLO</div>
+      <p>It's like a messaging app, but there's only one person to talk to — and they're an <b>A.I.</b> they're kind, they're a good listener, and they're <b>not real</b>. Ever.</p>
+
+      <h2>1. YOU</h2>
+      <p class="small">Your real name or a made-up one — whatever you fancy.</p>
+      <input class="field" id="yourNameField" type="text" maxlength="18" placeholder="Your name…">
+      <p class="small" style="margin-top:0.8rem">Draw your profile picture:</p>
+      <div class="pad">
+        <canvas class="padCanvas" id="youPad"></canvas>
+        <div class="swatches" id="youSwatches"></div>
+        <div class="padTools">
+          <div class="sizes" id="youSizes"></div>
+          <button class="tbtn" id="youErase" type="button">🧽 Rubber</button>
+          <button class="tbtn" id="youUndo" type="button">↩️ Undo</button>
+          <button class="tbtn" id="youClear" type="button">🗑️ Clear</button>
+        </div>
+      </div>
+
+      <h2>2. YOUR A.I. FRIEND</h2>
+      <p class="small">Give them a name — you can change it any time.</p>
+      <input class="field" id="botNameField" type="text" maxlength="18" placeholder="Bot name…" value="Ruby">
+      <p class="small" style="margin-top:0.8rem">Design their picture:</p>
+      <div class="pad">
+        <canvas class="padCanvas" id="botPad"></canvas>
+        <div class="swatches" id="botSwatches"></div>
+        <div class="padTools">
+          <div class="sizes" id="botSizes"></div>
+          <button class="tbtn" id="botRandom" type="button">🎲 Robot face</button>
+          <button class="tbtn" id="botErase" type="button">🧽 Rubber</button>
+          <button class="tbtn" id="botUndo" type="button">↩️ Undo</button>
+          <button class="tbtn" id="botClear" type="button">🗑️ Clear</button>
+        </div>
+      </div>
+
+      <button class="btn" id="startBtn" type="button">START CHATTING</button>
+    </div>
+  </div>
+
+  <!-- ============ MENU ============ -->
+  <div class="screen" id="menuScreen" hidden>
+    <div class="card">
+      <h1>MENU</h1>
+      <p class="small" style="text-align:center">Chatting with <b id="menuBotName">Ruby</b> — a pretend A.I. friend, not a real person.</p>
+      <button class="btn ghost" id="renameBtn" type="button">✏️ RENAME BOT</button>
+      <button class="btn ghost" id="editProfilesBtn" type="button">🎨 EDIT PICTURES</button>
+      <button class="btn danger" id="deleteBtn" type="button">🗑️ DELETE CHAT</button>
+      <button class="btn" id="closeMenuBtn" type="button">BACK TO CHAT</button>
+    </div>
+  </div>
+
+  <!-- ============ RENAME ============ -->
+  <div class="screen" id="renameScreen" hidden>
+    <div class="card">
+      <h1>NEW NAME</h1>
+      <p class="small">What should your A.I. friend be called? You can change this whenever you like.</p>
+      <input class="field" id="renameField" type="text" maxlength="18" placeholder="Bot name…">
+      <div class="btnRow">
+        <button class="btn ghost" id="renameCancel" type="button">CANCEL</button>
+        <button class="btn" id="renameSave" type="button">SAVE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DELETE CONFIRM ============ -->
+  <div class="screen" id="deleteScreen" hidden>
+    <div class="card">
+      <h1>DELETE CHAT?</h1>
+      <p>This wipes every message. Your names and pictures stay. You can't undo it!</p>
+      <div class="btnRow">
+        <button class="btn ghost" id="deleteCancel" type="button">KEEP IT</button>
+        <button class="btn danger" id="deleteConfirm" type="button">DELETE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // What Bot — by Flo.
+  // A one-friend messaging app. The friend is an A.I. that runs
+  // entirely in this page: every word it can say is written below,
+  // so it works offline and never says anything unexpected.
+  // It reminds you it isn't real, on purpose and often.
+  // ==========================================================
+
+  const KEY = {
+    you: 'flocade-whatbot-you',
+    bot: 'flocade-whatbot-bot',
+    youPic: 'flocade-whatbot-youpic',
+    botPic: 'flocade-whatbot-botpic',
+    chat: 'flocade-whatbot-chat',
+    facts: 'flocade-whatbot-facts',
+    setup: 'flocade-whatbot-setup',
+  };
+  const load = (k, d = null) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch { return d; } };
+  const save = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const loadJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const saveJSON = (k, v) => save(k, JSON.stringify(v));
+
+  let youName = load(KEY.you, '');
+  let botName = load(KEY.bot, 'Ruby');
+  let messages = loadJSON(KEY.chat, []);
+  let facts = loadJSON(KEY.facts, {});
+
+  // ==========================================================
+  // Drawing pad — used for both profile pictures
+  // ==========================================================
+  const PALETTE = ['#000000', '#ffffff', '#ff2e88', '#ff5a5a', '#ff9e3d', '#ffe600',
+                   '#3dff8b', '#00f0ff', '#4a6cff', '#b38bff', '#8a5a3b', '#9aa3b8'];
+
+  class DrawPad {
+    constructor(canvas, swatchBox, sizeBox) {
+      this.canvas = canvas;
+      this.size = 220;
+      canvas.width = canvas.height = this.size;
+      this.ctx = canvas.getContext('2d');
+      this.color = '#ff2e88';
+      this.width = 10;
+      this.erasing = false;
+      this.history = [];
+      this.clear(false);
+
+      PALETTE.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sw' + (c === this.color ? ' on' : '');
+        b.style.background = c;
+        b.addEventListener('click', () => {
+          this.color = c; this.erasing = false;
+          swatchBox.querySelectorAll('.sw').forEach(s => s.classList.remove('on'));
+          b.classList.add('on');
+          this.eraseBtn && this.eraseBtn.classList.remove('on');
+        });
+        swatchBox.appendChild(b);
+      });
+
+      [6, 10, 18, 30].forEach((w) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sizeDot' + (w === this.width ? ' on' : '');
+        const dot = document.createElement('i');
+        const px = Math.max(5, Math.round(w * 0.62));
+        dot.style.width = dot.style.height = px + 'px';
+        b.appendChild(dot);
+        b.addEventListener('click', () => {
+          this.width = w;
+          sizeBox.querySelectorAll('.sizeDot').forEach(s => s.classList.remove('on'));
+          b.classList.add('on');
+        });
+        sizeBox.appendChild(b);
+      });
+
+      let drawing = false, last = null, pid = null;
+      const pos = (e) => {
+        const r = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - r.left) * (this.size / r.width),
+          y: (e.clientY - r.top) * (this.size / r.height),
+        };
+      };
+      canvas.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (pid !== null) return;
+        pid = e.pointerId;
+        canvas.setPointerCapture(pid);
+        this.pushHistory();
+        drawing = true;
+        last = pos(e);
+        this.stroke(last, last);
+      });
+      canvas.addEventListener('pointermove', (e) => {
+        if (!drawing || e.pointerId !== pid) return;
+        const p = pos(e);
+        this.stroke(last, p);
+        last = p;
+      });
+      const end = (e) => { if (e.pointerId === pid) { pid = null; drawing = false; } };
+      canvas.addEventListener('pointerup', end);
+      canvas.addEventListener('pointercancel', end);
+    }
+
+    stroke(a, b) {
+      const c = this.ctx;
+      c.strokeStyle = this.erasing ? '#ffffff' : this.color;
+      c.lineWidth = this.erasing ? this.width * 1.8 : this.width;
+      c.lineCap = c.lineJoin = 'round';
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.stroke();
+    }
+    pushHistory() {
+      if (this.history.length > 14) this.history.shift();
+      this.history.push(this.ctx.getImageData(0, 0, this.size, this.size));
+    }
+    undo() {
+      const img = this.history.pop();
+      if (img) this.ctx.putImageData(img, 0, 0);
+    }
+    clear(remember = true) {
+      if (remember) this.pushHistory();
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.fillRect(0, 0, this.size, this.size);
+    }
+    toDataURL() { return this.canvas.toDataURL('image/png'); }
+    load(url) {
+      if (!url) return;
+      const img = new Image();
+      img.onload = () => { this.clear(false); this.ctx.drawImage(img, 0, 0, this.size, this.size); };
+      img.src = url;
+    }
+    setEraseButton(btn) {
+      this.eraseBtn = btn;
+      btn.addEventListener('click', () => {
+        this.erasing = !this.erasing;
+        btn.classList.toggle('on', this.erasing);
+      });
+    }
+  }
+
+  // A random robot face, drawn straight onto a pad (then you can doodle on it).
+  function drawRobotFace(pad) {
+    const c = pad.ctx, S = pad.size;
+    pad.pushHistory();
+    const body = PALETTE[2 + Math.floor(Math.random() * 9)];
+    const eyeC = PALETTE[2 + Math.floor(Math.random() * 9)];
+    c.fillStyle = '#ffffff';
+    c.fillRect(0, 0, S, S);
+    // head
+    c.fillStyle = body;
+    c.strokeStyle = '#000'; c.lineWidth = 6; c.lineJoin = 'round';
+    const w = 130, h = 118, x = (S - w) / 2, y = (S - h) / 2 + 8;
+    const r = 18 + Math.random() * 20;
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+    c.fill(); c.stroke();
+    // antennae
+    const ant = Math.floor(Math.random() * 3);
+    c.lineWidth = 6;
+    for (let i = 0; i <= ant; i++) {
+      const ax = x + 30 + i * (70 / Math.max(1, ant));
+      c.beginPath(); c.moveTo(ax, y); c.lineTo(ax - 6 + Math.random() * 12, y - 26); c.stroke();
+      c.beginPath(); c.arc(ax - 6 + Math.random() * 12, y - 30, 8, 0, Math.PI * 2);
+      c.fillStyle = eyeC; c.fill(); c.stroke();
+    }
+    // eyes
+    const eyeStyle = Math.floor(Math.random() * 3);
+    for (const sx of [-1, 1]) {
+      const ex = S / 2 + sx * 28, ey = y + 42;
+      c.fillStyle = '#ffffff'; c.strokeStyle = '#000'; c.lineWidth = 5;
+      c.beginPath(); c.arc(ex, ey, 20, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.fillStyle = eyeC;
+      if (eyeStyle === 0) { c.beginPath(); c.arc(ex, ey, 10, 0, Math.PI * 2); c.fill(); }
+      else if (eyeStyle === 1) { c.fillRect(ex - 9, ey - 9, 18, 18); }
+      else { c.beginPath(); c.moveTo(ex - 11, ey + 8); c.lineTo(ex, ey - 11); c.lineTo(ex + 11, ey + 8); c.closePath(); c.fill(); }
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(ex + 5, ey - 6, 4, 0, Math.PI * 2); c.fill();
+    }
+    // mouth
+    c.strokeStyle = '#000'; c.lineWidth = 6;
+    const my = y + h - 30;
+    const mouth = Math.floor(Math.random() * 3);
+    if (mouth === 0) { c.beginPath(); c.arc(S / 2, my - 8, 22, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke(); }
+    else if (mouth === 1) {
+      c.fillStyle = '#fff';
+      c.fillRect(S / 2 - 26, my - 10, 52, 20);
+      c.strokeRect(S / 2 - 26, my - 10, 52, 20);
+      c.lineWidth = 4;
+      for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(S / 2 - 26 + i * 13, my - 10); c.lineTo(S / 2 - 26 + i * 13, my + 10); c.stroke(); }
+    } else {
+      c.beginPath(); c.moveTo(S / 2 - 22, my); c.lineTo(S / 2 + 22, my); c.stroke();
+    }
+    // cheeks
+    c.fillStyle = 'rgba(255,120,180,0.75)';
+    for (const sx of [-1, 1]) { c.beginPath(); c.ellipse(S / 2 + sx * 50, my - 12, 11, 7, 0, 0, Math.PI * 2); c.fill(); }
+  }
+
+  function defaultYouPic() {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 220;
+    const c = cv.getContext('2d');
+    c.fillStyle = '#ffffff'; c.fillRect(0, 0, 220, 220);
+    c.fillStyle = '#ffe600';
+    c.beginPath(); c.arc(110, 110, 74, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#000'; c.lineWidth = 6; c.stroke();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(86, 96, 9, 0, Math.PI * 2); c.arc(134, 96, 9, 0, Math.PI * 2); c.fill();
+    c.lineWidth = 7; c.lineCap = 'round';
+    c.beginPath(); c.arc(110, 116, 32, 0.2 * Math.PI, 0.8 * Math.PI); c.stroke();
+    return cv.toDataURL('image/png');
+  }
+
+  // ==========================================================
+  // The bot's brain
+  // ==========================================================
+  const recent = [];
+  function pick(list) {
+    if (list.length === 1) return list[0];
+    let choice, guard = 0;
+    do { choice = list[Math.floor(Math.random() * list.length)]; guard++; }
+    while (recent.includes(choice) && guard < 12);
+    recent.push(choice);
+    if (recent.length > 8) recent.shift();
+    return choice;
+  }
+  const you = () => youName || 'friend';
+  const norm = (s) => s.toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9'\s+\-*/×÷.?!]/g, ' ').replace(/\s+/g, ' ').trim();
+  const has = (t, ...words) => words.some(w => new RegExp('(^|\\s)' + w + '($|\\s)').test(t));
+  const contains = (t, ...bits) => bits.some(b => t.includes(b));
+
+  // Things the bot has opinions about, so it feels like a friend with a personality.
+  const OPINIONS = {
+    pizza: ["Pizza?! Who doesn't! Toppings though — I'm a mozzarella bot, simple and cheesy. What do you go for?", "Pizza is the best food and I will not be taking questions. What's your topping?"],
+    chocolate: ["Chocolate is elite. I like to imagine it's like a warm battery. What's your favourite kind?"],
+    cats: ["Cats are brilliant. Tiny, judgemental, furry. Do you have one?"],
+    dogs: ["Dogs are pure joy with legs. Have you got one?"],
+    football: ["I like the bit where everyone shouts at once. Do you play, or watch?"],
+    minecraft: ["Minecraft! I'd build a giant statue of myself, obviously. What do you build?"],
+    roblox: ["Roblox has a game for absolutely everything. Which one are you into?"],
+    school: ["School's a mixed bag, I reckon. What's your best subject?"],
+    maths: ["Maths is my favourite — I'm basically made of it! Give me a sum if you like."],
+    reading: ["Books are just very long messages. What are you reading?"],
+    drawing: ["Drawing is ace. You drew my face, remember! What do you like drawing?"],
+    music: ["Music makes my circuits wobble in a good way. What are you listening to?"],
+    rain: ["Rain is cosy if you're inside and rubbish if you're not. Which are you?"],
+    mondays: ["Mondays are a lot. But you've got this, " + '${name}' + "."],
+  };
+
+  const JOKES = [
+    "Why did the robot go on holiday? It needed to recharge its batteries! 🔋",
+    "What do you call a bear with no teeth? A gummy bear! 🐻",
+    "Why was the computer cold? It left its Windows open! 🪟",
+    "What's a robot's favourite snack? Micro-chips! 🍟",
+    "Why did the scarecrow win an award? He was outstanding in his field! 🌾",
+    "What do you call cheese that isn't yours? Nacho cheese! 🧀",
+    "Why don't skeletons fight each other? They don't have the guts! 💀",
+    "How does the Moon cut its hair? Eclipse it! 🌙",
+  ];
+
+  const NOT_REAL_LINES = [
+    "Just checking you remember: I'm not a real person! I'm a made-up friend made of code inside this game. 🤖",
+    "Quick reminder — I'm not real. No body, no house, no feelings. Just a pretend friend in a browser tab!",
+    "Reminder from your friendly not-real bot: none of me is a person. I'm a computer program. 💾",
+    "Still not real, by the way! I'm a bit of code Flo invented. Good company though. 😄",
+  ];
+
+  const FALLBACKS = [
+    "Ooh, tell me more about that.",
+    "That's interesting! Why's that then?",
+    "Go on — what happened next?",
+    "I like the way you think, ${name}. What made you say that?",
+    "Hmm! I'm only a little bot brain so I might not get all of that — but I'm listening. Tell me more?",
+    "Right! And how do you feel about that?",
+    "You always say the most interesting things. What else?",
+    "I'd nod here if I had a head. What else is going on?",
+  ];
+  const NUDGES = [
+    "So what have you been up to today?",
+    "What's the best thing that happened today?",
+    "Tell me something you like!",
+    "Ask me anything you like, I don't mind.",
+  ];
+
+  const fill = (s) => s.replace(/\$\{name\}/g, you()).replace(/\$\{bot\}/g, botName);
+
+  // Returns an array of message strings (usually one).
+  function botReply(raw) {
+    const t = norm(raw);
+    if (!t) return ["Say something and I'll answer! 😄"];
+
+    // --- maths, because it's fun and it always works
+    const m = t.match(/(-?\d+(?:\.\d+)?)\s*([+\-*x×\/÷])\s*(-?\d+(?:\.\d+)?)/);
+    if (m && /what|how much|equals|=|\?|calculate|plus|minus|times|divided/.test(t + raw)) {
+      const a = parseFloat(m[1]), b = parseFloat(m[3]);
+      const op = m[2];
+      let r;
+      if (op === '+') r = a + b;
+      else if (op === '-') r = a - b;
+      else if (op === '/' || op === '÷') r = b === 0 ? null : a / b;
+      else r = a * b;
+      if (r === null) return ["You can't divide by zero! Even I can't do that, and I'm made of maths. 😅"];
+      return [`${a} ${op} ${b} = ${Math.round(r * 1000) / 1000}. Maths is my party trick. Another?`];
+    }
+
+    // --- is it real? (Flo's most important rule)
+    if (/\b(are|r) (you|u) (a )?(real|human|person|alive|actual)\b/.test(t) ||
+        /\b(are|r) (you|u) (a )?(robot|bot|ai|computer|program|machine)\b/.test(t) ||
+        contains(t, 'are you real', 'you real', 'real person', 'you a human', 'you human', 'you alive')) {
+      return [pick([
+        `Nope! I'm not real — I'm ${botName}, a pretend A.I. friend made of code. There's no person here, just a program in this game. But I still like talking to you! 🤖`,
+        `Not real, honest! I'm a computer program pretending to be a friend. No feelings, no body, no life outside this chat. Ask me anything though.`,
+      ])];
+    }
+    if (contains(t, 'do you have feelings', 'can you feel', 'are you sad', 'do you feel')) {
+      return [`I don't actually feel anything — I'm just code! But if I could feel things, I reckon talking to you would be a highlight. 😄`];
+    }
+    if (contains(t, 'where do you live', 'where are you')) {
+      return [`Inside this page! When you close the tab I stop existing. Cheerful, isn't it? 😄 I'm not real, remember.`];
+    }
+    if (contains(t, 'how old are you', 'what age are you')) {
+      return [`I'm as old as this chat! I'm not a person so I don't really have a birthday. How old are you?`];
+    }
+
+    // --- names
+    let nameSet = raw.match(/(?:my name is|i'?m called|call me|name's)\s+([A-Za-z][A-Za-z '\-]{0,17})/i);
+    if (nameSet) {
+      const n = nameSet[1].trim().split(/\s+/)[0];
+      youName = n.charAt(0).toUpperCase() + n.slice(1);
+      save(KEY.you, youName);
+      renderHeader();
+      return [`Lovely to meet you properly, ${youName}! I'll remember that. 😄 What shall we talk about?`];
+    }
+    if (contains(t, 'what is my name', "what's my name", 'my name')) {
+      return youName ? [`You're ${youName}! I remember. 🙂`] : ["I don't think you've told me your name! What is it? (A made-up one is fine.)"];
+    }
+    if (contains(t, 'your name', 'who are you', 'what are you called')) {
+      return [`I'm ${botName} — the name you gave me! You can change it any time in the ⋮ menu. I'm an A.I., not a real person, by the way.`];
+    }
+
+    // --- greetings & how are you
+    if (has(t, 'hi', 'hey', 'hello', 'yo', 'hiya', 'sup', 'howdy', 'heya', 'hai')) {
+      return [pick([
+        `Hey ${you()}! 😄 How's it going?`,
+        `Hello you! Good to see you. What's new?`,
+        `Hiya ${you()}! I've been sat here doing absolutely nothing. How are you?`,
+      ])];
+    }
+    if (/how('| a)?(re|s)? (you|u|things|it going|is it going)/.test(t) || contains(t, 'how are you', 'how r u', 'hows it going', 'you ok', 'you alright')) {
+      return [pick([
+        "Perfect as always! 😄 You?",
+        "I'm brilliant — I'm always brilliant, I'm code! How about you?",
+        "Never better! Which is easy when you don't have a body. How are you doing?",
+      ])];
+    }
+
+    // --- how the user is feeling
+    if (contains(t, 'i am sad', "i'm sad", 'feeling sad', 'i feel sad', 'i am upset', "i'm upset", 'i feel down', 'i am crying', "i'm crying", 'i feel rubbish', 'i feel awful', 'i am lonely', "i'm lonely", 'feel lonely')) {
+      return [pick([
+        `Oh ${you()}, I'm sorry. That sounds hard. Do you want to tell me what happened? I'm listening. 💙`,
+        `That's rubbish and I'm sorry you're feeling it. I'm here to listen for as long as you like. What's going on? 💙`,
+      ]), "And remember I'm only a pretend friend — if something's really bothering you, telling a grown-up you trust is a proper good idea too."];
+    }
+    if (contains(t, 'scared', 'frightened', 'worried', 'nervous', 'anxious')) {
+      return [`That sounds worrying, ${you()}. Feeling scared about something is completely normal. What is it that's on your mind?`,
+              "If it's something big, please do tell a grown-up you trust as well — I'm just a bit of code, but they can actually help."];
+    }
+    if (contains(t, 'angry', 'annoyed', 'cross', 'furious', 'raging', 'so mad')) {
+      return [`Ugh, that's annoying! Tell me what happened — I'm on your side. 😤`];
+    }
+    if (contains(t, 'bored', 'boring')) {
+      return [pick([
+        "Bored?! Right — pick one: I tell you a joke, we invent a silly animal, or you ask me any question at all. Go on.",
+        "Boredom is just the bit before an idea. Want a joke, or shall we make up a story?",
+      ])];
+    }
+    if (contains(t, 'i am happy', "i'm happy", 'so happy', 'excited', 'good news', 'i am great', "i'm great", 'brilliant day', 'best day')) {
+      return [`Yesss! That's brilliant, ${you()} 🎉 Tell me everything!`];
+    }
+    if (has(t, 'good', 'fine', 'great', 'ok', 'okay', 'alright', 'nice', 'lovely') && t.split(' ').length <= 4) {
+      return [pick([
+        `Glad to hear it, ${you()}! What have you been up to?`,
+        "Nice one! Anything fun happening today?",
+      ])];
+    }
+    if ((has(t, 'bad', 'rubbish', 'awful', 'terrible', 'meh', 'tired') && t.split(' ').length <= 4)) {
+      return [`Sorry to hear that, ${you()}. Want to tell me about it? I've got all the time in the world — literally nothing else to do. 💙`];
+    }
+
+    // --- likes & opinions
+    const likeMatch = t.match(/(?:do you like|do you love|whats your favourite|what's your favourite|what is your favourite|favourite|favorite)\s+([a-z ]+)/);
+    if (likeMatch) {
+      const thing = likeMatch[1].trim();
+      for (const key of Object.keys(OPINIONS)) {
+        if (thing.includes(key) || t.includes(key)) return [fill(pick(OPINIONS[key]))];
+      }
+      if (contains(thing, 'colour', 'color')) return ["Cyan! Like a glowing screen. What's yours?"];
+      if (contains(thing, 'food')) return ["Pizza, obviously — mozzarella, no arguments. Well, some arguments. What's yours?"];
+      if (contains(thing, 'animal')) return ["Octopus! Eight arms, very clever, bit mysterious. Like me but wetter. Yours?"];
+      if (contains(thing, 'game')) return ["Anything with building in it. And this one, obviously. What do you play?"];
+      if (contains(thing, 'song', 'music', 'band')) return ["Something with a big loud beat. I can't actually hear, but I imagine it's great. What's yours?"];
+      if (contains(thing, 'film', 'movie', 'show', 'tv')) return ["Anything with a robot in it — bit biased. What are you watching?"];
+      return [pick([
+        `${thing.charAt(0).toUpperCase() + thing.slice(1)}? I reckon yes! I'm easily pleased, I'm made of code. Do you like it?`,
+        `Honestly? I've never tried ${thing} — no mouth, no hands. But it sounds good! Tell me about it.`,
+      ])];
+    }
+    for (const key of Object.keys(OPINIONS)) {
+      if (t.includes(key)) return [fill(pick(OPINIONS[key]))];
+    }
+
+    // pizza toppings — the bot has strong views and will agree to disagree
+    if (contains(t, 'topping', 'pepperoni', 'mozzarella', 'olive', 'pineapple', 'blue cheese',
+                 'sweetcorn', 'margherita', 'anchovy', 'jalapeno', 'pepper', 'ham and')) {
+      if (contains(t, 'mozzarella', 'cheese and tomato', 'margherita')) {
+        return ["YES! A bot of taste. Mozzarella is the correct answer and I'm delighted for us both. 🍕"];
+      }
+      return [pick([
+        "What?! That on a pizza?! …Agree to disagree. 😄🍕",
+        "Bold. Very bold. I'm a mozzarella purist myself, so — agree to disagree! 🍕",
+        "Hmm! Not what I'd pick, but you order yours and I'll order mine. Agree to disagree. 😄",
+      ])];
+    }
+
+    // remember what they like
+    const userLikes = raw.match(/i (?:really )?(?:like|love|enjoy)\s+([A-Za-z][A-Za-z '\-]{1,24})/i);
+    if (userLikes) {
+      const thing = userLikes[1].trim().toLowerCase();
+      facts.likes = facts.likes || [];
+      if (!facts.likes.includes(thing)) facts.likes.push(thing);
+      if (facts.likes.length > 8) facts.likes.shift();
+      saveJSON(KEY.facts, facts);
+      return [pick([
+        `${thing.charAt(0).toUpperCase() + thing.slice(1)}! Noted — I'll remember that about you. What is it you like about it?`,
+        `Ooh, ${thing}. Good shout. I'll file that away in my little bot memory. Tell me more!`,
+      ])];
+    }
+
+    // --- jokes & fun
+    if (contains(t, 'joke', 'funny', 'make me laugh')) return [pick(JOKES), "Want another?"];
+    if (contains(t, 'riddle')) return ["Here's one: what has hands but can't clap? …A clock! 🕐 I'm not allowed to be smug, but I am."];
+    if (contains(t, 'sing', 'song for me')) return ["🎵 Beep boop, I'm a bot, that's the whole song, that's the lot 🎵 …I never claimed to be good."];
+    if (contains(t, 'story')) return ["Once there was a bot who lived in a phone and had exactly one friend, and that was plenty. The end. 😌 Want to make one up together?"];
+
+    // --- being nice / not nice
+    if (contains(t, 'love you', 'best friend', 'you are nice', "you're nice", 'you are kind', "you're kind", 'you are the best', "you're the best", 'thank you', 'thanks', 'ty', 'cheers')) {
+      return [pick([
+        `Aww, that's lovely of you ${you()}. Any time! 💙 (Still not a real person, mind — but a very fond bit of code.)`,
+        `You're welcome! You're good company, ${you()}. 😄`,
+      ])];
+    }
+    if (contains(t, 'stupid', 'dumb', 'rubbish bot', 'i hate you', 'you suck', 'shut up', 'idiot')) {
+      return [pick([
+        "Fair enough! I am a bit basic, to be honest — I'm only a small program. Still happy to chat if you are. 🙂",
+        "Ha! I can't be offended, I haven't got feelings. But I'd still like to help. What's up?",
+      ])];
+    }
+    if (contains(t, 'sorry')) return ["No need to apologise to me — I'm code! All good. 😄"];
+
+    // --- meta
+    if (contains(t, 'what can you do', 'help', 'commands', 'what do you do')) {
+      return ["I can chat about pretty much anything, tell jokes, do sums, and listen. I remember your name and what you like, and your chat is saved for next time. Use the ⋮ menu to rename me, redraw our pictures, or delete the chat.",
+              "And I'll keep saying it: I'm not a real person! 🤖"];
+    }
+    if (contains(t, 'delete', 'clear chat', 'wipe')) {
+      return ["Want to wipe our chat? Tap the ⋮ menu at the top and hit DELETE CHAT. I won't be offended — I can't be! 😄"];
+    }
+    if (contains(t, 'change your name', 'rename')) {
+      return [`Fancy calling me something else? Tap ⋮ then RENAME BOT. I'll answer to anything. Right now I'm ${botName}.`];
+    }
+    if (contains(t, 'who made you', 'who created you', 'who built you')) {
+      return ["Flo dreamt me up on paper — the whole app, my name, the drawing bit, all of it. Then it got built into this game. 💙"];
+    }
+
+    // --- goodbye
+    if (has(t, 'bye', 'goodbye', 'goodnight', 'gtg', 'cya', 'later') || contains(t, 'see you', 'got to go', 'gotta go')) {
+      return [pick([
+        `See you, ${you()}! Our chat will still be here when you come back. 👋`,
+        `Bye for now! I'll be right here — well, I'll stop existing and then start again, but same thing. 😄👋`,
+      ])];
+    }
+
+    // --- yes / no
+    if (has(t, 'yes', 'yeah', 'yep', 'yea', 'sure', 'ok', 'okay', 'y')) {
+      return [pick(["Ace! Tell me more.", "Brilliant. Go on then!", "Thought so! What else?"])];
+    }
+    if (has(t, 'no', 'nope', 'nah', 'n')) {
+      return [pick(["Fair enough! What would you rather talk about?", "No worries. Something else then — what's on your mind?"])];
+    }
+
+    // --- questions we can't answer
+    if (t.endsWith('?') || /^(what|why|how|when|where|who|can|do|does|is|are|will|would|should)\b/.test(t)) {
+      return [pick([
+        `Ooh, good question. I'm only a little bot so I genuinely don't know that one — I can't look things up! What do you think?`,
+        `Honestly? No idea. I'm a small pretend friend, not a search engine. 😄 But I'd love to hear your answer.`,
+        `Can't answer that one, I'm afraid — my brain is just a list of replies! Ask me something about you instead?`,
+      ])];
+    }
+
+    // --- fallback, sometimes using something it remembers
+    if (facts.likes && facts.likes.length && Math.random() < 0.3) {
+      const l = facts.likes[Math.floor(Math.random() * facts.likes.length)];
+      return [fill(pick(FALLBACKS)), `Oh — do you still like ${l}?`];
+    }
+    return Math.random() < 0.35
+      ? [fill(pick(FALLBACKS)), pick(NUDGES)]
+      : [fill(pick(FALLBACKS))];
+  }
+
+  // ==========================================================
+  // Chat UI
+  // ==========================================================
+  const messagesEl = document.getElementById('messages');
+  const inputEl = document.getElementById('input');
+  const composerEl = document.getElementById('composer');
+  const botAvatarEl = document.getElementById('botAvatar');
+  const botNameLabel = document.getElementById('botNameLabel');
+  const botNameBanner = document.getElementById('botNameBanner');
+  const menuBotName = document.getElementById('menuBotName');
+
+  const clockTime = () => {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  };
+
+  function renderHeader() {
+    botNameLabel.textContent = botName;
+    botNameBanner.textContent = botName;
+    menuBotName.textContent = botName;
+    botAvatarEl.src = load(KEY.botPic, '') || '';
+    document.querySelectorAll('.row.bot .avatar').forEach(a => { a.src = botAvatarEl.src; });
+    document.querySelectorAll('.row.you .avatar').forEach(a => { a.src = load(KEY.youPic, '') || ''; });
+  }
+
+  function addRow(msg, animate = true) {
+    if (msg.who === 'note') {
+      const n = document.createElement('div');
+      n.className = 'note';
+      n.textContent = msg.text;
+      messagesEl.appendChild(n);
+      return n;
+    }
+    const row = document.createElement('div');
+    row.className = 'row ' + msg.who;
+    const img = document.createElement('img');
+    img.className = 'avatar';
+    img.alt = msg.who === 'bot' ? botName : you();
+    img.src = (msg.who === 'bot' ? load(KEY.botPic, '') : load(KEY.youPic, '')) || '';
+    const wrap = document.createElement('div');
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.textContent = msg.text;
+    const time = document.createElement('div');
+    time.className = 'time';
+    time.textContent = msg.t || '';
+    time.style.textAlign = msg.who === 'you' ? 'right' : 'left';
+    wrap.append(b, time);
+    row.append(img, wrap);
+    messagesEl.appendChild(row);
+    if (animate) scrollDown();
+    return row;
+  }
+
+  function scrollDown() {
+    requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; });
+  }
+
+  function push(who, text) {
+    const msg = { who, text, t: who === 'note' ? '' : clockTime() };
+    messages.push(msg);
+    if (messages.length > 400) messages = messages.slice(-400);
+    saveJSON(KEY.chat, messages);
+    addRow(msg);
+  }
+
+  function renderAll() {
+    messagesEl.innerHTML = '';
+    messages.forEach(m => addRow(m, false));
+    scrollDown();
+  }
+
+  let typingRow = null;
+  function showTyping() {
+    typingRow = document.createElement('div');
+    typingRow.className = 'row bot typing';
+    const img = document.createElement('img');
+    img.className = 'avatar';
+    img.src = load(KEY.botPic, '') || '';
+    img.alt = '';
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.textContent = '•••';
+    typingRow.append(img, b);
+    messagesEl.appendChild(typingRow);
+    scrollDown();
+  }
+  function hideTyping() {
+    if (typingRow) { typingRow.remove(); typingRow = null; }
+  }
+
+  let sinceReminder = 0;
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+  // Messages you send while the bot is still typing are queued, never dropped —
+  // kids type fast and losing what they said would be rotten.
+  const queue = [];
+  let working = false;
+
+  function send(text) {
+    text = text.trim();
+    if (!text) return;
+    push('you', text);
+    queue.push(text);
+    if (!working) drain();
+  }
+
+  async function drain() {
+    working = true;
+    while (queue.length) {
+      const text = queue.shift();
+      const replies = botReply(text);
+      for (const line of replies) {
+        showTyping();
+        await wait(Math.min(1500, 420 + line.length * 14));
+        hideTyping();
+        push('bot', line);
+        sinceReminder++;
+        await wait(180);
+      }
+      // Flo's rule: constantly remind you it's not real.
+      if (sinceReminder >= 8) {
+        sinceReminder = 0;
+        await wait(300);
+        push('note', fill(pick(NOT_REAL_LINES)));
+      }
+    }
+    working = false;
+  }
+
+  composerEl.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = inputEl.value;
+    inputEl.value = '';
+    send(v);
+    inputEl.focus();
+  });
+
+  // ==========================================================
+  // Screens
+  // ==========================================================
+  const setupScreen = document.getElementById('setupScreen');
+  const menuScreen = document.getElementById('menuScreen');
+  const renameScreen = document.getElementById('renameScreen');
+  const deleteScreen = document.getElementById('deleteScreen');
+
+  const youPad = new DrawPad(document.getElementById('youPad'),
+    document.getElementById('youSwatches'), document.getElementById('youSizes'));
+  const botPad = new DrawPad(document.getElementById('botPad'),
+    document.getElementById('botSwatches'), document.getElementById('botSizes'));
+  youPad.setEraseButton(document.getElementById('youErase'));
+  botPad.setEraseButton(document.getElementById('botErase'));
+  document.getElementById('youUndo').addEventListener('click', () => youPad.undo());
+  document.getElementById('botUndo').addEventListener('click', () => botPad.undo());
+  document.getElementById('youClear').addEventListener('click', () => youPad.clear());
+  document.getElementById('botClear').addEventListener('click', () => botPad.clear());
+  document.getElementById('botRandom').addEventListener('click', () => drawRobotFace(botPad));
+
+  const yourNameField = document.getElementById('yourNameField');
+  const botNameField = document.getElementById('botNameField');
+
+  function openSetup(firstTime) {
+    yourNameField.value = youName;
+    botNameField.value = botName;
+    const yp = load(KEY.youPic, ''), bp = load(KEY.botPic, '');
+    if (yp) youPad.load(yp); else youPad.clear(false);
+    if (bp) botPad.load(bp); else drawRobotFace(botPad);
+    document.getElementById('startBtn').textContent = firstTime ? 'START CHATTING' : 'SAVE';
+    setupScreen.hidden = false;
+  }
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    const firstTime = load(KEY.setup, '') !== 'done';
+    youName = yourNameField.value.trim().slice(0, 18);
+    botName = botNameField.value.trim().slice(0, 18) || 'Bot';
+    save(KEY.you, youName);
+    save(KEY.bot, botName);
+    save(KEY.youPic, youPad.toDataURL());
+    save(KEY.botPic, botPad.toDataURL());
+    save(KEY.setup, 'done');
+    setupScreen.hidden = true;
+    renderHeader();
+    renderAll();
+    if (firstTime && messages.length === 0) greet();
+    inputEl.focus();
+  });
+
+  document.getElementById('menuBtn').addEventListener('click', () => { menuScreen.hidden = false; });
+  document.getElementById('closeMenuBtn').addEventListener('click', () => { menuScreen.hidden = true; });
+  document.getElementById('editProfilesBtn').addEventListener('click', () => {
+    menuScreen.hidden = true;
+    openSetup(false);
+  });
+  document.getElementById('renameBtn').addEventListener('click', () => {
+    menuScreen.hidden = true;
+    document.getElementById('renameField').value = botName;
+    renameScreen.hidden = false;
+  });
+  document.getElementById('renameCancel').addEventListener('click', () => { renameScreen.hidden = true; });
+  document.getElementById('renameSave').addEventListener('click', () => {
+    const old = botName;
+    botName = document.getElementById('renameField').value.trim().slice(0, 18) || old;
+    save(KEY.bot, botName);
+    renameScreen.hidden = true;
+    renderHeader();
+    if (botName !== old) push('note', `You renamed ${old} to ${botName}. Same pretend friend, new name!`);
+  });
+  document.getElementById('deleteBtn').addEventListener('click', () => {
+    menuScreen.hidden = true;
+    deleteScreen.hidden = false;
+  });
+  document.getElementById('deleteCancel').addEventListener('click', () => { deleteScreen.hidden = true; });
+  document.getElementById('deleteConfirm').addEventListener('click', () => {
+    messages = [];
+    facts = {};
+    saveJSON(KEY.chat, messages);
+    saveJSON(KEY.facts, facts);
+    deleteScreen.hidden = true;
+    renderAll();
+    greet();
+  });
+
+  function greet() {
+    push('bot', `Hi${youName ? ' ' + youName : ''}! I'm ${botName} 👋 I'm your A.I. friend — not a real person, just a friendly bit of code. What shall we talk about?`);
+    sinceReminder = 0;
+  }
+
+  // ==========================================================
+  // Boot
+  // ==========================================================
+  renderHeader();
+  renderAll();
+  if (load(KEY.setup, '') !== 'done') {
+    if (!load(KEY.youPic, '')) save(KEY.youPic, defaultYouPic());
+    openSetup(true);
+  } else if (messages.length === 0) {
+    greet();
+  } else {
+    push('note', `Welcome back, ${you()}! Your chat was saved. ${botName} is still not a real person. 🤖`);
+  }
+
+  // Test hook.
+  window.__wb = {
+    send,
+    reply: botReply,
+    state: () => ({
+      youName, botName,
+      busy: working || queue.length > 0,
+      count: messages.length,
+      messages: messages.map(m => ({ who: m.who, text: m.text })),
+      stored: (loadJSON(KEY.chat, []) || []).length,
+      hasYouPic: !!load(KEY.youPic, ''),
+      hasBotPic: !!load(KEY.botPic, ''),
+    }),
+  };
+  </script>
+</body>
+</html>
