@@ -6,7 +6,7 @@
 // bumps, anything already cached is served cache-first and silently
 // re-fetched in the background (stale-while-revalidate), so updates still
 // flow to players one visit late.
-const CACHE_VERSION = 'flocade-v15';
+const CACHE_VERSION = 'flocade-v16';
 
 // Files the gallery itself needs.
 const SHELL_ASSETS = [
@@ -55,6 +55,7 @@ const EXTRA_GAME_ASSETS = [
   'games/kiddo-wordo/languages/zh.js',
   'games/lego-smash/three.module.min.js',
   'games/mini-life/three.module.min.js',
+  'games/mushroom-city/three.module.min.js',
   'games/my-world/three.module.min.js',
   'games/pixel-paint/oneoffs.js',
   'games/pixel-paint/pictures.js',
