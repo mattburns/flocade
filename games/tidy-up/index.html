@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Tidy Up! — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: #0d0221;
+      color: #e8e6f0;
+      font-family: 'Press Start 2P', monospace;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.6rem;
+      border-bottom: 2px solid #2a1b4d;
+      background: rgba(12, 4, 35, 0.95);
+      z-index: 5;
+    }
+    a.back { color: #00f0ff; text-decoration: none; white-space: nowrap; }
+    a.back:hover { text-shadow: 0 0 8px #00f0ff; }
+    .hud { display: flex; gap: 0.9rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .hud span strong { color: #ffe600; }
+    .hud .lvl { color: #ff2e88; }
+
+    .timerbar {
+      height: 10px;
+      background: #1a0f38;
+      position: relative;
+      flex: none;
+    }
+    .timerbar .fill {
+      position: absolute;
+      inset: 0;
+      transform-origin: left;
+      background: linear-gradient(90deg, #00f0ff, #ff2e88);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
+    }
+
+    #stage {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.2rem;
+      text-align: center;
+      padding: 1.5rem;
+      background: rgba(13, 2, 33, 0.85);
+      z-index: 4;
+    }
+    .overlay[hidden] { display: none; }
+    .overlay h1 {
+      color: #ff2e88;
+      font-size: clamp(1.1rem, 5vw, 2rem);
+      text-shadow: 0 0 18px rgba(255, 46, 136, 0.8);
+      line-height: 1.5;
+    }
+    .overlay h2 {
+      color: #ffe600;
+      font-size: clamp(0.65rem, 3vw, 1rem);
+      line-height: 1.7;
+    }
+    .overlay p {
+      color: #00f0ff;
+      font-size: clamp(0.55rem, 2.6vw, 0.75rem);
+      line-height: 1.9;
+      max-width: 34rem;
+    }
+    .overlay .tap {
+      color: #e8e6f0;
+      font-size: clamp(0.55rem, 2.6vw, 0.7rem);
+      animation: blink 1.1s steps(2) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0.25; } }
+
+    .banner {
+      position: absolute;
+      top: 16%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: clamp(1rem, 5vw, 1.8rem);
+      color: #ffe600;
+      text-shadow: 0 0 16px rgba(255, 230, 0, 0.8);
+      z-index: 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      line-height: 1.6;
+    }
+    .banner.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../../">&larr; ARCADE</a>
+    <div class="hud">
+      <span class="lvl">LVL <strong id="hud-level">1</strong>/10</span>
+      <span>MESS <strong id="hud-left">6</strong></span>
+      <span>&#9201; <strong id="hud-time">20.0</strong></span>
+      <span>SCORE <strong id="hud-score">0</strong></span>
+    </div>
+  </div>
+  <div class="timerbar"><div class="fill" id="timer-fill"></div></div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div class="banner" id="banner"></div>
+
+    <div class="overlay" id="overlay">
+      <h1 id="ov-title">TIDY UP!</h1>
+      <h2 id="ov-sub">There is a REALLY messy room&hellip;</h2>
+      <p id="ov-body">
+        Drag all the toys, rubbish, pencils<br>
+        and drills into the right bags:<br><br>
+        &#129528; TOYS &nbsp; &#128465;&#65039; BIN &nbsp; &#128295; TOOLS<br><br>
+        20 seconds to tidy up! 10 levels.<br>
+        More hard each level!
+      </p>
+      <p class="tap" id="ov-tap">TAP TO GO!</p>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ---- The design (from the paper) --------------------------------------
+  // A really messy room. 3 bags labelled Toys, Bin and Tools. Put all the
+  // toys, rubbish, pencils and drills away. In 20 secs, tidy up!
+  // 10 levels. More hard each level! GO!
+  const LEVEL_TIME = 20;
+  const LEVEL_COUNT = 10;
+  const itemsForLevel = (lv) => 5 + lv; // level 1 → 6 bits of mess … level 10 → 15
+
+  const BAGS = [
+    { key: 'toys', label: 'TOYS', emoji: '🧸', color: '#ff2e88' },
+    { key: 'bin', label: 'BIN', emoji: '🗑️', color: '#3dff8b' },
+    { key: 'tools', label: 'TOOLS', emoji: '🔧', color: '#00f0ff' },
+  ];
+  const STUFF = {
+    toys: ['🧸', '🚗', '🤖', '🦖', '⚽', '🎲', '🧩', '🪁', '🚂', '🪀', '🥁', '🪆'],
+    bin: ['🍌', '🍎', '🥤', '🥫', '🍕', '🧻', '🗞️', '🍟', '🦴', '🥡'],
+    tools: ['🪛', '🔨', '🔧', '🪚', '✏️', '🖍️', '📏', '🔩', '🪃'],
+  };
+
+  // ---- DOM ----------------------------------------------------------------
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const stage = document.getElementById('stage');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ov-title');
+  const ovSub = document.getElementById('ov-sub');
+  const ovBody = document.getElementById('ov-body');
+  const ovTap = document.getElementById('ov-tap');
+  const banner = document.getElementById('banner');
+  const hudLevel = document.getElementById('hud-level');
+  const hudLeft = document.getElementById('hud-left');
+  const hudTime = document.getElementById('hud-time');
+  const hudScore = document.getElementById('hud-score');
+  const timerFill = document.getElementById('timer-fill');
+
+  let W = 0, H = 0, DPR = 1;
+  const L = {}; // layout
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = stage.clientWidth;
+    H = stage.clientHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    L.bagsTop = H - Math.min(H * 0.2, 130);
+    L.bagH = H - L.bagsTop - 12;
+    L.roomTop = 14;
+    L.itemSize = Math.max(26, Math.min(40, W / 13));
+  }
+
+  // ---- Audio ----------------------------------------------------------------
+  let audio = null;
+  function ac() {
+    if (!audio) {
+      try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; }
+    }
+    if (audio.state === 'suspended') audio.resume();
+    return audio;
+  }
+  function tone(freq, dur, type, vol, slideTo) {
+    const a = ac();
+    if (!a) return;
+    const o = a.createOscillator();
+    const g = a.createGain();
+    o.type = type || 'square';
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + dur);
+    g.gain.setValueAtTime(vol || 0.08, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start();
+    o.stop(a.currentTime + dur);
+  }
+  const sfx = {
+    pick: () => tone(500, 0.07, 'square', 0.05, 700),
+    good: () => { tone(700, 0.09, 'square', 0.08, 1100); setTimeout(() => tone(1100, 0.1, 'square', 0.07, 1400), 70); },
+    bad: () => tone(160, 0.25, 'sawtooth', 0.1, 90),
+    tick: () => tone(1100, 0.06, 'square', 0.05),
+    clear: () => { tone(523, 0.12, 'square', 0.08); setTimeout(() => tone(659, 0.12, 'square', 0.08), 120); setTimeout(() => tone(784, 0.25, 'square', 0.09), 240); },
+    fail: () => tone(220, 0.4, 'sawtooth', 0.1, 60),
+    win: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.16, 'square', 0.09), i * 130)),
+  };
+
+  // ---- Game state -------------------------------------------------------------
+  let mode = 'menu'; // menu | ready | playing | clear | fail | won
+  let level = 1;
+  let timeLeft = LEVEL_TIME;
+  let score = 0;
+  let best = Number(localStorage.getItem('flocade-tidy-up-best') || 0);
+  let readyTimer = 0;
+  let modeTimer = 0;
+  let lastTickSecond = -1;
+  let shakeT = 0;
+
+  let items = [];       // {kind, emoji, fx, fy, vx, vy, rot, state, ...}
+  let held = null;      // item being dragged
+  let selected = -1;    // keyboard-selected index
+  let hoverBag = -1;
+  const particles = [];
+  const floaters = [];
+
+  function bagRect(i) {
+    const zone = W / BAGS.length;
+    const w = Math.min(zone - 16, 190);
+    const x = zone * i + (zone - w) / 2;
+    return { x, y: L.bagsTop, w, h: L.bagH };
+  }
+  function bagAt(x, y) {
+    for (let i = 0; i < BAGS.length; i++) {
+      const r = bagRect(i);
+      if (x >= r.x - 6 && x <= r.x + r.w + 6 && y >= r.y - 10) return i;
+    }
+    return -1;
+  }
+
+  function spawnItems(count) {
+    items = [];
+    const kinds = Object.keys(STUFF);
+    // Guarantee at least one of each kind, then random.
+    const picks = [...kinds];
+    while (picks.length < count) picks.push(kinds[Math.floor(Math.random() * kinds.length)]);
+    picks.length = count;
+    picks.sort(() => Math.random() - 0.5);
+    picks.forEach((kind, i) => {
+      const pool = STUFF[kind];
+      items.push({
+        kind,
+        emoji: pool[Math.floor(Math.random() * pool.length)],
+        fx: 0.08 + Math.random() * 0.84,
+        fy: 0.1 + Math.random() * 0.72,
+        vx: 0, vy: 0,
+        rot: (Math.random() - 0.5) * 1.1,
+        wander: false,
+        state: 'mess', // mess | held | zoom | back | done
+        zt: 0, zx: 0, zy: 0, sx: 0, sy: 0,
+      });
+    });
+    // "More hard each level": from level 4 some of the mess crawls around.
+    const wanderers = Math.max(0, level - 3);
+    const speed = 20 + level * 6;
+    items.slice(0, wanderers).forEach((it) => {
+      it.wander = true;
+      const a = Math.random() * Math.PI * 2;
+      it.vx = Math.cos(a) * speed;
+      it.vy = Math.sin(a) * speed;
+    });
+  }
+
+  function itemXY(it) {
+    return {
+      x: it.fx * W,
+      y: L.roomTop + it.fy * (L.bagsTop - L.roomTop - 40) + 20,
+    };
+  }
+  function setItemXY(it, x, y) {
+    it.fx = Math.max(0.04, Math.min(0.96, x / W));
+    it.fy = Math.max(0, Math.min(1, (y - 20 - L.roomTop) / (L.bagsTop - L.roomTop - 40)));
+  }
+
+  function messLeft() {
+    return items.filter((it) => it.state !== 'done' && it.state !== 'zoom').length;
+  }
+
+  function startLevel(lv) {
+    level = lv;
+    timeLeft = LEVEL_TIME;
+    spawnItems(itemsForLevel(lv));
+    held = null;
+    selected = -1;
+    hoverBag = -1;
+    lastTickSecond = -1;
+    mode = 'ready';
+    readyTimer = 1.2;
+    showBanner('LEVEL ' + lv + '&hellip; GO!');
+    updateHud();
+  }
+
+  function updateHud() {
+    hudLevel.textContent = String(level);
+    hudLeft.textContent = String(messLeft());
+    hudTime.textContent = Math.max(0, timeLeft).toFixed(1);
+    hudScore.textContent = String(score);
+    timerFill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, timeLeft / LEVEL_TIME)) + ')';
+  }
+
+  let bannerTimeout = null;
+  function showBanner(html, ms) {
+    banner.innerHTML = html;
+    banner.classList.add('show');
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    bannerTimeout = setTimeout(() => banner.classList.remove('show'), ms || 1100);
+  }
+
+  function showOverlay(title, sub, body, tap) {
+    ovTitle.innerHTML = title;
+    ovSub.innerHTML = sub;
+    ovBody.innerHTML = body;
+    ovTap.innerHTML = tap;
+    overlay.hidden = false;
+  }
+
+  // ---- Sorting ------------------------------------------------------------------
+  function dropInBag(it, bagIndex) {
+    const bag = BAGS[bagIndex];
+    const r = bagRect(bagIndex);
+    const { x, y } = itemXY(it);
+    if (it.kind === bag.key) {
+      it.state = 'zoom';
+      it.zt = 0;
+      it.sx = x; it.sy = y;
+      it.zx = r.x + r.w / 2; it.zy = r.y + r.h / 2;
+      const pts = 10 * level;
+      score += pts;
+      sfx.good();
+      burst(r.x + r.w / 2, r.y, bag.color, 10);
+      floaters.push({ x, y: y - 30, t: 0, text: '+' + pts, color: '#ffe600' });
+      updateHud();
+      if (messLeft() === 0) levelDone();
+    } else {
+      it.state = 'back';
+      it.zt = 0;
+      it.sx = x; it.sy = y;
+      const spot = { fx: 0.1 + Math.random() * 0.8, fy: 0.1 + Math.random() * 0.6 };
+      it.zx = spot.fx * W;
+      it.zy = L.roomTop + spot.fy * (L.bagsTop - L.roomTop - 40) + 20;
+      it.fx = spot.fx; it.fy = spot.fy;
+      sfx.bad();
+      shakeT = 0.15;
+      floaters.push({ x, y: y - 30, t: 0, text: 'NOT ' + BAGS[bagIndex].label + '!', color: '#ff2e88' });
+    }
+  }
+
+  function levelDone() {
+    const bonus = Math.ceil(timeLeft) * 5;
+    score += bonus;
+    floaters.push({ x: W / 2, y: H * 0.4, t: 0, text: 'TIME BONUS +' + bonus, color: '#3dff8b' });
+    mode = 'clear';
+    modeTimer = 1.6;
+    sfx.clear();
+    showBanner(level < LEVEL_COUNT ? 'ALL TIDY!' : 'SPOTLESS!', 1500);
+    updateHud();
+  }
+
+  function failLevel() {
+    mode = 'fail';
+    held = null;
+    sfx.fail();
+    showOverlay(
+      'TIME&rsquo;S UP!',
+      messLeft() + ' bits of mess left!',
+      'The room is STILL really messy&hellip;',
+      'TAP TO RETRY LEVEL ' + level
+    );
+  }
+
+  function winGame() {
+    mode = 'won';
+    if (score > best) { best = score; localStorage.setItem('flocade-tidy-up-best', String(best)); }
+    sfx.win();
+    showOverlay(
+      'ALL TIDY!',
+      'You tidied all 10 rooms!',
+      'Not a toy, crumb, pencil or drill<br>out of place. What a legend.<br><br>SCORE ' + score + '<br>BEST ' + best,
+      'TAP TO PLAY AGAIN'
+    );
+  }
+
+  function burst(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
+      const sp = 100 + Math.random() * 260;
+      particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.4 + Math.random() * 0.4, t: 0, color, r: 2 + Math.random() * 3 });
+    }
+  }
+
+  // ---- Input ----------------------------------------------------------------------
+  let pointerId = null;
+
+  function advanceScreens() {
+    if (mode === 'menu' || mode === 'won') { score = 0; overlay.hidden = true; startLevel(1); return true; }
+    if (mode === 'fail') { overlay.hidden = true; startLevel(level); return true; }
+    return false;
+  }
+
+  stage.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (advanceScreens()) return;
+    if (mode !== 'playing' && mode !== 'ready') return;
+    if (pointerId !== null) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    // Topmost loose item near the pointer.
+    const grabR = L.itemSize * 0.9;
+    for (let i = items.length - 1; i >= 0; i--) {
+      const it = items[i];
+      if (it.state !== 'mess') continue;
+      const p = itemXY(it);
+      if (Math.hypot(p.x - x, p.y - y) <= grabR) {
+        held = it;
+        it.state = 'held';
+        selected = -1;
+        pointerId = e.pointerId;
+        stage.setPointerCapture(pointerId);
+        setItemXY(it, x, y - 14); // lift above the finger
+        sfx.pick();
+        return;
+      }
+    }
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== pointerId || !held) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setItemXY(held, x, y - 14);
+    hoverBag = bagAt(x, y);
+  });
+  function endPointer(e) {
+    if (e.pointerId !== pointerId) return;
+    pointerId = null;
+    if (!held) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const bag = bagAt(x, y);
+    held.state = 'mess';
+    if (bag >= 0) dropInBag(held, bag);
+    held = null;
+    hoverBag = -1;
+  }
+  stage.addEventListener('pointerup', endPointer);
+  stage.addEventListener('pointercancel', endPointer);
+
+  // Keyboard: arrows/Tab cycle mess, 1/2/3 chuck it into Toys/Bin/Tools.
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (advanceScreens()) { e.preventDefault(); return; }
+    }
+    if (mode !== 'playing' && mode !== 'ready') return;
+    const loose = items.map((it, i) => ({ it, i })).filter((o) => o.it.state === 'mess');
+    if (!loose.length) return;
+    if (e.code === 'Tab' || e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+      e.preventDefault();
+      const dir = (e.code === 'ArrowLeft' || (e.code === 'Tab' && e.shiftKey)) ? -1 : 1;
+      const pos = loose.findIndex((o) => o.i === selected);
+      selected = loose[(pos + dir + loose.length) % loose.length].i;
+    }
+    if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') {
+      e.preventDefault();
+      if (selected < 0 || !items[selected] || items[selected].state !== 'mess') {
+        selected = loose[0].i;
+      }
+      const it = items[selected];
+      selected = -1;
+      dropInBag(it, Number(e.code.slice(-1)) - 1);
+    }
+  });
+
+  // ---- Update ----------------------------------------------------------------------
+  function update(dt) {
+    particles.forEach((pt) => { pt.t += dt; pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.vy += 500 * dt; });
+    for (let i = particles.length - 1; i >= 0; i--) if (particles[i].t > particles[i].life) particles.splice(i, 1);
+    floaters.forEach((f) => { f.t += dt; f.y -= 45 * dt; });
+    for (let i = floaters.length - 1; i >= 0; i--) if (floaters[i].t > 1.2) floaters.splice(i, 1);
+    if (shakeT > 0) shakeT -= dt;
+
+    if (mode === 'ready') {
+      readyTimer -= dt;
+      if (readyTimer <= 0) mode = 'playing';
+    }
+    if (mode === 'clear') {
+      modeTimer -= dt;
+      if (modeTimer <= 0) {
+        if (level < LEVEL_COUNT) startLevel(level + 1);
+        else winGame();
+      }
+    }
+    if (mode === 'playing') {
+      timeLeft -= dt;
+      const s = Math.ceil(timeLeft);
+      if (timeLeft > 0 && timeLeft < 5.2 && s !== lastTickSecond) { lastTickSecond = s; sfx.tick(); }
+      if (timeLeft <= 0) { timeLeft = 0; updateHud(); failLevel(); return; }
+      updateHud();
+    }
+    if (mode !== 'playing' && mode !== 'ready' && mode !== 'clear') return;
+
+    items.forEach((it) => {
+      if (it.state === 'mess' && it.wander) {
+        const p = itemXY(it);
+        let x = p.x + it.vx * dt;
+        let y = p.y + it.vy * dt;
+        if (x < 30 || x > W - 30) { it.vx *= -1; x = Math.max(30, Math.min(W - 30, x)); }
+        if (y < L.roomTop + 30 || y > L.bagsTop - 40) { it.vy *= -1; y = Math.max(L.roomTop + 30, Math.min(L.bagsTop - 40, y)); }
+        setItemXY(it, x, y);
+        it.rot += dt * 2 * Math.sign(it.vx);
+      } else if (it.state === 'zoom' || it.state === 'back') {
+        it.zt += dt / 0.28;
+        if (it.zt >= 1) {
+          it.state = it.state === 'zoom' ? 'done' : 'mess';
+          updateHud();
+        }
+      }
+    });
+  }
+
+  // ---- Draw ------------------------------------------------------------------------
+  function drawRoom(t) {
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#160a35');
+    sky.addColorStop(1, '#0d0221');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Floor
+    ctx.fillStyle = '#12063a';
+    ctx.fillRect(0, L.bagsTop - 26, W, H - L.bagsTop + 26);
+    ctx.strokeStyle = '#2a1b4d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, L.bagsTop - 26);
+    ctx.lineTo(W, L.bagsTop - 26);
+    ctx.stroke();
+
+    // Window with moon
+    const wx = W * 0.72, wy = H * 0.1, ww = Math.min(W * 0.2, 130), wh = ww * 0.8;
+    ctx.fillStyle = '#0a0119';
+    ctx.fillRect(wx, wy, ww, wh);
+    ctx.strokeStyle = '#9d4edd';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(wx, wy, ww, wh);
+    ctx.beginPath();
+    ctx.moveTo(wx + ww / 2, wy); ctx.lineTo(wx + ww / 2, wy + wh);
+    ctx.moveTo(wx, wy + wh / 2); ctx.lineTo(wx + ww, wy + wh / 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ffe600';
+    ctx.shadowColor = '#ffe600';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(wx + ww * 0.28, wy + wh * 0.3, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Shelf (empty — everything fell off, hence the mess)
+    ctx.strokeStyle = '#3d2a6d';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(W * 0.06, H * 0.16);
+    ctx.lineTo(W * 0.3, H * 0.16);
+    ctx.stroke();
+
+    // Rug
+    ctx.strokeStyle = 'rgba(255, 46, 136, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(W / 2, L.bagsTop - 26, Math.min(W * 0.3, 220), 14, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawBags(t) {
+    ctx.textAlign = 'center';
+    BAGS.forEach((bag, i) => {
+      const r = bagRect(i);
+      const hot = hoverBag === i && held;
+      ctx.fillStyle = '#1a0f38';
+      ctx.strokeStyle = bag.color;
+      ctx.lineWidth = hot ? 4 : 2.5;
+      ctx.shadowColor = bag.color;
+      ctx.shadowBlur = hot ? 22 : 8;
+      // Sack shape: narrower neck, round belly.
+      ctx.beginPath();
+      ctx.moveTo(r.x + r.w * 0.22, r.y);
+      ctx.lineTo(r.x + r.w * 0.78, r.y);
+      ctx.quadraticCurveTo(r.x + r.w, r.y + 6, r.x + r.w, r.y + r.h * 0.55);
+      ctx.quadraticCurveTo(r.x + r.w, r.y + r.h, r.x + r.w * 0.5, r.y + r.h);
+      ctx.quadraticCurveTo(r.x, r.y + r.h, r.x, r.y + r.h * 0.55);
+      ctx.quadraticCurveTo(r.x, r.y + 6, r.x + r.w * 0.22, r.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      const s = hot ? 1.15 : 1;
+      ctx.font = Math.round(r.h * 0.38 * s) + 'px serif';
+      ctx.fillText(bag.emoji, r.x + r.w / 2, r.y + r.h * 0.48);
+      ctx.font = Math.max(8, Math.round(r.h * 0.14)) + 'px "Press Start 2P", monospace';
+      ctx.fillStyle = bag.color;
+      ctx.fillText(bag.label, r.x + r.w / 2, r.y + r.h * 0.78);
+      // Keyboard hint
+      ctx.fillStyle = 'rgba(232, 230, 240, 0.45)';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillText('[' + (i + 1) + ']', r.x + r.w / 2, r.y + r.h * 0.95);
+    });
+  }
+
+  function drawItems(t) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    items.forEach((it, i) => {
+      if (it.state === 'done') return;
+      let x, y, scale = 1;
+      if (it.state === 'zoom' || it.state === 'back') {
+        const k = Math.min(1, it.zt);
+        const e = 1 - Math.pow(1 - k, 2);
+        x = it.sx + (it.zx - it.sx) * e;
+        y = it.sy + (it.zy - it.sy) * e;
+        if (it.state === 'zoom') scale = 1 - e * 0.85;
+      } else {
+        const p = itemXY(it);
+        x = p.x;
+        y = p.y;
+        if (it.state === 'held') scale = 1.25;
+      }
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(it.state === 'held' ? Math.sin(t * 10) * 0.08 : it.rot);
+      ctx.font = Math.round(L.itemSize * scale) + 'px serif';
+      if (it.state === 'held') {
+        ctx.shadowColor = '#ffe600';
+        ctx.shadowBlur = 18;
+      }
+      ctx.fillText(it.emoji, 0, 0);
+      ctx.restore();
+      if (i === selected && it.state === 'mess') {
+        ctx.strokeStyle = '#ffe600';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.arc(x, y, L.itemSize * 0.75, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    });
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    if (shakeT > 0) ctx.translate((Math.random() - 0.5) * 7, (Math.random() - 0.5) * 7);
+    drawRoom(t);
+    drawBags(t);
+    drawItems(t);
+    particles.forEach((pt) => {
+      ctx.globalAlpha = Math.max(0, 1 - pt.t / pt.life);
+      ctx.fillStyle = pt.color;
+      ctx.fillRect(pt.x - pt.r / 2, pt.y - pt.r / 2, pt.r, pt.r);
+    });
+    ctx.globalAlpha = 1;
+    ctx.font = '13px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    floaters.forEach((f) => {
+      ctx.globalAlpha = Math.max(0, 1 - f.t / 1.2);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    });
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // ---- Main loop -----------------------------------------------------------------------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw(now / 1000);
+    requestAnimationFrame(frame);
+  }
+
+  // State peek for automated testing.
+  window.__tidyState = () => ({
+    mode, level, timeLeft, score,
+    items: items.map((it) => ({ kind: it.kind, state: it.state, ...itemXY(it) })),
+    bags: BAGS.map((b, i) => ({ key: b.key, ...bagRect(i) })),
+  });
+
+  window.addEventListener('resize', resize);
+  resize();
+  spawnItems(6); // a peek of mess behind the menu
+  updateHud();
+  requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
