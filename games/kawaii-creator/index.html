@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kawaii Creator — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --purple: #b38bff;
+      --text: #efe9ff;
+      --dim: #a396c9;
+      --paper: #fffdf7;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; }
+
+    .topbar {
+      flex: none;
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--panel);
+      border-bottom: 2px solid var(--panel2);
+    }
+    .topbar .ttl {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.72rem; color: var(--yellow);
+      flex: 1; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.55rem 0.6rem; white-space: nowrap;
+    }
+    .navBtn:hover { border-color: var(--pink); }
+    .navBtn.hidden { visibility: hidden; }
+
+    .view { flex: 1; min-height: 0; overflow-y: auto; }
+    .view[hidden] { display: none; }
+
+    /* ---------- home ---------- */
+    .intro { text-align: center; padding: 1.1rem 1rem 0.4rem; }
+    .intro h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.8vw, 1.5rem); color: var(--pink);
+      text-shadow: 0 0 18px rgba(255, 46, 136, 0.75); line-height: 1.6;
+    }
+    .intro p { color: var(--dim); font-size: 0.92rem; margin-top: 0.6rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.8rem;
+      padding: 1rem;
+    }
+    .animal {
+      position: relative;
+      background: var(--panel);
+      border: 3px solid var(--panel2);
+      border-radius: 18px;
+      padding: 0.7rem 0.5rem 0.6rem;
+      display: flex; flex-direction: column; align-items: center; gap: 0.45rem;
+      color: var(--text);
+      transition: transform 0.08s, border-color 0.1s;
+    }
+    .animal:hover, .animal:focus-visible {
+      border-color: var(--pink); transform: translateY(-3px); outline: none;
+      box-shadow: 0 0 20px rgba(255, 46, 136, 0.35);
+    }
+    .animal .thumb {
+      width: 100%; max-width: 116px; aspect-ratio: 1;
+      background: var(--paper); border-radius: 14px;
+      display: block; object-fit: cover;
+    }
+    .animal .nm {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem; color: var(--yellow);
+    }
+    .badge {
+      position: absolute; top: -8px; right: -8px;
+      background: var(--cyan); color: #06121a;
+      border: 2px solid var(--bg); border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+      padding: 0.35rem 0.45rem;
+      min-width: 30px;
+    }
+
+    /* ---------- tutorial ---------- */
+    .draw-wrap {
+      display: flex; flex-direction: column; gap: 0.6rem;
+      padding: 0.7rem 0.8rem 1rem;
+      align-items: center;
+    }
+    .stepbar {
+      width: 100%; max-width: 34rem;
+      background: var(--panel);
+      border: 2px solid var(--panel2);
+      border-radius: 16px;
+      padding: 0.7rem;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .guideBox {
+      flex: none; width: 96px; height: 96px;
+      background: var(--paper); border-radius: 12px;
+    }
+    .stepInfo { flex: 1; min-width: 0; }
+    .stepNum {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem; color: var(--cyan); margin-bottom: 0.4rem;
+    }
+    .stepTip { font-size: 0.95rem; line-height: 1.45; color: var(--text); }
+    .stepNav { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+    .stepNav button {
+      background: var(--panel2); color: var(--text);
+      border: 2px solid transparent; border-radius: 10px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+      padding: 0.5rem 0.55rem;
+    }
+    .stepNav button.go { background: var(--pink); color: #fff; }
+    .stepNav button:disabled { opacity: 0.35; }
+
+    .stack { position: relative; width: min(88vw, 26rem); aspect-ratio: 1; }
+    .stack canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      border-radius: 18px;
+    }
+    #ghost { background: var(--paper); border: 3px solid var(--cyan); }
+    #ink { touch-action: none; cursor: crosshair; }
+
+    .tools { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 34rem; }
+    .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
+    .sw.on { border-color: #fff; transform: scale(1.16); }
+    .tbtn {
+      background: var(--panel2); color: var(--text);
+      border: 2px solid transparent; border-radius: 10px;
+      padding: 0.5rem 0.6rem; font-size: 0.85rem;
+    }
+    .tbtn.on { border-color: var(--yellow); }
+    .sizeDot {
+      background: var(--panel2); border: 2px solid transparent; border-radius: 50%;
+      width: 34px; height: 34px; display: grid; place-items: center;
+    }
+    .sizeDot.on { border-color: var(--yellow); }
+    .sizeDot i { display: block; background: var(--text); border-radius: 50%; }
+    .photoBtn {
+      background: var(--pink); color: #fff; border: none;
+      border-radius: 999px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.65rem; padding: 0.85rem 1.2rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .photoBtn:active { transform: translateY(3px); box-shadow: none; }
+
+    /* ---------- gallery ---------- */
+    .gal {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.7rem; padding: 1rem;
+    }
+    .galItem { position: relative; }
+    .galItem img {
+      width: 100%; aspect-ratio: 1; object-fit: cover;
+      background: var(--paper);
+      border: 3px solid var(--panel2); border-radius: 14px; display: block;
+    }
+    .galDel {
+      position: absolute; top: -6px; right: -6px;
+      background: #d11a4e; color: #fff; border: 2px solid var(--bg);
+      border-radius: 50%; width: 30px; height: 30px; font-size: 0.85rem;
+    }
+    .empty { text-align: center; color: var(--dim); padding: 2.5rem 1rem; font-size: 0.95rem; }
+
+    /* ---------- toast ---------- */
+    #toast {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%) translateY(20px);
+      background: var(--panel2); border: 2px solid var(--cyan); color: var(--text);
+      border-radius: 999px; padding: 0.7rem 1.1rem; font-size: 0.9rem;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+      z-index: 30; max-width: 90vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" id="backBtn" href="../../">&larr; ARCADE</a>
+    <div class="ttl" id="title">KAWAII CREATOR</div>
+    <button class="navBtn hidden" id="galBtn">🖼️</button>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div class="view" id="homeView">
+    <div class="intro">
+      <h1>KAWAII CREATOR</h1>
+      <p>Pick an animal and it'll teach you to draw it, step by step. Then snap a photo of your drawing and keep it in that animal's button!</p>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- ============ TUTORIAL ============ -->
+  <div class="view" id="drawView" hidden>
+    <div class="draw-wrap">
+      <div class="stepbar">
+        <canvas class="guideBox" id="guide" width="192" height="192"></canvas>
+        <div class="stepInfo">
+          <div class="stepNum" id="stepNum">STEP 1 / 6</div>
+          <div class="stepTip" id="stepTip"></div>
+          <div class="stepNav">
+            <button id="prevStep">◀ BACK</button>
+            <button id="nextStep" class="go">NEXT ▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <canvas id="ghost"></canvas>
+        <canvas id="ink"></canvas>
+      </div>
+
+      <div class="tools" id="swatches"></div>
+      <div class="tools">
+        <div class="tools" id="sizes" style="gap:6px"></div>
+        <button class="tbtn on" id="traceBtn">👻 Trace</button>
+        <button class="tbtn" id="eraseBtn">🧽 Rubber</button>
+        <button class="tbtn" id="undoBtn">↩️ Undo</button>
+        <button class="tbtn" id="clearBtn">🗑️ Clear</button>
+      </div>
+      <button class="photoBtn" id="photoBtn">📷 SAVE MY DRAWING</button>
+    </div>
+  </div>
+
+  <!-- ============ GALLERY ============ -->
+  <div class="view" id="galView" hidden>
+    <div class="gal" id="gal"></div>
+    <div class="empty" id="galEmpty" hidden>Nothing saved here yet!<br>Draw one and tap 📷 SAVE MY DRAWING.</div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // Kawaii Creator — by Flo.
+  // Buttons of kawaii animals. Tap one and it teaches you to draw
+  // it step by step. Finish, take a photo, and it's saved in that
+  // animal's button.
+  // ==========================================================
+
+  // ---- drawing helpers, all in a tidy 0..100 square ----
+  const INK = { ink: '#3a2a4d', fill: '#3a2a4d', soft: '#ffb3cd' };
+  const OLD = { ink: '#d6cfe4', fill: '#d6cfe4', soft: '#f0e8f4' };
+  const NEW = { ink: '#ff2e88', fill: '#ff2e88', soft: '#ffc0d8' };
+
+  function line(ctx, c, w = 2.6) {
+    ctx.strokeStyle = c.ink;
+    ctx.lineWidth = w;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+  }
+  const EYE_X = [34, 66], EYE_Y = 46, EYE_R = 10;
+
+  function eyeCircles(ctx, c) {
+    line(ctx, c, 2.4);
+    EYE_X.forEach(x => { ctx.beginPath(); ctx.arc(x, EYE_Y, EYE_R, 0, Math.PI * 2); ctx.stroke(); });
+  }
+  function eyeSparkle(ctx, c) {
+    EYE_X.forEach(x => {
+      ctx.fillStyle = c.fill;
+      ctx.beginPath(); ctx.ellipse(x, EYE_Y, EYE_R, EYE_R * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(x + 3.2, EYE_Y - 3.8, 3.6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x - 3.8, EYE_Y + 3.4, 1.9, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  function smile(ctx, c, y = 63, s = 1) {
+    line(ctx, c, 2.4);
+    ctx.beginPath(); ctx.arc(50 - 4 * s, y, 4 * s, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+    ctx.beginPath(); ctx.arc(50 + 4 * s, y, 4 * s, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
+  }
+  function blush(ctx, c, y = 60, dx = 26) {
+    ctx.fillStyle = c.soft;
+    [50 - dx, 50 + dx].forEach(x => {
+      ctx.beginPath(); ctx.ellipse(x, y, 6.5, 3.8, 0, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+  function roundHead(ctx, c, r = 33, cy = 48) {
+    line(ctx, c, 2.8);
+    ctx.beginPath(); ctx.arc(50, cy, r, 0, Math.PI * 2); ctx.stroke();
+  }
+  function boxHead(ctx, c, w = 62, h = 62, cy = 48, r = 16) {
+    line(ctx, c, 2.8);
+    const x = 50 - w / 2, y = cy - h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.stroke();
+  }
+  function triEar(ctx, c, x, tipX, tipY, baseDx) {
+    line(ctx, c, 2.8);
+    ctx.beginPath();
+    ctx.moveTo(x - baseDx, 30);
+    ctx.lineTo(tipX, tipY);
+    ctx.lineTo(x + baseDx, 26);
+    ctx.stroke();
+  }
+
+  // ---- the eight animals, each taught in steps ----
+  const ANIMALS = [
+    {
+      key: 'pig', name: 'Pig',
+      steps: [
+        { tip: 'Start with two little circles for the eyes.', draw: eyeCircles },
+        { tip: 'Fill them in and add two shiny sparkles — that\'s the kawaii bit!', draw: eyeSparkle },
+        { tip: 'Give it a big round snout with two nostrils.', draw: (ctx, c) => {
+            line(ctx, c, 2.6);
+            ctx.beginPath(); ctx.ellipse(50, 64, 13, 9, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = c.fill;
+            [46, 54].forEach(x => { ctx.beginPath(); ctx.ellipse(x, 64, 2.1, 3.2, 0, 0, Math.PI * 2); ctx.fill(); });
+          } },
+        { tip: 'Add rosy cheeks either side.', draw: (ctx, c) => blush(ctx, c, 58, 27) },
+        { tip: 'Draw a nice round head all the way around.', draw: (ctx, c) => roundHead(ctx, c, 33) },
+        { tip: 'Two floppy triangle ears on top and your pig is done!', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            ctx.beginPath(); ctx.moveTo(28, 24); ctx.lineTo(24, 8); ctx.lineTo(42, 17); ctx.closePath(); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(72, 24); ctx.lineTo(76, 8); ctx.lineTo(58, 17); ctx.closePath(); ctx.stroke();
+          } },
+      ],
+    },
+    {
+      key: 'cat', name: 'Cat',
+      steps: [
+        { tip: 'Two little circles for the eyes to begin.', draw: eyeCircles },
+        { tip: 'Fill them in with sparkles so they look shiny.', draw: eyeSparkle },
+        { tip: 'A tiny triangle nose and a little "w" mouth.', draw: (ctx, c) => {
+            line(ctx, c, 2.4);
+            ctx.beginPath(); ctx.moveTo(46, 60); ctx.lineTo(54, 60); ctx.lineTo(50, 65); ctx.closePath();
+            ctx.fillStyle = c.fill; ctx.fill();
+            smile(ctx, c, 68, 0.9);
+          } },
+        { tip: 'Whiskers! Three lines out of each cheek.', draw: (ctx, c) => {
+            line(ctx, c, 2);
+            [-1, 1].forEach(s => {
+              [[60, -5], [66, 0], [71, 5]].forEach(([y, dy]) => {
+                ctx.beginPath();
+                ctx.moveTo(50 + s * 21, y);
+                ctx.lineTo(50 + s * 44, y + dy);
+                ctx.stroke();
+              });
+            });
+          } },
+        { tip: 'Now a big round head around the face.', draw: (ctx, c) => roundHead(ctx, c, 33) },
+        { tip: 'Two pointy ears on top — meow!', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            ctx.beginPath(); ctx.moveTo(26, 26); ctx.lineTo(22, 4); ctx.lineTo(46, 17); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(74, 26); ctx.lineTo(78, 4); ctx.lineTo(54, 17); ctx.stroke();
+          } },
+      ],
+    },
+    {
+      key: 'axolotl', name: 'Axolotl',
+      steps: [
+        { tip: 'Two circles for the eyes, nice and far apart.', draw: eyeCircles },
+        { tip: 'Sparkly filled-in eyes.', draw: eyeSparkle },
+        { tip: 'A teeny happy mouth underneath.', draw: (ctx, c) => smile(ctx, c, 64, 0.9) },
+        { tip: 'Pink cheeks — axolotls are very pink!', draw: (ctx, c) => blush(ctx, c, 60, 25) },
+        { tip: 'Draw a round head around it all.', draw: (ctx, c) => roundHead(ctx, c, 31) },
+        { tip: 'Now the frilly gills: three feathery fronds sticking out each side.', draw: (ctx, c) => {
+            line(ctx, c, 2.2);
+            [-1, 1].forEach(s => {
+              [[-11, -7], [1, 0], [12, 7]].forEach(([dy, tilt]) => {
+                const x0 = 50 + s * 28, y0 = 48 + dy;
+                const x1 = x0 + s * 9, y1 = y0 + tilt * 0.5;
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+                // three little fronds off the end
+                [-5, 0, 5].forEach(f => {
+                  ctx.beginPath();
+                  ctx.moveTo(x1, y1);
+                  ctx.lineTo(x1 + s * 7, y1 + f);
+                  ctx.stroke();
+                });
+              });
+            });
+          } },
+      ],
+    },
+    {
+      key: 'octopus', name: 'Octopus',
+      steps: [
+        { tip: 'Two circles for those big eyes.', draw: eyeCircles },
+        { tip: 'Fill them in and add the sparkles.', draw: eyeSparkle },
+        { tip: 'A small smiley mouth.', draw: (ctx, c) => smile(ctx, c, 62, 0.9) },
+        { tip: 'Rosy cheeks either side.', draw: (ctx, c) => blush(ctx, c, 58, 24) },
+        { tip: 'Draw a big dome for the head — flat along the bottom.', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            ctx.beginPath();
+            ctx.arc(50, 48, 30, Math.PI, 0);
+            ctx.lineTo(80, 72);
+            ctx.lineTo(20, 72);
+            ctx.closePath();
+            ctx.stroke();
+          } },
+        { tip: 'Wiggly tentacles along the bottom — count them, eight!', draw: (ctx, c) => {
+            line(ctx, c, 2.6);
+            for (let i = 0; i < 5; i++) {
+              const x = 24 + i * 13;
+              ctx.beginPath();
+              ctx.arc(x, 72, 6.5, 0, Math.PI);
+              ctx.stroke();
+            }
+          } },
+      ],
+    },
+    {
+      key: 'sloth', name: 'Sloth',
+      steps: [
+        { tip: 'Two circles for the eyes.', draw: eyeCircles },
+        { tip: 'Sparkly eyes, of course.', draw: eyeSparkle },
+        { tip: 'A tiny nose and a sleepy little smile.', draw: (ctx, c) => {
+            line(ctx, c, 2.4);
+            ctx.fillStyle = c.fill;
+            ctx.beginPath(); ctx.ellipse(50, 60, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(50, 62, 6, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+          } },
+        { tip: 'Round head all the way around.', draw: (ctx, c) => roundHead(ctx, c, 32) },
+        { tip: 'Sloths have dark patches round their eyes — draw them like a mask.', draw: (ctx, c) => {
+            line(ctx, c, 2.6);
+            [-1, 1].forEach(s => {
+              ctx.beginPath();
+              ctx.ellipse(50 + s * 16, 46, 15, 13, s * 0.35, 0, Math.PI * 2);
+              ctx.stroke();
+            });
+          } },
+        { tip: 'A little fringe of fur on top and he\'s done. Slooow work!', draw: (ctx, c) => {
+            line(ctx, c, 2.4);
+            for (let i = 0; i < 5; i++) {
+              const x = 34 + i * 8;
+              ctx.beginPath();
+              ctx.arc(x, 18, 4.5, Math.PI, 0);
+              ctx.stroke();
+            }
+          } },
+      ],
+    },
+    {
+      key: 'bunny', name: 'Bunny',
+      steps: [
+        { tip: 'Two circles for the eyes to start.', draw: eyeCircles },
+        { tip: 'Fill them in with big shiny sparkles.', draw: eyeSparkle },
+        { tip: 'A little "y" nose and mouth in the middle.', draw: (ctx, c) => {
+            line(ctx, c, 2.4);
+            ctx.fillStyle = c.fill;
+            ctx.beginPath(); ctx.moveTo(46, 59); ctx.lineTo(54, 59); ctx.lineTo(50, 64); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(50, 64); ctx.lineTo(50, 68); ctx.stroke();
+            smile(ctx, c, 70, 0.8);
+          } },
+        { tip: 'Pink cheeks either side.', draw: (ctx, c) => blush(ctx, c, 62, 25) },
+        { tip: 'Draw the head — a nice round one.', draw: (ctx, c) => roundHead(ctx, c, 31) },
+        { tip: 'Two big long ears standing up. Hop hop!', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            [-1, 1].forEach(s => {
+              const x = 50 + s * 14;
+              ctx.beginPath();
+              ctx.ellipse(x, 12, 8, 18, s * 0.12, 0, Math.PI * 2);
+              ctx.stroke();
+            });
+          } },
+      ],
+    },
+    {
+      key: 'unicorn', name: 'Unicorn',
+      steps: [
+        { tip: 'Two circles for the eyes.', draw: eyeCircles },
+        { tip: 'Sparkle them up!', draw: eyeSparkle },
+        { tip: 'A wide muzzle box across the bottom, with two little nostrils.', draw: (ctx, c) => {
+            line(ctx, c, 2.6);
+            const x = 31, y = 60, w = 38, h = 18, r = 6;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.fillStyle = c.fill;
+            [44, 56].forEach(nx => { ctx.beginPath(); ctx.ellipse(nx, 70, 1.7, 3.6, 0, 0, Math.PI * 2); ctx.fill(); });
+          } },
+        { tip: 'Rosy cheeks.', draw: (ctx, c) => blush(ctx, c, 56, 27) },
+        { tip: 'Now a rounded-square head around everything.', draw: (ctx, c) => boxHead(ctx, c, 64, 66, 48, 18) },
+        { tip: 'Ears and — the best bit — a swirly horn on top!', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            ctx.beginPath(); ctx.moveTo(26, 20); ctx.lineTo(20, 4); ctx.lineTo(36, 14); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(74, 20); ctx.lineTo(80, 4); ctx.lineTo(64, 14); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(44, 16); ctx.lineTo(50, 0); ctx.lineTo(56, 16); ctx.stroke();
+            line(ctx, c, 2);
+            ctx.beginPath(); ctx.moveTo(46, 11); ctx.lineTo(54, 11); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(47.5, 6); ctx.lineTo(52.5, 6); ctx.stroke();
+          } },
+      ],
+    },
+    {
+      key: 'human', name: 'Person',
+      steps: [
+        { tip: 'Two circles for the eyes.', draw: eyeCircles },
+        { tip: 'Big sparkly eyes — the kawaii secret.', draw: eyeSparkle },
+        { tip: 'A dot for the nose and a happy smile.', draw: (ctx, c) => {
+            line(ctx, c, 2.4);
+            ctx.fillStyle = c.fill;
+            ctx.beginPath(); ctx.ellipse(50, 60, 1.8, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(50, 63, 7, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+          } },
+        { tip: 'Rosy cheeks either side of the smile.', draw: (ctx, c) => blush(ctx, c, 60, 25) },
+        { tip: 'Draw a round face all the way around.', draw: (ctx, c) => roundHead(ctx, c, 30) },
+        { tip: 'Add hair — a fringe on top and long bits down the sides.', draw: (ctx, c) => {
+            line(ctx, c, 2.8);
+            ctx.beginPath(); ctx.arc(50, 48, 30, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+            [-1, 1].forEach(s => {
+              ctx.beginPath();
+              ctx.moveTo(50 + s * 29, 44);
+              ctx.lineTo(50 + s * 32, 82);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(50 + s * 20, 22);
+              ctx.lineTo(50 + s * 30, 44);
+              ctx.stroke();
+            });
+          } },
+      ],
+    },
+  ];
+
+  // ==========================================================
+  // Rendering the guide
+  // ==========================================================
+  // Draws steps 0..upto. Everything before `upto` is ghosted, the newest
+  // step is bright, so you can see exactly what to add next.
+  function renderSteps(ctx, animal, upto, size, highlight = true) {
+    ctx.save();
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#fffdf7';
+    ctx.fillRect(0, 0, size, size);
+    ctx.scale(size / 100, size / 100);
+    ctx.translate(0, 4);
+    for (let i = 0; i <= upto && i < animal.steps.length; i++) {
+      const isNew = highlight && i === upto;
+      animal.steps[i].draw(ctx, highlight ? (isNew ? NEW : OLD) : INK);
+    }
+    ctx.restore();
+  }
+
+  // ==========================================================
+  // Saved drawings
+  // ==========================================================
+  const storeKey = (k) => 'flocade-kawaii-' + k;
+  const MAX_PER_ANIMAL = 12;
+  function getSaved(k) {
+    try { return JSON.parse(localStorage.getItem(storeKey(k))) || []; } catch { return []; }
+  }
+  function setSaved(k, list) {
+    try { localStorage.setItem(storeKey(k), JSON.stringify(list)); return true; }
+    catch { return false; }
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+
+  // ==========================================================
+  // Home screen
+  // ==========================================================
+  const grid = document.getElementById('grid');
+  const homeView = document.getElementById('homeView');
+  const drawView = document.getElementById('drawView');
+  const galView = document.getElementById('galView');
+  const titleEl = document.getElementById('title');
+  const galBtn = document.getElementById('galBtn');
+  const backBtn = document.getElementById('backBtn');
+
+  function buildHome() {
+    grid.innerHTML = '';
+    ANIMALS.forEach(a => {
+      const btn = document.createElement('button');
+      btn.className = 'animal';
+      btn.type = 'button';
+      btn.dataset.key = a.key;
+
+      const saved = getSaved(a.key);
+      let thumb;
+      if (saved.length) {
+        thumb = document.createElement('img');
+        thumb.className = 'thumb';
+        thumb.src = saved[saved.length - 1];
+        thumb.alt = a.name + ' drawing';
+      } else {
+        thumb = document.createElement('canvas');
+        thumb.className = 'thumb';
+        thumb.width = thumb.height = 200;
+        renderSteps(thumb.getContext('2d'), a, a.steps.length - 1, 200, false);
+      }
+
+      const nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = a.name;
+
+      btn.append(thumb, nm);
+
+      if (saved.length) {
+        const badge = document.createElement('button');
+        badge.className = 'badge';
+        badge.type = 'button';
+        badge.textContent = '🖼️' + saved.length;
+        badge.title = 'Your ' + a.name + ' drawings';
+        badge.addEventListener('click', (e) => { e.stopPropagation(); openGallery(a); });
+        btn.appendChild(badge);
+      }
+
+      btn.addEventListener('click', () => openTutorial(a));
+      grid.appendChild(btn);
+    });
+  }
+
+  function showView(v) {
+    [homeView, drawView, galView].forEach(x => { x.hidden = x !== v; });
+  }
+
+  function goHome() {
+    buildHome();
+    showView(homeView);
+    titleEl.textContent = 'KAWAII CREATOR';
+    galBtn.classList.add('hidden');
+    backBtn.textContent = '← ARCADE';
+    backBtn.setAttribute('href', '../../');
+    current = null;
+  }
+
+  backBtn.addEventListener('click', (e) => {
+    if (current) { e.preventDefault(); goHome(); }
+  });
+
+  // ==========================================================
+  // Tutorial screen
+  // ==========================================================
+  const guideCanvas = document.getElementById('guide');
+  const ghost = document.getElementById('ghost');
+  const inkCanvas = document.getElementById('ink');
+  const stepNum = document.getElementById('stepNum');
+  const stepTip = document.getElementById('stepTip');
+  const prevStep = document.getElementById('prevStep');
+  const nextStep = document.getElementById('nextStep');
+  const traceBtn = document.getElementById('traceBtn');
+
+  const PALETTE = ['#3a2a4d', '#ff2e88', '#ff5a5a', '#ff9e3d', '#ffe600',
+                   '#3dff8b', '#00f0ff', '#4a6cff', '#b38bff', '#8a5a3b', '#ffffff'];
+
+  let current = null, step = 0, trace = true;
+  let colour = '#3a2a4d', brush = 5, erasing = false;
+  const history = [];
+  const SIZE = 520; // internal canvas resolution
+
+  function setupCanvases() {
+    [ghost, inkCanvas].forEach(cv => { cv.width = cv.height = SIZE; });
+  }
+
+  function drawGhost() {
+    const g = ghost.getContext('2d');
+    g.clearRect(0, 0, SIZE, SIZE);
+    g.fillStyle = '#fffdf7';
+    g.fillRect(0, 0, SIZE, SIZE);
+    if (!trace || !current) return;
+    g.save();
+    g.globalAlpha = 0.22;
+    renderStepsTransparent(g, current, step, SIZE);
+    g.restore();
+  }
+  // Same as renderSteps but without painting the paper, so it can sit on top.
+  function renderStepsTransparent(ctx, animal, upto, size) {
+    ctx.save();
+    ctx.scale(size / 100, size / 100);
+    ctx.translate(0, 4);
+    for (let i = 0; i <= upto && i < animal.steps.length; i++) animal.steps[i].draw(ctx, INK);
+    ctx.restore();
+  }
+
+  function showStep() {
+    const total = current.steps.length;
+    step = Math.max(0, Math.min(total - 1, step));
+    stepNum.textContent = `STEP ${step + 1} / ${total}`;
+    stepTip.textContent = current.steps[step].tip;
+    renderSteps(guideCanvas.getContext('2d'), current, step, guideCanvas.width);
+    prevStep.disabled = step === 0;
+    nextStep.disabled = step === total - 1;
+    nextStep.textContent = step === total - 1 ? 'DONE!' : 'NEXT ▶';
+    drawGhost();
+  }
+
+  function openTutorial(a) {
+    current = a;
+    step = 0;
+    showView(drawView);
+    titleEl.textContent = 'DRAW A ' + a.name.toUpperCase();
+    backBtn.textContent = '← BACK';
+    backBtn.removeAttribute('href');
+    galBtn.classList.toggle('hidden', getSaved(a.key).length === 0);
+    setupCanvases();
+    clearInk(false);
+    showStep();
+    drawView.scrollTop = 0;
+  }
+
+  prevStep.addEventListener('click', () => { step--; showStep(); });
+  nextStep.addEventListener('click', () => { step++; showStep(); });
+  traceBtn.addEventListener('click', () => {
+    trace = !trace;
+    traceBtn.classList.toggle('on', trace);
+    drawGhost();
+  });
+
+  // ---- painting ----
+  function clearInk(remember = true) {
+    const c = inkCanvas.getContext('2d');
+    if (remember) pushHistory();
+    c.clearRect(0, 0, SIZE, SIZE);
+  }
+  function pushHistory() {
+    const c = inkCanvas.getContext('2d');
+    if (history.length > 12) history.shift();
+    history.push(c.getImageData(0, 0, SIZE, SIZE));
+  }
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    const img = history.pop();
+    if (img) inkCanvas.getContext('2d').putImageData(img, 0, 0);
+  });
+  document.getElementById('clearBtn').addEventListener('click', () => clearInk());
+  const eraseBtn = document.getElementById('eraseBtn');
+  eraseBtn.addEventListener('click', () => {
+    erasing = !erasing;
+    eraseBtn.classList.toggle('on', erasing);
+  });
+
+  const swatchBox = document.getElementById('swatches');
+  PALETTE.forEach(col => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sw' + (col === colour ? ' on' : '');
+    b.style.background = col;
+    b.addEventListener('click', () => {
+      colour = col; erasing = false;
+      eraseBtn.classList.remove('on');
+      swatchBox.querySelectorAll('.sw').forEach(s => s.classList.remove('on'));
+      b.classList.add('on');
+    });
+    swatchBox.appendChild(b);
+  });
+  const sizeBox = document.getElementById('sizes');
+  [3, 5, 9, 16].forEach(w => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'sizeDot' + (w === brush ? ' on' : '');
+    const dot = document.createElement('i');
+    const px = Math.max(5, Math.round(w * 1.2));
+    dot.style.width = dot.style.height = px + 'px';
+    b.appendChild(dot);
+    b.addEventListener('click', () => {
+      brush = w;
+      sizeBox.querySelectorAll('.sizeDot').forEach(s => s.classList.remove('on'));
+      b.classList.add('on');
+    });
+    sizeBox.appendChild(b);
+  });
+
+  (function painting() {
+    let drawing = false, last = null, pid = null;
+    const pos = (e) => {
+      const r = inkCanvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * (SIZE / r.width), y: (e.clientY - r.top) * (SIZE / r.height) };
+    };
+    const stroke = (a, b) => {
+      const c = inkCanvas.getContext('2d');
+      c.globalCompositeOperation = erasing ? 'destination-out' : 'source-over';
+      c.strokeStyle = colour;
+      c.lineWidth = (erasing ? brush * 2.4 : brush) * (SIZE / 100) * 0.55;
+      c.lineCap = c.lineJoin = 'round';
+      c.beginPath();
+      c.moveTo(a.x, a.y);
+      c.lineTo(b.x, b.y);
+      c.stroke();
+      c.globalCompositeOperation = 'source-over';
+    };
+    inkCanvas.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (pid !== null) return;
+      pid = e.pointerId;
+      inkCanvas.setPointerCapture(pid);
+      pushHistory();
+      drawing = true;
+      last = pos(e);
+      stroke(last, last);
+    });
+    inkCanvas.addEventListener('pointermove', (e) => {
+      if (!drawing || e.pointerId !== pid) return;
+      const p = pos(e);
+      stroke(last, p);
+      last = p;
+    });
+    const end = (e) => { if (e.pointerId === pid) { pid = null; drawing = false; } };
+    inkCanvas.addEventListener('pointerup', end);
+    inkCanvas.addEventListener('pointercancel', end);
+  })();
+
+  // ---- take a photo of your drawing ----
+  document.getElementById('photoBtn').addEventListener('click', () => {
+    if (!current) return;
+    const out = document.createElement('canvas');
+    out.width = out.height = 300;
+    const o = out.getContext('2d');
+    o.fillStyle = '#fffdf7';
+    o.fillRect(0, 0, 300, 300);
+    o.drawImage(inkCanvas, 0, 0, 300, 300);
+    const url = out.toDataURL('image/jpeg', 0.82);
+
+    const list = getSaved(current.key);
+    list.push(url);
+    while (list.length > MAX_PER_ANIMAL) list.shift();
+    if (setSaved(current.key, list)) {
+      toast('📷 Saved in your ' + current.name + ' button!');
+      galBtn.classList.remove('hidden');
+    } else {
+      toast("Couldn't save — the picture box is full. Delete a few old ones!");
+    }
+  });
+
+  // ==========================================================
+  // Gallery
+  // ==========================================================
+  const galEl = document.getElementById('gal');
+  const galEmpty = document.getElementById('galEmpty');
+  let galAnimal = null;
+
+  function openGallery(a) {
+    galAnimal = a;
+    showView(galView);
+    titleEl.textContent = a.name.toUpperCase() + ' DRAWINGS';
+    backBtn.textContent = '← BACK';
+    backBtn.removeAttribute('href');
+    galBtn.classList.add('hidden');
+    renderGallery();
+  }
+  function renderGallery() {
+    const list = getSaved(galAnimal.key);
+    galEl.innerHTML = '';
+    galEmpty.hidden = list.length > 0;
+    list.slice().reverse().forEach((url, i) => {
+      const realIndex = list.length - 1 - i;
+      const item = document.createElement('div');
+      item.className = 'galItem';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = galAnimal.name + ' drawing';
+      const del = document.createElement('button');
+      del.className = 'galDel';
+      del.type = 'button';
+      del.textContent = '✕';
+      del.title = 'Delete this drawing';
+      del.addEventListener('click', () => {
+        const cur = getSaved(galAnimal.key);
+        cur.splice(realIndex, 1);
+        setSaved(galAnimal.key, cur);
+        renderGallery();
+      });
+      item.append(img, del);
+      galEl.appendChild(item);
+    });
+  }
+  galBtn.addEventListener('click', () => { if (current) openGallery(current); });
+
+  // ==========================================================
+  // Boot
+  // ==========================================================
+  goHome();
+
+  // Test hook.
+  window.__kc = {
+    animals: ANIMALS.map(a => ({ key: a.key, name: a.name, steps: a.steps.length })),
+    open: (k) => openTutorial(ANIMALS.find(a => a.key === k)),
+    setStep: (n) => { step = n; showStep(); },
+    state: () => ({
+      view: !homeView.hidden ? 'home' : (!drawView.hidden ? 'draw' : 'gallery'),
+      animal: current ? current.key : null,
+      step, steps: current ? current.steps.length : 0,
+      tip: current ? current.steps[step].tip : null,
+      saved: Object.fromEntries(ANIMALS.map(a => [a.key, getSaved(a.key).length])),
+    }),
+    scribble: () => {
+      const c = inkCanvas.getContext('2d');
+      c.strokeStyle = '#ff2e88'; c.lineWidth = 14; c.lineCap = 'round';
+      c.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const x = 90 + i * 8, y = 260 + Math.sin(i / 3) * 90;
+        i ? c.lineTo(x, y) : c.moveTo(x, y);
+      }
+      c.stroke();
+    },
+  };
+  </script>
+</body>
+</html>

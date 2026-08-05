@@ -174,6 +174,12 @@
     "description": "Spin a 3D die with a drag, then tap its faces in order — 1, 2, 3… Correct taps buy you time! Levels climb from D6 to D20, with dots or numbers."
   },
   {
+    "slug": "kawaii-creator",
+    "title": "Kawaii Creator",
+    "icon": "🐙",
+    "description": "Loads of kawaii animals — pig, cat, axolotl, octopus, sloth, bunny, unicorn and a person. Tap one and it teaches you to draw it step by step, then snap a photo and keep it in that animal's button."
+  },
+  {
     "slug": "what-bot",
     "title": "What Bot",
     "icon": "💬",
