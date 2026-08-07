@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studio Music — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --green: #3dff8b;
+      --purple: #b38bff;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    /* ---------- top row: BIN left, OK right ---------- */
+    .toprow {
+      flex: none;
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 0.6rem; padding: 0.6rem 0.7rem 0.2rem;
+    }
+    .bin {
+      background: var(--panel); border: 3px dashed var(--panel2);
+      border-radius: 16px; padding: 0.55rem 0.7rem;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: var(--dim);
+      transition: transform 0.1s, border-color 0.1s, background 0.1s;
+    }
+    .bin .em { font-size: 1.5rem; }
+    .bin.armed { border-color: var(--pink); color: var(--pink); }
+    .bin.over {
+      border-color: #ff5a5a; background: #4a0f2a; color: #ff9ec7;
+      transform: scale(1.18);
+    }
+    .okBtn {
+      background: var(--green); color: #05240f; border: none;
+      border-radius: 16px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.8rem; padding: 0.85rem 1.1rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .okBtn:disabled { opacity: 0.3; box-shadow: none; }
+    .okBtn:not(:disabled):active { transform: translateY(3px); box-shadow: none; }
+    a.back {
+      color: var(--cyan); text-decoration: none;
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+      align-self: center;
+    }
+
+    /* ---------- middle: the record button ---------- */
+    .stage {
+      flex: 1; min-height: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.7rem; padding: 0.3rem 1rem;
+      text-align: center;
+    }
+    .recWrap { position: relative; display: grid; place-items: center; }
+    .ring {
+      position: absolute; width: 100%; height: 100%; border-radius: 50%;
+      border: 4px solid var(--pink); opacity: 0;
+    }
+    .recording .ring { animation: ping 1.1s ease-out infinite; }
+    @keyframes ping { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(1.6); opacity: 0; } }
+    .recBtn {
+      width: clamp(120px, 34vw, 168px); aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #ff6fae, #ff2e88 60%, #c4005e);
+      border: 6px solid #fff;
+      box-shadow: 0 0 34px rgba(255, 46, 136, 0.75);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.6rem; color: #fff;
+      position: relative; z-index: 1;
+    }
+    .recBtn .em { font-size: 2rem; line-height: 1; }
+    .recBtn:active { transform: scale(0.96); }
+    .recording .recBtn { background: radial-gradient(circle at 35% 30%, #ff9a9a, #ff2020 60%, #8f0000); }
+
+    #viz { width: min(90vw, 26rem); height: 54px; }
+    .status { color: var(--dim); font-size: 0.92rem; min-height: 1.3rem; }
+    .styleName {
+      font-family: 'Press Start 2P', monospace; font-size: 0.75rem;
+      color: var(--yellow); min-height: 1rem;
+    }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      background: var(--panel2); border: 2px solid transparent; border-radius: 14px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.62rem;
+      padding: 0.8rem 0.95rem;
+    }
+    .btn.random { background: var(--purple); color: #1b0740; }
+    .btn.play { background: var(--cyan); color: #06121a; }
+    .btn:disabled { opacity: 0.3; }
+    .btn:not(:disabled):active { transform: translateY(2px); }
+
+    /* ---------- gallery ---------- */
+    .galWrap {
+      flex: none;
+      background: var(--panel);
+      border-top: 2px solid var(--panel2);
+      padding: 0.5rem 0.7rem 0.7rem;
+      max-height: 42vh; display: flex; flex-direction: column;
+    }
+    .galHead {
+      display: flex; align-items: center; justify-content: space-between;
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem;
+      color: var(--cyan); margin-bottom: 0.5rem;
+    }
+    .galHead .count { color: var(--yellow); }
+    .gal {
+      overflow-y: auto; display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+      gap: 0.5rem; padding-bottom: 0.2rem;
+    }
+    .tile {
+      background: var(--panel2); border: 2px solid transparent;
+      border-radius: 14px; padding: 0.5rem 0.35rem;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      touch-action: none; user-select: none; -webkit-user-select: none;
+    }
+    .tile .em { font-size: 1.35rem; }
+    .tile .nm { font-family: 'Press Start 2P', monospace; font-size: 0.42rem; color: var(--yellow); text-align: center; line-height: 1.5; }
+    .tile .hint { font-size: 0.6rem; color: var(--dim); }
+    .tile.playing { border-color: var(--cyan); box-shadow: 0 0 14px rgba(0,240,255,0.5); }
+    .tile.dragging { opacity: 0.35; }
+    .ghostTile {
+      position: fixed; z-index: 50; pointer-events: none;
+      background: var(--panel2); border: 3px solid var(--pink);
+      border-radius: 14px; padding: 0.5rem 0.6rem;
+      font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: var(--yellow);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+    }
+    .galEmpty { color: var(--dim); font-size: 0.85rem; text-align: center; padding: 0.8rem 0.4rem; }
+
+    /* ---------- modal ---------- */
+    .modal {
+      position: fixed; inset: 0; z-index: 60;
+      background: rgba(6, 1, 16, 0.9);
+      display: flex; align-items: center; justify-content: center; padding: 1.2rem;
+    }
+    .modal[hidden] { display: none; }
+    .card {
+      background: var(--panel); border: 3px solid var(--pink); border-radius: 20px;
+      padding: 1.3rem; max-width: 26rem; width: 100%; text-align: center;
+      box-shadow: 0 0 34px rgba(255,46,136,0.35);
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace; color: var(--pink);
+      font-size: clamp(1rem, 4.8vw, 1.35rem); line-height: 1.6;
+      text-shadow: 0 0 16px rgba(255,46,136,0.7);
+    }
+    .card p { font-size: 0.95rem; line-height: 1.6; margin-top: 0.8rem; color: var(--text); }
+    .card p.small { font-size: 0.85rem; color: var(--dim); }
+    .card .btn { width: 100%; margin-top: 1rem; background: var(--pink); color: #fff; }
+
+    #toast {
+      position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%) translateY(18px);
+      background: var(--panel2); border: 2px solid var(--cyan); color: var(--text);
+      border-radius: 999px; padding: 0.65rem 1rem; font-size: 0.88rem;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+      z-index: 55; max-width: 92vw; text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="toprow">
+    <button class="bin" id="bin" title="Drag a song here to delete it">
+      <span class="em">🗑️</span>BIN
+    </button>
+    <a class="back" href="../../">&larr; ARCADE</a>
+    <button class="okBtn" id="okBtn" disabled>OK</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="recWrap">
+      <div class="ring"></div>
+      <button class="recBtn" id="recBtn"><span class="em">🎙️</span><span id="recLabel">RECORD</span></button>
+    </div>
+    <canvas id="viz" width="700" height="108"></canvas>
+    <div class="styleName" id="styleName"></div>
+    <div class="status" id="status">Press RECORD and say something — or roll 🎲 RANDOM!</div>
+    <div class="actions">
+      <button class="btn play" id="playBtn" disabled>▶ PLAY</button>
+      <button class="btn random" id="randomBtn">🎲 RANDOM</button>
+    </div>
+  </div>
+
+  <div class="galWrap">
+    <div class="galHead">
+      <span>🎵 MY SONGS</span>
+      <span class="count" id="count">0 / 100</span>
+    </div>
+    <div class="gal" id="gal"></div>
+    <div class="galEmpty" id="galEmpty">Nothing saved yet — make a song and press OK!</div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="card">
+      <h1 id="mTitle">STUDIO MUSIC</h1>
+      <div style="font-size:2.2rem">🎙️🎶</div>
+      <p id="mBody"></p>
+      <button class="btn" id="mBtn">LET'S GO!</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // Studio Music — by Flo.
+  // Press the record button in the middle, say anything, and it
+  // turns what you said into a song. RANDOM rolls a different
+  // sound. OK saves it into your own gallery (up to 100). Drag a
+  // song to the bin in the top left to delete it.
+  // ==========================================================
+
+  const MAX_SONGS = 100;
+  const MAX_REC_SECONDS = 5;
+
+  const $ = (id) => document.getElementById(id);
+  const recBtn = $('recBtn'), recLabel = $('recLabel'), stage = $('stage');
+  const okBtn = $('okBtn'), randomBtn = $('randomBtn'), playBtn = $('playBtn');
+  const statusEl = $('status'), styleEl = $('styleName'), countEl = $('count');
+  const galEl = $('gal'), galEmpty = $('galEmpty'), binEl = $('bin');
+  const viz = $('viz'), vctx = viz.getContext('2d');
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // ==========================================================
+  // Audio engine
+  // ==========================================================
+  let actx = null;
+  function ac() {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+
+  // A tiny seeded random so a saved song always plays back the same.
+  function rng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  }
+
+  // Six ways to turn your voice into a song.
+  const STYLES = [
+    { key: 'disco',  name: 'DISCO',    emoji: '🪩', bpm: 118, scale: [0, 3, 5, 7, 10], kick: [1,0,0,0,1,0,0,0], snare: [0,0,1,0,0,0,1,0], hat: [0,1,0,1,0,1,0,1], bassOct: -12, wave: 'sawtooth' },
+    { key: 'chip',   name: 'CHIPTUNE', emoji: '👾', bpm: 142, scale: [0, 2, 4, 7, 9],  kick: [1,0,0,1,0,0,1,0], snare: [0,0,1,0,0,0,1,0], hat: [1,1,1,1,1,1,1,1], bassOct: -12, wave: 'square' },
+    { key: 'hiphop', name: 'HIP HOP',  emoji: '🎤', bpm: 88,  scale: [0, 3, 5, 6, 10], kick: [1,0,0,1,0,0,1,0], snare: [0,0,1,0,0,0,1,0], hat: [1,0,1,0,1,0,1,1], bassOct: -24, wave: 'triangle' },
+    { key: 'dreamy', name: 'DREAMY',   emoji: '🌙', bpm: 76,  scale: [0, 2, 4, 7, 11], kick: [1,0,0,0,0,0,0,0], snare: [0,0,0,0,1,0,0,0], hat: [0,0,1,0,0,0,1,0], bassOct: -12, wave: 'sine' },
+    { key: 'techno', name: 'TECHNO',   emoji: '🤖', bpm: 130, scale: [0, 3, 7, 10, 12], kick: [1,0,1,0,1,0,1,0], snare: [0,0,0,0,1,0,0,0], hat: [0,1,0,1,0,1,0,1], bassOct: -24, wave: 'sawtooth' },
+    { key: 'bouncy', name: 'BOUNCY',   emoji: '🎪', bpm: 104, scale: [0, 4, 7, 9, 12], kick: [1,0,0,0,1,0,0,0], snare: [0,0,1,0,0,0,1,0], hat: [0,0,1,1,0,0,1,1], bassOct: -12, wave: 'triangle' },
+  ];
+  const WORDS = ['Wobble', 'Banana', 'Rocket', 'Sparkle', 'Noodle', 'Thunder', 'Bubble',
+                 'Zigzag', 'Pancake', 'Comet', 'Jellybean', 'Robot', 'Rainbow', 'Waffle'];
+
+  // ---- drum + bass voices ----
+  function kickAt(a, out, t) {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+    g.gain.setValueAtTime(0.9, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+    o.connect(g).connect(out);
+    o.start(t); o.stop(t + 0.26);
+  }
+  let noiseBuf = null;
+  function noise(a) {
+    if (!noiseBuf) {
+      noiseBuf = a.createBuffer(1, a.sampleRate * 0.5, a.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const s = a.createBufferSource();
+    s.buffer = noiseBuf;
+    return s;
+  }
+  function snareAt(a, out, t) {
+    const s = noise(a), f = a.createBiquadFilter(), g = a.createGain();
+    f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.8;
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    s.connect(f).connect(g).connect(out);
+    s.start(t); s.stop(t + 0.2);
+  }
+  function hatAt(a, out, t) {
+    const s = noise(a), f = a.createBiquadFilter(), g = a.createGain();
+    f.type = 'highpass'; f.frequency.value = 7000;
+    g.gain.setValueAtTime(0.16, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    s.connect(f).connect(g).connect(out);
+    s.start(t); s.stop(t + 0.06);
+  }
+  function bassAt(a, out, t, freq, dur, wave) {
+    const o = a.createOscillator(), g = a.createGain(), f = a.createBiquadFilter();
+    o.type = wave;
+    o.frequency.setValueAtTime(freq, t);
+    f.type = 'lowpass'; f.frequency.value = 700;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.32, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(f).connect(g).connect(out);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  // Stand-in lead for when there's no microphone.
+  function bleepAt(a, out, t, freq, dur) {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g).connect(out);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  // Trim the quiet bits off the front and back of a recording.
+  function voiceRange(buf) {
+    const d = buf.getChannelData(0);
+    const step = Math.max(1, Math.floor(buf.sampleRate / 400));
+    let peak = 0;
+    for (let i = 0; i < d.length; i += step) peak = Math.max(peak, Math.abs(d[i]));
+    const thresh = Math.max(0.02, peak * 0.12);
+    let start = 0, end = d.length - 1;
+    for (let i = 0; i < d.length; i += step) { if (Math.abs(d[i]) > thresh) { start = i; break; } }
+    for (let i = d.length - 1; i > 0; i -= step) { if (Math.abs(d[i]) > thresh) { end = i; break; } }
+    const s = start / buf.sampleRate, e = end / buf.sampleRate;
+    return (e - s) < 0.12 ? { start: 0, end: buf.duration } : { start: s, end: e };
+  }
+
+  // The song itself: your voice chopped into a tune over drums and bass.
+  let playing = null;
+  function stopSong() {
+    if (!playing) return;
+    try { playing.gain.gain.cancelScheduledValues(actx.currentTime); } catch {}
+    try { playing.gain.disconnect(); } catch {}
+    playing.sources.forEach(s => { try { s.stop(); } catch {} });
+    if (playing.onEnd) clearTimeout(playing.onEnd);
+    document.querySelectorAll('.tile.playing').forEach(t => t.classList.remove('playing'));
+    playing = null;
+    playBtn.textContent = '▶ PLAY';
+  }
+
+  function playSong(voiceBuffer, style, seed, onDone) {
+    const a = ac();
+    stopSong();
+    const rnd = rng(seed);
+    const out = a.createGain();
+    out.gain.value = 0.9;
+    const analyser = a.createAnalyser();
+    analyser.fftSize = 128;
+    out.connect(analyser);
+    analyser.connect(a.destination);
+
+    const beat = 60 / style.bpm;
+    const BARS = 8, STEPS = 8;             // eighth-notes per bar
+    const t0 = a.currentTime + 0.12;
+    const sources = [];
+    const range = voiceBuffer ? voiceRange(voiceBuffer) : null;
+    const sliceCount = 6;
+
+    // a repeating melody so it sounds like a tune, not noise
+    const melody = [];
+    for (let i = 0; i < STEPS; i++) melody.push(style.scale[Math.floor(rnd() * style.scale.length)]);
+    const voiceOn = [];
+    for (let i = 0; i < STEPS; i++) voiceOn.push(rnd() < 0.62);
+    if (!voiceOn.some(Boolean)) voiceOn[0] = true;
+
+    for (let bar = 0; bar < BARS; bar++) {
+      for (let s = 0; s < STEPS; s++) {
+        const t = t0 + (bar * STEPS + s) * beat / 2;
+        if (style.kick[s]) kickAt(a, out, t);
+        if (style.snare[s]) snareAt(a, out, t);
+        if (style.hat[s]) hatAt(a, out, t);
+
+        const semi = melody[s] + (bar % 4 === 3 ? 5 : 0);
+        if (s % 2 === 0) {
+          bassAt(a, out, t, 110 * Math.pow(2, (semi + style.bassOct) / 12), beat * 0.45, style.wave);
+        }
+        if (!voiceOn[s]) continue;
+
+        if (voiceBuffer) {
+          // chop the recording and pitch each slice to the melody
+          const src = a.createBufferSource();
+          src.buffer = voiceBuffer;
+          const rate = Math.pow(2, semi / 12);
+          src.playbackRate.value = rate;
+          const g = a.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.95, t + 0.015);
+          const len = beat * 0.48;
+          g.gain.setValueAtTime(0.95, t + len * 0.7);
+          g.gain.exponentialRampToValueAtTime(0.001, t + len);
+          src.connect(g).connect(out);
+          const span = (range.end - range.start) / sliceCount;
+          const slice = (bar * STEPS + s) % sliceCount;
+          const offset = range.start + slice * span;
+          src.start(t, Math.min(offset, Math.max(0, voiceBuffer.duration - 0.05)), span * rate + 0.05);
+          src.stop(t + len + 0.05);
+          sources.push(src);
+        } else {
+          bleepAt(a, out, t, 330 * Math.pow(2, semi / 12), beat * 0.4);
+        }
+      }
+    }
+
+    const total = BARS * STEPS * beat / 2;
+    const token = Symbol('song');
+    const endTimer = setTimeout(() => {
+      if (playing && playing.token === token) { stopSong(); if (onDone) onDone(); }
+    }, (total + 0.4) * 1000);
+    playing = { gain: out, sources, onEnd: endTimer, token, analyser };
+    playBtn.textContent = '■ STOP';
+    drawViz();
+    return total;
+  }
+
+  // ---- little bar visualiser ----
+  function drawViz() {
+    const w = viz.width, h = viz.height;
+    vctx.clearRect(0, 0, w, h);
+    let data = null;
+    if (playing && playing.analyser) {
+      data = new Uint8Array(playing.analyser.frequencyBinCount);
+      playing.analyser.getByteFrequencyData(data);
+    } else if (micAnalyser && recording) {
+      data = new Uint8Array(micAnalyser.frequencyBinCount);
+      micAnalyser.getByteFrequencyData(data);
+    }
+    if (data) {
+      const bars = Math.min(32, data.length);
+      const bw = w / bars;
+      for (let i = 0; i < bars; i++) {
+        const v = data[i] / 255;
+        const bh = Math.max(3, v * h);
+        vctx.fillStyle = recording ? '#ff2e88' : ['#ff2e88', '#00f0ff', '#ffe600', '#3dff8b'][i % 4];
+        vctx.fillRect(i * bw + 2, h - bh, bw - 4, bh);
+      }
+      requestAnimationFrame(drawViz);
+    }
+  }
+
+  // ==========================================================
+  // Recording
+  // ==========================================================
+  let micStream = null, recorder = null, chunks = [], recording = false;
+  let micAnalyser = null, recTimer = null, recCountdown = null;
+  let takeBlob = null, takeBuffer = null, takeStyle = null, takeSeed = 0, micBlocked = false;
+
+  async function getMic() {
+    if (micStream) return micStream;
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const a = ac();
+    micAnalyser = a.createAnalyser();
+    micAnalyser.fftSize = 128;
+    a.createMediaStreamSource(micStream).connect(micAnalyser);
+    return micStream;
+  }
+
+  function pickMime() {
+    if (typeof MediaRecorder === 'undefined') return null;
+    for (const m of ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg']) {
+      if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  }
+
+  async function startRecording() {
+    try {
+      await getMic();
+    } catch (err) {
+      micBlocked = true;
+      showModal('NO MICROPHONE',
+        "I can't hear you! Your device said no to the microphone, or there isn't one.<br><br>" +
+        "No bother — press 🎲 RANDOM and I'll make you a song anyway. You can still save it with OK.",
+        'OK, GOT IT');
+      randomBtn.disabled = false;
+      statusEl.textContent = 'No microphone — press RANDOM to make a song!';
+      return;
+    }
+    const mime = pickMime();
+    if (mime === null) {
+      micBlocked = true;
+      statusEl.textContent = "This browser can't record — press RANDOM instead!";
+      randomBtn.disabled = false;
+      return;
+    }
+    chunks = [];
+    recorder = new MediaRecorder(micStream, mime ? { mimeType: mime } : undefined);
+    recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+    recorder.onstop = onRecordingDone;
+    recorder.start();
+    recording = true;
+    stage.classList.add('recording');
+    recLabel.textContent = 'STOP';
+    okBtn.disabled = true;
+    playBtn.disabled = true;
+    randomBtn.disabled = true;
+    let left = MAX_REC_SECONDS;
+    statusEl.textContent = 'Recording… say anything! ' + left;
+    drawViz();
+    recCountdown = setInterval(() => {
+      left--;
+      statusEl.textContent = 'Recording… say anything! ' + Math.max(0, left);
+    }, 1000);
+    recTimer = setTimeout(stopRecording, MAX_REC_SECONDS * 1000);
+  }
+
+  function stopRecording() {
+    if (!recording) return;
+    recording = false;
+    stage.classList.remove('recording');
+    recLabel.textContent = 'RECORD';
+    if (recTimer) clearTimeout(recTimer);
+    if (recCountdown) clearInterval(recCountdown);
+    try { recorder.stop(); } catch {}
+  }
+
+  async function onRecordingDone() {
+    statusEl.textContent = 'Turning it into a song…';
+    try {
+      takeBlob = new Blob(chunks, { type: chunks[0] ? chunks[0].type : 'audio/webm' });
+      const arr = await takeBlob.arrayBuffer();
+      takeBuffer = await ac().decodeAudioData(arr.slice(0));
+    } catch (err) {
+      takeBlob = null; takeBuffer = null;
+      randomBtn.disabled = false;
+      statusEl.textContent = "Couldn't use that recording — have another go, or press RANDOM!";
+      return;
+    }
+    rollStyle(true);
+  }
+
+  // ==========================================================
+  // Make a song (RANDOM rolls a new sound)
+  // ==========================================================
+  function rollStyle(firstTime) {
+    takeSeed = (Math.random() * 1e9) | 0;
+    takeStyle = STYLES[Math.floor(Math.random() * STYLES.length)];
+    styleEl.textContent = takeStyle.emoji + ' ' + takeStyle.name;
+    okBtn.disabled = false;
+    playBtn.disabled = false;
+    randomBtn.disabled = false;
+    statusEl.textContent = firstTime && takeBuffer
+      ? 'Here comes your song! Press OK to keep it.'
+      : 'A brand new sound! Press OK to keep it.';
+    playSong(takeBuffer, takeStyle, takeSeed);
+  }
+
+  recBtn.addEventListener('click', () => {
+    ac();
+    if (recording) stopRecording();
+    else { stopSong(); startRecording(); }
+  });
+  randomBtn.addEventListener('click', () => { ac(); rollStyle(false); });
+  playBtn.addEventListener('click', () => {
+    ac();
+    if (playing) { stopSong(); return; }
+    if (takeStyle) playSong(takeBuffer, takeStyle, takeSeed);
+  });
+
+  // ==========================================================
+  // Saving — your own gallery, up to 100
+  // ==========================================================
+  const DB_NAME = 'flocade-studio-music';
+  let db = null;
+  function openDB() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open(DB_NAME, 1);
+      r.onupgradeneeded = () => { r.result.createObjectStore('songs', { keyPath: 'id' }); };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  function tx(mode) { return db.transaction('songs', mode).objectStore('songs'); }
+  function dbAll() {
+    return new Promise((res, rej) => { const r = tx('readonly').getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => rej(r.error); });
+  }
+  function dbPut(rec) {
+    return new Promise((res, rej) => { const r = tx('readwrite').put(rec); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+  }
+  function dbDel(id) {
+    return new Promise((res, rej) => { const r = tx('readwrite').delete(id); r.onsuccess = () => res(); r.onerror = () => rej(r.error); });
+  }
+
+  let songs = [];
+  async function refreshGallery() {
+    songs = (await dbAll()).sort((a, b) => a.created - b.created);
+    countEl.textContent = songs.length + ' / ' + MAX_SONGS;
+    galEmpty.hidden = songs.length > 0;
+    galEl.innerHTML = '';
+    songs.forEach(rec => galEl.appendChild(makeTile(rec)));
+    binEl.classList.toggle('armed', songs.length > 0);
+  }
+
+  okBtn.addEventListener('click', async () => {
+    if (!takeStyle) return;
+    if (songs.length >= MAX_SONGS) {
+      toast('Your gallery is full! Drag a song to the 🗑️ bin to make room.');
+      return;
+    }
+    const rnd = rng(takeSeed);
+    const rec = {
+      id: 'song-' + Date.now() + '-' + ((Math.random() * 1e6) | 0),
+      created: Date.now(),
+      style: takeStyle.key,
+      seed: takeSeed,
+      name: WORDS[Math.floor(rnd() * WORDS.length)],
+      blob: takeBlob || null,
+    };
+    try {
+      await dbPut(rec);
+    } catch (err) {
+      toast("Couldn't save that one — try binning a few old songs.");
+      return;
+    }
+    await refreshGallery();
+    toast('🎵 Saved "' + rec.name + '" to your songs!');
+  });
+
+  function styleOf(key) { return STYLES.find(s => s.key === key) || STYLES[0]; }
+
+  function makeTile(rec) {
+    const st = styleOf(rec.style);
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.id = rec.id;
+    const em = document.createElement('div');
+    em.className = 'em';
+    em.textContent = st.emoji;
+    const nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = st.name + ' ' + rec.name;
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = '▶ tap';
+    tile.append(em, nm, hint);
+    attachTileHandlers(tile, rec);
+    return tile;
+  }
+
+  async function playSaved(rec, tile) {
+    const st = styleOf(rec.style);
+    let buf = null;
+    if (rec.blob) {
+      try {
+        const arr = await rec.blob.arrayBuffer();
+        buf = await ac().decodeAudioData(arr.slice(0));
+      } catch { buf = null; }
+    }
+    playSong(buf, st, rec.seed);
+    document.querySelectorAll('.tile.playing').forEach(t => t.classList.remove('playing'));
+    tile.classList.add('playing');
+  }
+
+  // ---- tap to play, drag to the bin to delete ----
+  function attachTileHandlers(tile, rec) {
+    let pid = null, startX = 0, startY = 0, dragging = false, ghost = null;
+
+    const overBin = (x, y) => {
+      const r = binEl.getBoundingClientRect();
+      return x >= r.left - 12 && x <= r.right + 12 && y >= r.top - 12 && y <= r.bottom + 12;
+    };
+
+    tile.addEventListener('pointerdown', (e) => {
+      if (pid !== null) return;
+      pid = e.pointerId;
+      startX = e.clientX; startY = e.clientY;
+      dragging = false;
+      tile.setPointerCapture(pid);
+    });
+    tile.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== pid) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!dragging && Math.hypot(dx, dy) > 10) {
+        dragging = true;
+        tile.classList.add('dragging');
+        ghost = document.createElement('div');
+        ghost.className = 'ghostTile';
+        ghost.innerHTML = tile.innerHTML;
+        document.body.appendChild(ghost);
+        binEl.classList.add('armed');
+      }
+      if (dragging) {
+        ghost.style.left = (e.clientX - 42) + 'px';
+        ghost.style.top = (e.clientY - 38) + 'px';
+        binEl.classList.toggle('over', overBin(e.clientX, e.clientY));
+      }
+    });
+    const finish = async (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null;
+      if (!dragging) { playSaved(rec, tile); return; }
+      tile.classList.remove('dragging');
+      if (ghost) { ghost.remove(); ghost = null; }
+      const onBin = overBin(e.clientX, e.clientY);
+      binEl.classList.remove('over');
+      dragging = false;
+      if (onBin) {
+        await dbDel(rec.id);
+        await refreshGallery();
+        toast('🗑️ Binned "' + rec.name + '" — more space for new songs!');
+      }
+    };
+    tile.addEventListener('pointerup', finish);
+    tile.addEventListener('pointercancel', (e) => {
+      if (e.pointerId !== pid) return;
+      pid = null; dragging = false;
+      tile.classList.remove('dragging');
+      if (ghost) { ghost.remove(); ghost = null; }
+      binEl.classList.remove('over');
+    });
+  }
+
+  // ==========================================================
+  // Modal + boot
+  // ==========================================================
+  function showModal(title, bodyHTML, btnText) {
+    $('mTitle').textContent = title;
+    $('mBody').innerHTML = bodyHTML;
+    $('mBtn').textContent = btnText;
+    $('modal').hidden = false;
+  }
+  $('mBtn').addEventListener('click', () => { $('modal').hidden = true; ac(); });
+
+  (async function boot() {
+    try {
+      db = await openDB();
+      await refreshGallery();
+    } catch (err) {
+      toast("Couldn't open your song gallery on this device.");
+    }
+    showModal('STUDIO MUSIC',
+      'Press the big <b>🎙️ RECORD</b> button and say anything at all — I\'ll turn what you said into a <b>song</b>!<br><br>' +
+      '🎲 <b>RANDOM</b> makes a whole new sound. <b>OK</b> (top right) keeps it in your songs. ' +
+      'Drag a song to the <b>🗑️ bin</b> (top left) to delete it.',
+      "LET'S GO!");
+  })();
+
+  // Test hook.
+  window.__sm = {
+    styles: STYLES.map(s => s.key),
+    state: () => ({
+      hasTake: !!takeStyle,
+      hasVoice: !!takeBuffer,
+      style: takeStyle ? takeStyle.key : null,
+      seed: takeSeed,
+      playing: !!playing,
+      recording,
+      saved: songs.length,
+      names: songs.map(s => s.style + ':' + s.name),
+      okEnabled: !okBtn.disabled,
+      max: MAX_SONGS,
+    }),
+    stopRecording,
+    fillTo: async (n) => {   // for testing the 100 limit
+      for (let i = songs.length; i < n; i++) {
+        await dbPut({ id: 'fill-' + i, created: Date.now() + i, style: 'disco', seed: i, name: 'Test', blob: null });
+      }
+      await refreshGallery();
+    },
+    wipe: async () => { for (const s of songs) await dbDel(s.id); await refreshGallery(); },
+  };
+  </script>
+</body>
+</html>
