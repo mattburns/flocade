@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Cinema — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --green: #3dff8b;
+      --purple: #b38bff;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.6rem 0.85rem;
+      background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.55rem 0.6rem; white-space: nowrap;
+      text-decoration: none;
+    }
+    .navBtn:hover { border-color: var(--pink); }
+    .ttl {
+      flex: 1; text-align: center;
+      font-family: 'Press Start 2P', monospace; font-size: 0.7rem; color: var(--yellow);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .view { flex: 1; min-height: 0; overflow-y: auto; }
+    .view[hidden] { display: none; }
+
+    /* ---------- guide ---------- */
+    .intro { text-align: center; padding: 1rem 1rem 0.2rem; }
+    .intro h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.8vw, 1.5rem); color: var(--pink);
+      text-shadow: 0 0 18px rgba(255,46,136,0.75); line-height: 1.6;
+    }
+    .intro p { color: var(--dim); font-size: 0.92rem; margin-top: 0.55rem; }
+    .shows {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.85rem; padding: 1rem;
+    }
+    .show {
+      background: var(--panel); border: 3px solid var(--panel2); border-radius: 18px;
+      padding: 0.8rem; text-align: left;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      transition: transform 0.08s, border-color 0.1s;
+    }
+    .show:hover, .show:focus-visible {
+      border-color: var(--pink); transform: translateY(-3px); outline: none;
+      box-shadow: 0 0 20px rgba(255,46,136,0.3);
+    }
+    .show canvas { width: 100%; aspect-ratio: 16/9; border-radius: 12px; background: #000; display: block; }
+    .show .kind {
+      font-family: 'Press Start 2P', monospace; font-size: 0.45rem; color: var(--cyan);
+    }
+    .show .nm { font-family: 'Press Start 2P', monospace; font-size: 0.68rem; color: var(--yellow); line-height: 1.5; }
+    .show .bl { font-size: 0.85rem; color: var(--dim); line-height: 1.45; }
+
+    /* ---------- telly ---------- */
+    .tellyWrap {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 0.6rem; padding: 0.8rem 0.8rem 1.2rem;
+    }
+    .telly {
+      width: min(96vw, 46rem);
+      background: #2a2a33;
+      border: 6px solid #15151b;
+      border-radius: 18px;
+      padding: 10px 10px 6px;
+      box-shadow: 0 12px 0 rgba(0,0,0,0.45), 0 0 40px rgba(0,240,255,0.14);
+    }
+    #screen { width: 100%; aspect-ratio: 16/9; display: block; background: #05010d; border-radius: 8px; }
+    .stand { width: 90px; height: 12px; background: #15151b; border-radius: 0 0 10px 10px; }
+    .foot { width: 150px; height: 10px; background: #15151b; border-radius: 8px; margin-top: -2px; }
+
+    .nowPlaying {
+      font-family: 'Press Start 2P', monospace; font-size: 0.58rem;
+      color: var(--yellow); text-align: center; line-height: 1.7;
+    }
+    .nowPlaying span { color: var(--cyan); }
+    .rowBtns { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      background: var(--panel2); border: 2px solid transparent; border-radius: 13px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.58rem; padding: 0.75rem 0.85rem;
+    }
+    .btn.go { background: var(--pink); color: #fff; }
+    .btn.alt { background: var(--cyan); color: #06121a; }
+    .btn:active { transform: translateY(2px); }
+
+    .guessRow { display: flex; gap: 0.45rem; flex-wrap: wrap; justify-content: center; }
+    .guessRow[hidden] { display: none; }
+    .guess {
+      background: var(--purple); color: #1b0740; border: 3px solid transparent;
+      border-radius: 12px; font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.7rem 0.8rem;
+    }
+    .guess.right { background: var(--green); }
+    .guess.wrong { background: #6b2440; color: #ffc0d8; }
+    .guessHint { font-size: 0.82rem; color: var(--dim); text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" id="backBtn" href="../../">&larr; ARCADE</a>
+    <div class="ttl" id="title">THE CINEMA</div>
+    <button class="navBtn" id="muteBtn">🔊</button>
+  </div>
+
+  <!-- ============ TV GUIDE ============ -->
+  <div class="view" id="guideView">
+    <div class="intro">
+      <h1>THE CINEMA</h1>
+      <p>It's basically a telly — and every show on it is made up. Pick something to watch!</p>
+    </div>
+    <div class="shows" id="shows"></div>
+  </div>
+
+  <!-- ============ WATCHING ============ -->
+  <div class="view" id="watchView" hidden>
+    <div class="tellyWrap">
+      <div class="telly"><canvas id="screen" width="1280" height="720"></canvas></div>
+      <div class="stand"></div><div class="foot"></div>
+      <div class="nowPlaying" id="nowPlaying"></div>
+      <div class="guessRow" id="guessRow" hidden></div>
+      <div class="guessHint" id="guessHint" hidden>Can you guess it before the teams do?</div>
+      <div class="rowBtns">
+        <button class="btn alt" id="replayBtn">↺ WATCH AGAIN</button>
+        <button class="btn go" id="nextBtn">NEXT EPISODE ▶</button>
+        <button class="btn" id="guideBtn">📺 TV GUIDE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // The Cinema — by Flo.
+  // "It is basically a TV. There are loads of TV shows to watch.
+  //  They are made up TV shows."
+  // Four of them, all animated right here in the page.
+  // ==========================================================
+
+  const W = 640, H = 360;   // everything is drawn in this space
+  const $ = (id) => document.getElementById(id);
+
+  // ---- tiny helpers ----
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * clamp(t, 0, 1);
+  const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  function rng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  }
+  function rr(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function star(c, x, y, r1, r2, n) {
+    c.beginPath();
+    for (let i = 0; i < n * 2; i++) {
+      const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 ? r2 : r1;
+      i ? c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r)
+        : c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    c.closePath();
+  }
+  function txt(c, s, x, y, size, col, align = 'center', arcade = false) {
+    c.font = (arcade ? `${size}px "Press Start 2P", monospace` : `600 ${size}px Inter, sans-serif`);
+    c.fillStyle = col;
+    c.textAlign = align;
+    c.textBaseline = 'middle';
+    c.fillText(s, x, y);
+  }
+  function card(c, title, sub, col, t, arcadeSize = 26) {
+    c.fillStyle = '#05010d';
+    c.fillRect(0, 0, W, H);
+    const k = ease(t / 0.6);
+    c.save();
+    c.globalAlpha = k;
+    c.translate(W / 2, H / 2);
+    c.scale(0.9 + k * 0.1, 0.9 + k * 0.1);
+    txt(c, title, 0, -14, arcadeSize, col, 'center', true);
+    if (sub) txt(c, sub, 0, 30, 15, '#efe9ff');
+    c.restore();
+  }
+  function kawaiiEyes(c, x, y, r, col = '#1b1030') {
+    [-1, 1].forEach(s => {
+      c.fillStyle = col;
+      c.beginPath(); c.ellipse(x + s * r * 0.9, y, r * 0.55, r * 0.68, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(x + s * r * 0.9 + r * 0.2, y - r * 0.24, r * 0.2, 0, Math.PI * 2); c.fill();
+    });
+  }
+  // a simple little person
+  function person(c, x, y, s, skin, top, hair, arms = 0) {
+    c.save();
+    c.translate(x, y);
+    c.scale(s, s);
+    c.fillStyle = top;
+    rr(c, -11, -22, 22, 26, 8); c.fill();
+    c.strokeStyle = top; c.lineWidth = 5; c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(-10, -16); c.lineTo(-19, -16 - arms * 12);
+    c.moveTo(10, -16); c.lineTo(19, -16 - arms * 12);
+    c.stroke();
+    c.fillStyle = top;
+    c.fillRect(-9, 2, 7, 12); c.fillRect(2, 2, 7, 12);
+    c.fillStyle = skin;
+    c.beginPath(); c.arc(0, -34, 14, 0, Math.PI * 2); c.fill();
+    c.fillStyle = hair;
+    c.beginPath(); c.arc(0, -36, 14, Math.PI, 0); c.fill();
+    kawaiiEyes(c, 0, -33, 7);
+    c.fillStyle = '#ff9ec7';
+    c.beginPath(); c.ellipse(-9, -28, 3.4, 2.2, 0, 0, Math.PI * 2);
+    c.ellipse(9, -28, 3.4, 2.2, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+
+  // ==========================================================
+  // Sound
+  // ==========================================================
+  let actx = null, muted = false;
+  function ac() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function beep(freq, dur, type = 'square', vol = 0.07, slide) {
+    const a = ac();
+    if (!a || muted) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, a.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur);
+  }
+  const sfx = {
+    theme: (notes) => notes.forEach((n, i) => setTimeout(() => beep(n, 0.16, 'square', 0.08), i * 150)),
+    zap: () => beep(900, 0.25, 'sawtooth', 0.08, 120),
+    win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.14, 'square', 0.08), i * 110)),
+    bad: () => beep(200, 0.35, 'sawtooth', 0.08, 70),
+    pop: () => beep(660, 0.07, 'triangle', 0.06, 880),
+  };
+  $('muteBtn').addEventListener('click', () => {
+    muted = !muted;
+    $('muteBtn').textContent = muted ? '🔇' : '🔊';
+  });
+
+  // ==========================================================
+  // SHOW 1 — SUPER SNAIL
+  // "a snail called Gary has super powers and goes round saving
+  //  people... he defeats a different bad guy in each one."
+  // ==========================================================
+  const VILLAIN_A = ['Doctor', 'Captain', 'Lord', 'Professor', 'Mega', 'Evil', 'The Terrible'];
+  const VILLAIN_B = ['Broccoli', 'Bin-Lid', 'Waffle', 'Sockpuppet', 'Toenail', 'Gravy', 'Wasp', 'Bogey', 'Toaster'];
+  const POWERS = [
+    { name: 'SLIME BLAST', col: '#3dff8b' },
+    { name: 'SHELL SPIN', col: '#ffe600' },
+    { name: 'RAINBOW BEAM', col: '#ff2e88' },
+    { name: 'SUPER SLOW-MO', col: '#00f0ff' },
+    { name: 'MEGA SNAIL SHOUT', col: '#b38bff' },
+  ];
+  const TROUBLE = ['is stealing all the ice cream!', 'has glued the whole town together!',
+                   'is turning everyone into vegetables!', 'has stolen the sun!',
+                   'is making it rain socks!', 'has taken over the swimming pool!'];
+
+  function garyEpisode(seed) {
+    const r = rng(seed * 7 + 11);
+    const villain = VILLAIN_A[Math.floor(r() * VILLAIN_A.length)] + ' ' + VILLAIN_B[Math.floor(r() * VILLAIN_B.length)];
+    return {
+      villain,
+      trouble: TROUBLE[Math.floor(r() * TROUBLE.length)],
+      power: POWERS[Math.floor(r() * POWERS.length)],
+      vcol: ['#8f3fff', '#ff5a5a', '#2fb84f', '#ff9e3d', '#3a6bff'][Math.floor(r() * 5)],
+      vshape: Math.floor(r() * 3),
+      eyes: 1 + Math.floor(r() * 3),
+    };
+  }
+
+  function drawGary(c, x, y, s, t, cape = true) {
+    c.save();
+    c.translate(x, y);
+    c.scale(s, s);
+    if (cape) {
+      c.fillStyle = '#ff2e88';
+      c.beginPath();
+      c.moveTo(-14, -10);
+      c.quadraticCurveTo(-38 - Math.sin(t * 6) * 6, -22, -34, 12);
+      c.quadraticCurveTo(-22, 2, -12, 6);
+      c.closePath(); c.fill();
+    }
+    // body
+    c.fillStyle = '#ffd08a';
+    c.beginPath();
+    c.ellipse(6, 10, 24, 9, 0, 0, Math.PI * 2); c.fill();
+    // shell
+    c.fillStyle = '#c98a52';
+    c.beginPath(); c.arc(-2, -4, 17, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#8a5a30'; c.lineWidth = 3;
+    c.beginPath();
+    for (let i = 0; i < 40; i++) {
+      const a = i * 0.32, rr2 = 2 + i * 0.4;
+      const px = -2 + Math.cos(a) * rr2, py = -4 + Math.sin(a) * rr2;
+      i ? c.lineTo(px, py) : c.moveTo(px, py);
+    }
+    c.stroke();
+    // head + eye stalks
+    c.fillStyle = '#ffd08a';
+    c.beginPath(); c.ellipse(24, 4, 11, 9, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#ffd08a'; c.lineWidth = 4;
+    [[-3, -16], [4, -18]].forEach(([dx, dy]) => {
+      c.beginPath(); c.moveTo(24 + dx, 0); c.lineTo(26 + dx, dy); c.stroke();
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(26 + dx, dy - 3, 5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#1b1030';
+      c.beginPath(); c.arc(27 + dx, dy - 3, 2.4, 0, Math.PI * 2); c.fill();
+    });
+    // smile + mask
+    c.strokeStyle = '#1b1030'; c.lineWidth = 2;
+    c.beginPath(); c.arc(26, 6, 4, 0.1 * Math.PI, 0.9 * Math.PI); c.stroke();
+    c.fillStyle = '#00f0ff';
+    c.beginPath(); c.ellipse(24, -1, 11, 4, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+
+  function drawVillain(c, x, y, s, ep, t, hurt = 0) {
+    c.save();
+    c.translate(x + (hurt ? Math.sin(t * 40) * 4 * hurt : 0), y);
+    c.scale(s, s);
+    c.fillStyle = ep.vcol;
+    if (ep.vshape === 0) { c.beginPath(); c.arc(0, 0, 30, 0, Math.PI * 2); c.fill(); }
+    else if (ep.vshape === 1) { rr(c, -28, -30, 56, 60, 10); c.fill(); }
+    else {
+      c.beginPath();
+      c.moveTo(0, -34);
+      for (let i = 1; i <= 8; i++) {
+        const a = -Math.PI / 2 + (i / 8) * Math.PI * 2;
+        c.lineTo(Math.cos(a) * (i % 2 ? 22 : 34), Math.sin(a) * (i % 2 ? 22 : 34));
+      }
+      c.closePath(); c.fill();
+    }
+    // eyes
+    for (let i = 0; i < ep.eyes; i++) {
+      const ex = (i - (ep.eyes - 1) / 2) * 16;
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(ex, -8, 8, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#1b1030';
+      c.beginPath(); c.arc(ex + (hurt ? 0 : 1.5), -8, 4, 0, Math.PI * 2); c.fill();
+    }
+    // grumpy mouth with teeth
+    c.fillStyle = '#1b1030';
+    rr(c, -14, 6, 28, 12, 4); c.fill();
+    c.fillStyle = '#fff';
+    for (let i = 0; i < 4; i++) c.fillRect(-12 + i * 7, 6, 4, 5);
+    c.restore();
+  }
+
+  function drawCity(c, t) {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#2a1258'); g.addColorStop(1, '#5b2a86');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    c.fillStyle = '#ffe600';
+    c.beginPath(); c.arc(W - 80, 62, 26, 0, Math.PI * 2); c.fill();
+    const bs = [[20, 150], [80, 110], [140, 170], [210, 90], [280, 140], [350, 120], [420, 175], [490, 105], [560, 150]];
+    bs.forEach(([bx, bh], i) => {
+      c.fillStyle = i % 2 ? '#1e1040' : '#281552';
+      c.fillRect(bx, H - 60 - bh, 58, bh + 60);
+      c.fillStyle = '#ffe6a0';
+      for (let wy = 0; wy < bh - 20; wy += 22) {
+        for (let wx = 0; wx < 3; wx++) {
+          if ((i + wy + wx) % 3 === 0) c.fillRect(bx + 8 + wx * 16, H - 50 - bh + wy, 8, 10);
+        }
+      }
+    });
+    c.fillStyle = '#3b2260';
+    c.fillRect(0, H - 60, W, 60);
+  }
+
+  const SUPER_SNAIL = {
+    key: 'snail', title: 'SUPER SNAIL', kind: 'TV SHOW', length: 25,
+    blurb: 'A snail called Gary has super powers and goes round saving people. He defeats a different bad guy in every episode!',
+    make: garyEpisode,
+    draw(c, ep, t, epNum) {
+      if (t < 3) {
+        card(c, 'SUPER SNAIL', 'Episode ' + epNum + ' — ' + ep.villain, '#ffe600', t);
+        drawGary(c, W / 2, H - 68, 0.9, t);
+        return;
+      }
+      drawCity(c, t);
+      const civX = 470;
+      // Gary glides in
+      const gx = t < 8 ? lerp(-90, 190, ease((t - 3) / 3.6)) : 190;
+      const bob = Math.sin(t * 3) * 6;
+
+      if (t >= 4.4) person(c, civX, H - 60, 1, '#f3d9b0', '#00f0ff', '#3b2b20', t > 18 ? 1 : 0);
+      if (t >= 5 && t < 8) {
+        c.fillStyle = '#fff';
+        rr(c, civX - 96, H - 168, 108, 34, 10); c.fill();
+        txt(c, 'HELP!', civX - 42, H - 151, 15, '#1b1030');
+      }
+
+      // villain arrives
+      if (t >= 8) {
+        const vx = lerp(W + 80, 360, ease((t - 8) / 2));
+        const hurt = t > 15 && t < 19 ? 1 : 0;
+        if (t < 20) drawVillain(c, vx, H - 118, 1, ep, t, hurt);
+        else {
+          // spun off into the sky
+          const k = (t - 20) / 2;
+          c.save();
+          c.translate(vx + k * 260, H - 118 - k * 320);
+          c.rotate(k * 9);
+          drawVillain(c, 0, 0, 1 - k * 0.5, ep, t, 0);
+          c.restore();
+        }
+        if (t >= 9 && t < 13) {
+          c.fillStyle = '#1b1030';
+          rr(c, 150, 22, 340, 56, 12); c.fill();
+          txt(c, ep.villain, 320, 40, 13, '#ff5a5a', 'center', true);
+          txt(c, ep.trouble, 320, 62, 13, '#efe9ff');
+        }
+      }
+
+      // the power!
+      if (t >= 14 && t < 19) {
+        const k = (t - 14) / 5;
+        c.save();
+        c.globalAlpha = 0.85;
+        c.strokeStyle = ep.power.col;
+        c.lineWidth = 10 + Math.sin(t * 22) * 5;
+        c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(gx + 40, H - 118 + bob);
+        for (let i = 1; i <= 8; i++) {
+          const px = gx + 40 + (330 - 40) * (i / 8) * Math.min(1, k * 2.2);
+          c.lineTo(px, H - 118 + Math.sin(i * 1.5 + t * 16) * 14);
+        }
+        c.stroke();
+        c.restore();
+        for (let i = 0; i < 7; i++) {
+          const a = t * 5 + i;
+          c.fillStyle = ep.power.col;
+          star(c, 350 + Math.cos(a) * 46, H - 118 + Math.sin(a) * 40, 9, 4, 5);
+          c.fill();
+        }
+        txt(c, ep.power.name + '!', W / 2, 44, 17, ep.power.col, 'center', true);
+      }
+
+      drawGary(c, gx, H - 118 + bob, 1, t);
+
+      if (t >= 20 && t < 22.4) {
+        txt(c, 'POW!', 420, 120, 30, '#ffe600', 'center', true);
+      }
+      if (t >= 22.4) {
+        c.fillStyle = 'rgba(5,1,13,0.72)';
+        c.fillRect(0, 0, W, H);
+        txt(c, 'GARY SAVES', W / 2, H / 2 - 22, 24, '#ffe600', 'center', true);
+        txt(c, 'THE DAY!', W / 2, H / 2 + 14, 24, '#ffe600', 'center', true);
+        txt(c, 'Next week: another rotten wrong\'un.', W / 2, H / 2 + 56, 14, '#00f0ff');
+      }
+    },
+    cues: [[0, () => sfx.theme([523, 659, 784, 1047, 784])], [8, () => sfx.bad()],
+           [14, () => sfx.zap()], [20, () => sfx.win()]],
+  };
+
+  // ==========================================================
+  // SHOW 2 — DRAW THAT THING!
+  // "contestants have to draw what Andy Bard (the host) tells them.
+  //  Their team mates have to guess... new teams in each episode."
+  // ==========================================================
+  const DRAW_WORDS = [
+    { word: 'CAT', strokes: [['arc', 0, -6, 30, 0, 6.3], ['tri', -22, -28, -6, -30, -14, -8], ['tri', 22, -28, 6, -30, 14, -8],
+        ['dot', -11, -8], ['dot', 11, -8], ['arc', 0, 4, 6, 0, 3.2], ['ln', -30, 4, -50, -2], ['ln', -30, 8, -50, 10], ['ln', 30, 4, 50, -2], ['ln', 30, 8, 50, 10]] },
+    { word: 'HOUSE', strokes: [['rect', -34, -6, 68, 48], ['tri', 0, -46, -42, -6, 42, -6],
+        ['rect', -10, 14, 20, 28], ['rect', -26, 2, 14, 14], ['rect', 12, 2, 14, 14]] },
+    { word: 'ROCKET', strokes: [['arc', 0, -30, 14, 3.14, 6.28], ['rect', -14, -30, 28, 48], ['tri', -14, 18, -32, 40, -14, 40],
+        ['tri', 14, 18, 32, 40, 14, 40], ['arc', 0, -8, 8, 0, 6.3], ['tri', 0, 60, -12, 40, 12, 40]] },
+    { word: 'FISH', strokes: [['arc', -4, 0, 26, 0, 6.3], ['tri', 26, 0, 50, -18, 50, 18],
+        ['dot', -14, -8], ['arc', -30, 0, 6, 4.2, 8.2]] },
+    { word: 'SNAIL', strokes: [['arc', -4, 4, 20, 0, 6.3], ['arc', -4, 4, 12, 0, 6.3], ['arc', -4, 4, 5, 0, 6.3],
+        ['ln', -24, 22, 26, 22], ['arc', 26, 14, 9, 0, 6.3], ['ln', 30, 6, 34, -12], ['dot', 34, -14]] },
+    { word: 'TREE', strokes: [['rect', -8, 6, 16, 42], ['arc', 0, -10, 30, 0, 6.3], ['arc', -22, 4, 18, 0, 6.3], ['arc', 22, 4, 18, 0, 6.3]] },
+    { word: 'BANANA', strokes: [['arc', 0, 10, 34, 3.4, 6.0], ['arc', 0, 2, 34, 3.4, 6.0], ['ln', -32, 0, -36, -10]] },
+    { word: 'ROBOT', strokes: [['rect', -26, -34, 52, 44], ['dot', -12, -18], ['dot', 12, -18], ['ln', -12, -2, 12, -2],
+        ['rect', -20, 12, 40, 34], ['ln', -20, 20, -40, 34], ['ln', 20, 20, 40, 34], ['ln', 0, -34, 0, -48], ['dot', 0, -50]] },
+  ];
+  const TEAM_NAMES = ['PINK', 'CYAN', 'YELLOW', 'GREEN', 'PURPLE', 'ORANGE'];
+  const TEAM_COLS = { PINK: '#ff2e88', CYAN: '#00f0ff', YELLOW: '#ffe600', GREEN: '#3dff8b', PURPLE: '#b38bff', ORANGE: '#ff9e3d' };
+  const SILLY_GUESSES = ['A POTATO?', 'A SPACE COW?', 'A SHOE!', 'GRANDAD?', 'A WORM ON HOLIDAY?', 'CHEESE!', 'A LAMP?', 'A DUCK!'];
+
+  function drawEpisode(seed) {
+    const r = rng(seed * 13 + 5);
+    const pick = DRAW_WORDS[Math.floor(r() * DRAW_WORDS.length)];
+    const names = TEAM_NAMES.slice().sort(() => r() - 0.5);
+    const wrongs = [];
+    const pool = DRAW_WORDS.map(w => w.word).filter(w => w !== pick.word).sort(() => r() - 0.5);
+    const options = [pick.word, pool[0], pool[1], pool[2]].sort(() => r() - 0.5);
+    for (let i = 0; i < 2; i++) wrongs.push(SILLY_GUESSES[Math.floor(r() * SILLY_GUESSES.length)]);
+    return {
+      target: pick, teamA: names[0], teamB: names[1],
+      winner: r() < 0.5 ? names[0] : names[1],
+      wrongs, options,
+    };
+  }
+
+  // draw the target picture progressively, 0..1
+  function drawPicture(c, strokes, prog, x, y, s, col = '#241155') {
+    c.save();
+    c.translate(x, y);
+    c.scale(s, s);
+    c.strokeStyle = col; c.fillStyle = col;
+    c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+    const n = Math.ceil(strokes.length * clamp(prog, 0, 1));
+    for (let i = 0; i < n; i++) {
+      const st = strokes[i];
+      c.beginPath();
+      if (st[0] === 'arc') c.arc(st[1], st[2], st[3], st[4], st[5]);
+      else if (st[0] === 'rect') { rr(c, st[1], st[2], st[3], st[4], 4); }
+      else if (st[0] === 'tri') { c.moveTo(st[1], st[2]); c.lineTo(st[3], st[4]); c.lineTo(st[5], st[6]); c.closePath(); }
+      else if (st[0] === 'ln') { c.moveTo(st[1], st[2]); c.lineTo(st[3], st[4]); }
+      else if (st[0] === 'dot') { c.arc(st[1], st[2], 5, 0, Math.PI * 2); c.fill(); }
+      if (st[0] !== 'dot') c.stroke();
+    }
+    c.restore();
+  }
+
+  const DRAW_THAT = {
+    key: 'draw', title: 'DRAW THAT THING!', kind: 'TV SHOW', length: 24,
+    blurb: 'A reality show! Contestants draw what Andy Bard tells them and their team mates have to guess. First team to guess right wins. New teams every episode.',
+    make: drawEpisode,
+    draw(c, ep, t, epNum) {
+      if (t < 3) {
+        card(c, 'DRAW THAT THING!', 'Episode ' + epNum + ' — with your host, Andy Bard', '#ff2e88', t, 20);
+        return;
+      }
+      // studio
+      const g = c.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#3c1060'); g.addColorStop(1, '#170a33');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      c.fillStyle = '#2a0f4d';
+      c.fillRect(0, H - 70, W, 70);
+      for (let i = 0; i < 6; i++) {
+        c.fillStyle = 'rgba(255,230,0,0.07)';
+        c.beginPath();
+        c.moveTo(40 + i * 110, 0); c.lineTo(10 + i * 110, H - 70); c.lineTo(120 + i * 110, H - 70);
+        c.closePath(); c.fill();
+      }
+      txt(c, 'DRAW THAT THING!', W / 2, 24, 14, '#ffe600', 'center', true);
+
+      // host
+      person(c, 74, H - 74, 1.05, '#e0b183', '#ff2e88', '#3b2b20', t < 6 ? 1 : 0);
+      txt(c, 'ANDY BARD', 74, H - 26, 9, '#00f0ff', 'center', true);
+
+      // the brief
+      if (t >= 3.2 && t < 7) {
+        c.fillStyle = '#fff';
+        rr(c, 120, 58, 300, 58, 12); c.fill();
+        c.beginPath(); c.moveTo(120, 96); c.lineTo(102, 118); c.lineTo(132, 108); c.fill();
+        txt(c, 'Draw a...', 270, 78, 14, '#5a5570');
+        txt(c, ep.target.word + '!', 270, 100, 16, '#ff2e88', 'center', true);
+      }
+
+      // easel + contestant drawing it
+      c.fillStyle = '#c98a52';
+      c.fillRect(300, 130, 10, 150);
+      c.fillRect(400, 130, 10, 150);
+      c.fillStyle = '#fffdf7';
+      rr(c, 268, 96, 176, 140, 8); c.fill();
+      c.strokeStyle = '#c98a52'; c.lineWidth = 6; c.stroke();
+      const prog = (t - 6) / 8;
+      if (t >= 6) drawPicture(c, ep.target.strokes, prog, 356, 168, 0.82);
+      person(c, 476, H - 74, 1, '#c68642', '#ffe600', '#1f1f26', t >= 6 && t < 14 ? 0.6 + Math.sin(t * 9) * 0.3 : 0);
+
+      // team mates guessing
+      const teamY = H - 100;
+      person(c, 176, teamY + 26, 0.72, '#f3d9b0', TEAM_COLS[ep.teamA], '#b85c38');
+      person(c, 560, teamY + 26, 0.72, '#8d5524', TEAM_COLS[ep.teamB], '#1f1f26');
+      txt(c, 'TEAM ' + ep.teamA, 176, teamY + 48, 8, TEAM_COLS[ep.teamA], 'center', true);
+      txt(c, 'TEAM ' + ep.teamB, 560, teamY + 48, 8, TEAM_COLS[ep.teamB], 'center', true);
+
+      const bubble = (x, y, s, col) => {
+        c.fillStyle = '#fff';
+        const w2 = Math.max(96, s.length * 8.4);
+        rr(c, x - w2 / 2, y - 20, w2, 32, 10); c.fill();
+        txt(c, s, x, y - 4, 11, col, 'center', true);
+      };
+      if (t >= 9 && t < 11.4) bubble(176, teamY - 26, ep.wrongs[0], '#5a5570');
+      if (t >= 11.6 && t < 14) bubble(560, teamY - 26, ep.wrongs[1], '#5a5570');
+      if (t >= 15 && t < 19) {
+        const wx = ep.winner === ep.teamA ? 176 : 560;
+        bubble(wx, teamY - 26, ep.target.word + '!', TEAM_COLS[ep.winner]);
+        if (t >= 16.5) {
+          star(c, wx, teamY - 62, 16, 7, 5);
+          c.fillStyle = '#ffe600'; c.fill();
+        }
+      }
+      if (t >= 19) {
+        c.fillStyle = 'rgba(5,1,13,0.75)';
+        c.fillRect(0, 0, W, H);
+        txt(c, 'TEAM ' + ep.winner + ' WINS!', W / 2, H / 2 - 18, 20, TEAM_COLS[ep.winner], 'center', true);
+        txt(c, 'It was a ' + ep.target.word + '!', W / 2, H / 2 + 18, 15, '#efe9ff');
+        txt(c, 'New teams next episode!', W / 2, H / 2 + 48, 13, '#00f0ff');
+      }
+    },
+    cues: [[0, () => sfx.theme([659, 784, 880, 784, 1047])], [9, () => sfx.pop()],
+           [11.6, () => sfx.pop()], [15, () => sfx.win()]],
+    // the viewer can play along
+    guess: { from: 4, until: 15 },
+  };
+
+  // ==========================================================
+  // SHOW 3 — THE ALIEN MOVIE
+  // "a movie about aliens takeing over the universe"
+  // ==========================================================
+  function alienEpisode(seed) {
+    const r = rng(seed * 29 + 3);
+    const names = ['THE ZORBS', 'THE GLOOP', 'THE SPLONKS', 'THE NARGLES', 'THE BLIPS'];
+    const twists = [
+      'They took over the universe.\nThen they couldn\'t find anywhere to park.',
+      'They took over the universe.\nThen they got told off by their mums.',
+      'They took over the universe.\nIt was Tuesday. Nothing was open.',
+      'They took over the universe.\nAnd immediately started arguing about the telly.',
+    ];
+    return {
+      who: names[Math.floor(r() * names.length)],
+      twist: twists[Math.floor(r() * twists.length)],
+      planets: [
+        { x: 120, y: 130, r: 34, col: '#4a9bff' },
+        { x: 300, y: 88, r: 22, col: '#ff9e3d' },
+        { x: 470, y: 150, r: 40, col: '#69d18c' },
+        { x: 220, y: 240, r: 18, col: '#ff5a5a' },
+        { x: 540, y: 250, r: 26, col: '#b38bff' },
+      ],
+      stars: Array.from({ length: 70 }, () => ({ x: r() * W, y: r() * H, s: r() * 1.8 + 0.6 })),
+    };
+  }
+  function saucer(c, x, y, s, t) {
+    c.save(); c.translate(x, y); c.scale(s, s);
+    c.fillStyle = '#9fb8c8';
+    c.beginPath(); c.ellipse(0, 0, 34, 10, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#c3f0ff';
+    c.beginPath(); c.arc(0, -6, 15, Math.PI, 0); c.fill();
+    for (let i = 0; i < 5; i++) {
+      c.fillStyle = i === Math.floor(t * 6) % 5 ? '#ffe600' : '#ff2e88';
+      c.beginPath(); c.arc(-24 + i * 12, 3, 3.2, 0, Math.PI * 2); c.fill();
+    }
+    c.restore();
+  }
+  const ALIEN_MOVIE = {
+    key: 'aliens', title: 'ALIENS TAKE OVER THE UNIVERSE', kind: 'MOVIE', length: 27,
+    blurb: 'A movie about aliens taking over the whole universe. Every single planet. Yes, that one too.',
+    make: alienEpisode,
+    draw(c, ep, t, epNum) {
+      c.fillStyle = '#05010d'; c.fillRect(0, 0, W, H);
+      ep.stars.forEach((s, i) => {
+        c.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.6 * Math.abs(Math.sin(t * 1.3 + i))) + ')';
+        c.fillRect(s.x, s.y, s.s, s.s);
+      });
+      if (t < 4) {
+        c.save(); c.globalAlpha = ease(t / 0.8) * (t > 3.4 ? clamp((4 - t) / 0.6, 0, 1) : 1);
+        txt(c, 'ALIENS TAKE OVER', W / 2, H / 2 - 26, 20, '#3dff8b', 'center', true);
+        txt(c, 'THE UNIVERSE', W / 2, H / 2 + 6, 20, '#3dff8b', 'center', true);
+        txt(c, 'starring ' + ep.who, W / 2, H / 2 + 46, 14, '#efe9ff');
+        c.restore();
+        return;
+      }
+      // planets, taken over one by one
+      const takenBy = (i) => 8 + i * 2.6;
+      ep.planets.forEach((p, i) => {
+        const taken = t > takenBy(i) + 1.6;
+        c.fillStyle = taken ? '#7bff9e' : p.col;
+        c.beginPath(); c.arc(p.x, p.y + Math.sin(t + i) * 3, p.r, 0, Math.PI * 2); c.fill();
+        c.fillStyle = 'rgba(0,0,0,0.18)';
+        c.beginPath(); c.arc(p.x + p.r * 0.3, p.y + Math.sin(t + i) * 3, p.r * 0.85, 0, Math.PI * 2); c.fill();
+        if (taken) {
+          c.fillStyle = '#1b1030';
+          kawaiiEyes(c, p.x, p.y + Math.sin(t + i) * 3 - 2, p.r * 0.34);
+        }
+        // beam while being taken
+        if (t > takenBy(i) && t < takenBy(i) + 1.8) {
+          const k = (t - takenBy(i)) / 1.8;
+          c.save();
+          c.globalAlpha = 0.55;
+          c.fillStyle = '#3dff8b';
+          c.beginPath();
+          c.moveTo(p.x - 8, p.y - 90); c.lineTo(p.x + 8, p.y - 90);
+          c.lineTo(p.x + p.r * 0.9, p.y); c.lineTo(p.x - p.r * 0.9, p.y);
+          c.closePath(); c.fill();
+          c.restore();
+          saucer(c, p.x, p.y - 100, 1, t);
+          txt(c, 'ZAP!', p.x, p.y - 124, 12, '#ffe600', 'center', true);
+        }
+      });
+      // fleet drifting past
+      for (let i = 0; i < 4; i++) {
+        const sx = ((t * 26 + i * 190) % (W + 160)) - 80;
+        saucer(c, sx, 46 + i * 12, 0.7, t + i);
+      }
+      if (t >= 6 && t < 9) txt(c, ep.who + ' HAVE ARRIVED', W / 2, H - 40, 15, '#3dff8b', 'center', true);
+      if (t >= 20 && t < 23.5) txt(c, 'ONE PLANET LEFT...', W / 2, H - 40, 15, '#ffe600', 'center', true);
+      if (t >= 23.5) {
+        c.fillStyle = 'rgba(5,1,13,' + clamp((t - 23.5) / 1.2, 0, 0.92) + ')';
+        c.fillRect(0, 0, W, H);
+        if (t > 24.2) {
+          const lines = ep.twist.split('\n');
+          txt(c, 'THE END', W / 2, H / 2 - 40, 22, '#3dff8b', 'center', true);
+          lines.forEach((l, i) => txt(c, l, W / 2, H / 2 + 6 + i * 26, 14, '#efe9ff'));
+        }
+      }
+    },
+    cues: [[0, () => sfx.theme([220, 262, 330, 392, 330])], [8, () => sfx.zap()],
+           [13.2, () => sfx.zap()], [18.4, () => sfx.zap()], [23.5, () => sfx.bad()]],
+  };
+
+  // ==========================================================
+  // SHOW 4 — GLIDE OR DIE
+  // "There is a pit of nets beneath some contenders. There is a
+  //  trapeze in front of the first contender. They have to grab it
+  //  and swing to the other side of the pit. But if you slip while
+  //  swinging, you get eliminated."
+  // ==========================================================
+  const CONTENDER_NAMES = ['BEV', 'DAVE', 'PRIYA', 'MO', 'SUE', 'JAX', 'NELL', 'OTTO', 'RAY', 'IZZY'];
+  function glideEpisode(seed) {
+    const r = rng(seed * 17 + 23);
+    const names = CONTENDER_NAMES.slice().sort(() => r() - 0.5).slice(0, 4);
+    const cons = names.map((n, i) => ({
+      name: n,
+      slips: r() < (i === 3 ? 0.15 : 0.5),   // someone usually gets through
+      col: ['#ff2e88', '#00f0ff', '#ffe600', '#3dff8b'][i],
+      skin: ['#f3d9b0', '#c68642', '#8d5524', '#e0b183'][i],
+    }));
+    if (cons.every(c2 => c2.slips)) cons[3].slips = false;
+    return { cons };
+  }
+  const GLIDE = {
+    key: 'glide', title: 'GLIDE OR DIE', kind: 'TV SHOW', length: 27,
+    blurb: 'A pit of nets, a trapeze, and some very nervous contenders. Grab it, swing to the other side — slip, and you\'re eliminated!',
+    make: glideEpisode,
+    draw(c, ep, t, epNum) {
+      if (t < 3) { card(c, 'GLIDE OR DIE', 'Episode ' + epNum + ' — mind the pit', '#00f0ff', t); return; }
+      // arena
+      const g = c.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#101c3a'); g.addColorStop(1, '#050a1c');
+      c.fillStyle = g; c.fillRect(0, 0, W, H);
+      for (let i = 0; i < 3; i++) {
+        c.fillStyle = 'rgba(0,240,255,0.06)';
+        c.beginPath(); c.arc(120 + i * 200, -30, 120, 0, Math.PI * 2); c.fill();
+      }
+      // platforms
+      const PY = 190, PIT_L = 190, PIT_R = 460;
+      c.fillStyle = '#3a2a6d';
+      c.fillRect(0, PY, PIT_L, 26);
+      c.fillRect(PIT_R, PY, W - PIT_R, 26);
+      c.fillStyle = '#241155';
+      c.fillRect(0, PY + 26, PIT_L, H - PY);
+      c.fillRect(PIT_R, PY + 26, W - PIT_R, H - PY);
+      // the pit of nets
+      c.strokeStyle = '#6f8bd0'; c.lineWidth = 2;
+      for (let x = PIT_L; x <= PIT_R; x += 18) {
+        c.beginPath(); c.moveTo(x, H - 70); c.lineTo(x + 14, H - 20); c.stroke();
+        c.beginPath(); c.moveTo(x + 14, H - 70); c.lineTo(x, H - 20); c.stroke();
+      }
+      c.fillStyle = 'rgba(60,90,160,0.25)';
+      c.fillRect(PIT_L, H - 70, PIT_R - PIT_L, 70);
+      txt(c, 'THE PIT OF NETS', (PIT_L + PIT_R) / 2, H - 12, 10, '#6f8bd0', 'center', true);
+      txt(c, 'GLIDE OR DIE', W / 2, 26, 15, '#00f0ff', 'center', true);
+
+      // rig
+      c.strokeStyle = '#9aa3b8'; c.lineWidth = 5;
+      c.beginPath(); c.moveTo(PIT_L - 10, 40); c.lineTo(PIT_R + 10, 40); c.stroke();
+
+      const START = 3, PER = 5.6;
+      const idx = Math.min(ep.cons.length - 1, Math.floor((t - START) / PER));
+      const lt = (t - START) - idx * PER;    // time within this contender's go
+      const con = ep.cons[idx];
+
+      // queue waiting on the left
+      ep.cons.forEach((cc, i) => {
+        if (i <= idx) return;
+        person(c, 40 + (i - idx) * 34, PY, 0.66, cc.skin, cc.col, '#2b2b33');
+      });
+      // the ones who already got across
+      ep.cons.forEach((cc, i) => {
+        if (i >= idx || cc.slips) return;
+        person(c, PIT_R + 40 + i * 26, PY, 0.66, cc.skin, cc.col, '#2b2b33', 1);
+      });
+
+      // trapeze: hangs in front, then swings
+      const pivotX = (PIT_L + PIT_R) / 2, pivotY = 40, ropeLen = 118;
+      let ang;
+      if (lt < 1.4) ang = -1.05;                                   // waiting in front of them
+      else if (lt < 4.2) {
+        const k = (lt - 1.4) / 2.8;
+        ang = -1.05 * Math.cos(k * Math.PI);                       // one big swing across
+      } else ang = 1.05;
+      const tx = pivotX + Math.sin(ang) * ropeLen;
+      const ty = pivotY + Math.cos(ang) * ropeLen;
+      c.strokeStyle = '#c9d4e8'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(pivotX, pivotY); c.lineTo(tx, ty); c.stroke();
+      c.fillStyle = '#ffe600';
+      rr(c, tx - 22, ty, 44, 8, 4); c.fill();
+
+      const slipAt = 2.6;
+      const slipped = con.slips && lt > slipAt;
+      // the contender
+      if (lt < 1.4) {
+        person(c, PIT_L - 34, PY, 0.9, con.skin, con.col, '#2b2b33', lt > 0.8 ? 1 : 0);
+        txt(c, con.name, PIT_L - 34, PY + 26, 10, con.col, 'center', true);
+        if (lt > 0.7) txt(c, 'GRAB IT!', PIT_L - 34, 120, 12, '#ffe600', 'center', true);
+      } else if (!slipped) {
+        person(c, tx, ty + 40, 0.9, con.skin, con.col, '#2b2b33', 1);
+        if (lt > 4.2) {
+          txt(c, 'SAFE!', PIT_R + 60, 120, 16, '#3dff8b', 'center', true);
+        }
+      } else {
+        // slipped — falls into the nets and bounces
+        const f = lt - slipAt;
+        const fx = pivotX + Math.sin(-1.05 * Math.cos(((slipAt - 1.4) / 2.8) * Math.PI)) * ropeLen;
+        let fy = pivotY + 118 + 40 + 260 * f * f;
+        const floor = H - 46;
+        if (fy > floor) fy = floor - Math.abs(Math.sin((fy - floor) / 26)) * 22;
+        person(c, fx + f * 26, Math.min(fy, floor), 0.9, con.skin, con.col, '#2b2b33', 1);
+        txt(c, 'ELIMINATED!', W / 2, 108, 18, '#ff5a5a', 'center', true);
+      }
+
+      if (t >= START + ep.cons.length * PER) {
+        const winners = ep.cons.filter(x => !x.slips);
+        c.fillStyle = 'rgba(5,1,13,0.8)';
+        c.fillRect(0, 0, W, H);
+        txt(c, winners.length ? 'GLIDERS!' : 'EVERYONE FELL IN!', W / 2, H / 2 - 30, 20, '#00f0ff', 'center', true);
+        txt(c, winners.length ? winners.map(x => x.name).join(', ') + ' made it across!' : 'What a shambles.',
+            W / 2, H / 2 + 8, 14, '#efe9ff');
+        txt(c, 'New contenders next week.', W / 2, H / 2 + 40, 13, '#ffe600');
+      }
+    },
+    cues: [[0, () => sfx.theme([392, 523, 659, 523, 784])], [4.4, () => sfx.pop()],
+           [10, () => sfx.pop()], [15.6, () => sfx.pop()], [21.2, () => sfx.pop()]],
+  };
+
+  const SHOWS = [SUPER_SNAIL, DRAW_THAT, ALIEN_MOVIE, GLIDE];
+
+  // ==========================================================
+  // The telly
+  // ==========================================================
+  const screen = $('screen');
+  const sctx = screen.getContext('2d');
+  sctx.scale(screen.width / W, screen.height / H);
+
+  const guideView = $('guideView'), watchView = $('watchView');
+  const titleEl = $('title'), nowEl = $('nowPlaying');
+  const guessRow = $('guessRow'), guessHint = $('guessHint');
+
+  let show = null, ep = null, epNum = 1, startedAt = 0, raf = null, firedCues = [];
+  let guessState = null;
+
+  function showView(v) {
+    guideView.hidden = v !== guideView;
+    watchView.hidden = v !== watchView;
+  }
+
+  function buildGuide() {
+    const box = $('shows');
+    box.innerHTML = '';
+    SHOWS.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'show';
+      btn.type = 'button';
+      btn.dataset.key = s.key;
+      const cv = document.createElement('canvas');
+      cv.width = 320; cv.height = 180;
+      const cc = cv.getContext('2d');
+      cc.scale(320 / W, 180 / H);
+      // a still from partway through episode 1
+      s.draw(cc, s.make(1), s.key === 'aliens' ? 12 : 10, 1);
+      const kind = document.createElement('div');
+      kind.className = 'kind';
+      kind.textContent = s.kind;
+      const nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = s.title;
+      const bl = document.createElement('div');
+      bl.className = 'bl';
+      bl.textContent = s.blurb;
+      btn.append(cv, kind, nm, bl);
+      btn.addEventListener('click', () => watch(s, 1));
+      box.appendChild(btn);
+    });
+  }
+
+  function watch(s, n) {
+    show = s;
+    epNum = n;
+    ep = s.make(n);
+    showView(watchView);
+    titleEl.textContent = s.title;
+    $('backBtn').textContent = '← BACK';
+    $('backBtn').removeAttribute('href');
+    nowEl.innerHTML = s.title + '<br><span>' + (s.kind === 'MOVIE' ? 'A MOTION PICTURE' : 'EPISODE ' + n) + '</span>';
+    setupGuessing();
+    startedAt = performance.now();
+    firedCues = [];
+    ac();
+    if (!raf) tick();
+  }
+
+  function setupGuessing() {
+    guessState = null;
+    guessRow.innerHTML = '';
+    const on = !!show.guess;
+    guessRow.hidden = !on;
+    guessHint.hidden = !on;
+    if (!on) return;
+    guessState = { answered: false, correct: false };
+    ep.options.forEach(word => {
+      const b = document.createElement('button');
+      b.className = 'guess';
+      b.type = 'button';
+      b.textContent = word;
+      b.addEventListener('click', () => {
+        if (guessState.answered) return;
+        const t = (performance.now() - startedAt) / 1000;
+        if (t > show.guess.until) return;
+        guessState.answered = true;
+        guessState.correct = word === ep.target.word;
+        guessState.at = t;
+        b.classList.add(guessState.correct ? 'right' : 'wrong');
+        guessHint.textContent = guessState.correct
+          ? '🎉 YOU GUESSED IT FIRST — before the teams!'
+          : 'Ooh, not quite! Keep watching…';
+        guessState.correct ? sfx.win() : sfx.bad();
+      });
+      guessRow.appendChild(b);
+    });
+    guessHint.textContent = 'Can you guess it before the teams do?';
+  }
+
+  function tick() {
+    raf = requestAnimationFrame(tick);
+    if (!show) return;
+    const t = (performance.now() - startedAt) / 1000;
+    sctx.save();
+    sctx.clearRect(0, 0, W, H);
+    show.draw(sctx, ep, Math.min(t, show.length), epNum);
+    sctx.restore();
+    (show.cues || []).forEach(([at, fn], i) => {
+      if (t >= at && !firedCues.includes(i)) { firedCues.push(i); fn(); }
+    });
+    if (show.guess) {
+      const live = t >= show.guess.from && t < show.guess.until && !guessState.answered;
+      guessRow.hidden = !live;
+      guessHint.hidden = !(live || guessState.answered);
+      if (!live && !guessState.answered && t >= show.guess.until) guessHint.hidden = true;
+    }
+  }
+
+  $('nextBtn').addEventListener('click', () => watch(show, epNum + 1));
+  $('replayBtn').addEventListener('click', () => watch(show, epNum));
+  $('guideBtn').addEventListener('click', goGuide);
+  $('backBtn').addEventListener('click', (e) => { if (show) { e.preventDefault(); goGuide(); } });
+
+  function goGuide() {
+    show = null;
+    showView(guideView);
+    titleEl.textContent = 'THE CINEMA';
+    $('backBtn').textContent = '← ARCADE';
+    $('backBtn').setAttribute('href', '../../');
+    buildGuide();
+  }
+
+  buildGuide();
+  tick();
+
+  // Test hook.
+  window.__cin = {
+    shows: SHOWS.map(s => ({ key: s.key, title: s.title, kind: s.kind, length: s.length })),
+    watch: (k, n) => watch(SHOWS.find(s => s.key === k), n || 1),
+    seek: (t) => { startedAt = performance.now() - t * 1000; },
+    frameAt: (k, t, n) => {          // render one frame off-screen, for testing
+      const s = SHOWS.find(x => x.key === k);
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      s.draw(cv.getContext('2d'), s.make(n || 1), t, n || 1);
+      return true;
+    },
+    state: () => ({
+      view: guideView.hidden ? 'watch' : 'guide',
+      show: show ? show.key : null,
+      epNum,
+      t: show ? (performance.now() - startedAt) / 1000 : 0,
+      episode: ep ? JSON.parse(JSON.stringify(ep, (k, v) => (k === 'stars' ? undefined : v))) : null,
+      guessVisible: !guessRow.hidden,
+      guess: guessState,
+    }),
+    pressGuess: (word) => {
+      const b = [...guessRow.querySelectorAll('.guess')].find(x => x.textContent === word);
+      if (b) b.click();
+      return !!b;
+    },
+  };
+  </script>
+</body>
+</html>
