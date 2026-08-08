@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chomped — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --green: #3dff8b;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column; overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.8rem; background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.5rem 0.55rem; text-decoration: none; white-space: nowrap;
+    }
+    .hud {
+      flex: 1; display: flex; justify-content: center; gap: 0.9rem;
+      font-family: 'Press Start 2P', monospace; font-size: 0.58rem; color: var(--cyan);
+    }
+    .hud b { color: var(--yellow); }
+    .hud .time.low b { color: #ff5a5a; }
+
+    #stage { flex: 1; min-height: 0; position: relative; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .board {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(26,15,56,0.82); border: 2px solid var(--panel2);
+      border-radius: 12px; padding: 0.4rem 0.55rem; font-size: 0.72rem; line-height: 1.6;
+      pointer-events: none; min-width: 110px;
+    }
+    .board .me { color: var(--yellow); font-weight: 700; }
+
+    .overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,1,16,0.88); padding: 1.1rem; overflow-y: auto;
+    }
+    .overlay[hidden] { display: none; }
+    .card {
+      background: var(--panel); border: 3px solid var(--green); border-radius: 22px;
+      padding: 1.2rem; max-width: 25rem; width: 100%; text-align: center; margin: auto;
+      box-shadow: 0 0 34px rgba(61,255,139,0.28);
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace; color: var(--green);
+      font-size: clamp(1rem, 5vw, 1.5rem); line-height: 1.6;
+      text-shadow: 0 0 18px rgba(61,255,139,0.6);
+    }
+    .card p { font-size: 0.92rem; color: var(--text); margin-top: 0.6rem; line-height: 1.5; }
+    .card p.small { color: var(--dim); font-size: 0.83rem; }
+    .skins {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.9rem;
+    }
+    .skin {
+      background: var(--panel2); border: 3px solid transparent; border-radius: 14px;
+      padding: 0.45rem 0.2rem; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+    }
+    .skin canvas { width: 56px; height: 56px; }
+    .skin span { font-size: 0.62rem; color: var(--dim); }
+    .skin.on { border-color: var(--yellow); }
+    .skin.on span { color: var(--yellow); }
+    .btn {
+      background: var(--green); color: #05240f; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.7rem;
+      padding: 0.9rem 1rem; width: 100%; margin-top: 0.9rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .btn.ghost { background: none; border: 2px solid var(--panel2); color: var(--text); box-shadow: none; }
+    .btn:active { transform: translateY(3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" href="../../">&larr; ARCADE</a>
+    <div class="hud">
+      <span>EATEN <b id="hudScore">0</b></span>
+      <span>SIZE <b id="hudSize">1</b></span>
+      <span class="time" id="hudTimeWrap">TIME <b id="hudTime">2:00</b></span>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div class="board" id="board"></div>
+
+    <div class="overlay" id="startCard">
+      <div class="card">
+        <h1>CHOMPED</h1>
+        <div style="font-size:2rem">🕳️🌴</div>
+        <p class="small">You're a hole in the rainforest floor. Slide about and swallow everything you're big enough for — leaves, frogs, monkeys, whole trees — and grow and grow.</p>
+        <p class="small" style="margin-top:0.7rem"><b>Pick your hole:</b></p>
+        <div class="skins" id="skins"></div>
+        <button class="btn" id="playBtn" type="button">CHOMP!</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="endCard" hidden>
+      <div class="card">
+        <h1 id="endTitle">TIME'S UP!</h1>
+        <div style="font-size:2rem" id="endEmoji">🏆</div>
+        <p id="endBody"></p>
+        <p class="small" id="endBoard"></p>
+        <button class="btn" id="againBtn" type="button">CHOMP AGAIN</button>
+        <button class="btn ghost" id="skinBtn" type="button">CHANGE HOLE</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // Chomped — by Flo.
+  // "Basically the same thing as Hole.io. But you are eating a
+  //  rainforest instead of a city. But you can still pick what
+  //  your hole looks like."
+  // ==========================================================
+
+  const WORLD = 2400;          // square rainforest, in world units
+  const GAME_SECONDS = 120;
+  const RIVALS = 3;
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const TAU = Math.PI * 2;
+
+  // ---------- hole skins ----------
+  const SKINS = [
+    { key: 'dark', name: 'Classic', rim: '#2b2b33', deep: '#08060f', glow: null },
+    { key: 'violet', name: 'Violet', rim: '#7a3fd6', deep: '#12042a', glow: '#b38bff' },
+    { key: 'starry', name: 'Starry', rim: '#1b2a6b', deep: '#050a24', glow: '#8fb7ff', stars: true },
+    { key: 'lava', name: 'Lava', rim: '#ff6a2b', deep: '#2a0700', glow: '#ffb057' },
+    { key: 'rainbow', name: 'Rainbow', rim: 'rainbow', deep: '#12002a', glow: '#ff8fd8' },
+    { key: 'vine', name: 'Vines', rim: '#3f8f45', deep: '#04170a', glow: '#7ed77f', vines: true },
+  ];
+  let skinKey = 'dark';
+  try { skinKey = localStorage.getItem('flocade-chomped-skin') || 'dark'; } catch {}
+  const skinOf = (k) => SKINS.find(s => s.key === k) || SKINS[0];
+
+  function drawHole(c, x, y, r, skin, t, wobble = 0) {
+    const rr = r * (1 + Math.sin(t * 3 + wobble) * 0.02);
+    // the void
+    const g = c.createRadialGradient(x, y, rr * 0.1, x, y, rr);
+    g.addColorStop(0, '#000');
+    g.addColorStop(0.72, skin.deep);
+    g.addColorStop(1, skin.deep);
+    c.fillStyle = g;
+    c.beginPath(); c.ellipse(x, y, rr, rr * 0.82, 0, 0, TAU); c.fill();
+    // rim
+    c.lineWidth = Math.max(3, rr * 0.13);
+    if (skin.rim === 'rainbow') {
+      for (let i = 0; i < 12; i++) {
+        c.strokeStyle = 'hsl(' + ((i * 30 + t * 90) % 360) + ',90%,62%)';
+        c.beginPath();
+        c.ellipse(x, y, rr, rr * 0.82, 0, (i / 12) * TAU, ((i + 1) / 12) * TAU);
+        c.stroke();
+      }
+    } else {
+      c.strokeStyle = skin.rim;
+      c.beginPath(); c.ellipse(x, y, rr, rr * 0.82, 0, 0, TAU); c.stroke();
+    }
+    if (skin.glow) {
+      c.save();
+      c.globalAlpha = 0.5 + Math.sin(t * 2 + wobble) * 0.15;
+      c.strokeStyle = skin.glow;
+      c.lineWidth = Math.max(1.5, rr * 0.05);
+      c.beginPath(); c.ellipse(x, y, rr * 1.06, rr * 0.88, 0, 0, TAU); c.stroke();
+      c.restore();
+    }
+    if (skin.stars) {
+      for (let i = 0; i < 9; i++) {
+        const a = i * 2.4 + t * 0.5, d = rr * (0.2 + (i % 4) * 0.16);
+        c.fillStyle = 'rgba(255,255,255,' + (0.4 + 0.5 * Math.abs(Math.sin(t * 2 + i))) + ')';
+        c.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.8, 2, 2);
+      }
+    }
+    if (skin.vines) {
+      c.strokeStyle = skin.glow;
+      c.lineWidth = Math.max(2, rr * 0.06);
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + t * 0.3;
+        c.beginPath();
+        c.arc(x + Math.cos(a) * rr * 0.98, y + Math.sin(a) * rr * 0.8, rr * 0.16, 0, TAU);
+        c.stroke();
+      }
+    }
+  }
+
+  // ---------- rainforest things ----------
+  // size 1 gets eaten by a size-1 hole, and so on up.
+  const KINDS = [
+    { k: 'leaf', size: 1, pts: 1, r: 9 },
+    { k: 'flower', size: 1, pts: 2, r: 10 },
+    { k: 'frog', size: 1, pts: 3, r: 10 },
+    { k: 'mushroom', size: 1, pts: 2, r: 10 },
+    { k: 'fern', size: 2, pts: 4, r: 16 },
+    { k: 'parrot', size: 2, pts: 6, r: 15 },
+    { k: 'rock', size: 2, pts: 4, r: 16 },
+    { k: 'monkey', size: 3, pts: 10, r: 20 },
+    { k: 'bush', size: 3, pts: 8, r: 22 },
+    { k: 'log', size: 3, pts: 9, r: 24 },
+    { k: 'palm', size: 4, pts: 18, r: 28 },
+    { k: 'toucan', size: 4, pts: 20, r: 24 },
+    { k: 'hut', size: 5, pts: 32, r: 34 },
+    { k: 'bigtree', size: 5, pts: 40, r: 38 },
+    { k: 'giant', size: 6, pts: 70, r: 46 },
+  ];
+
+  function drawThing(c, o, t) {
+    const { x, y } = o;
+    const s = o.scale === undefined ? 1 : o.scale;
+    c.save();
+    c.translate(x, y);
+    c.rotate(o.spin || 0);
+    c.scale(s, s);
+    const sway = Math.sin(t * 1.4 + o.seed) * 0.06;
+    switch (o.k) {
+      case 'leaf':
+        c.fillStyle = '#4fae4f';
+        c.beginPath(); c.ellipse(0, 0, 10, 5, sway + o.seed, 0, TAU); c.fill();
+        c.strokeStyle = '#2f7d33'; c.lineWidth = 1.4;
+        c.beginPath(); c.moveTo(-9, 0); c.lineTo(9, 0); c.stroke();
+        break;
+      case 'flower':
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * TAU + sway;
+          c.fillStyle = ['#ff6f9c', '#ffd166', '#c084fc'][o.seed % 3];
+          c.beginPath(); c.ellipse(Math.cos(a) * 6, Math.sin(a) * 6, 5, 4, a, 0, TAU); c.fill();
+        }
+        c.fillStyle = '#fff2a8';
+        c.beginPath(); c.arc(0, 0, 3.5, 0, TAU); c.fill();
+        break;
+      case 'frog':
+        c.fillStyle = '#5fd35f';
+        c.beginPath(); c.ellipse(0, 2, 10, 7, 0, 0, TAU); c.fill();
+        [-1, 1].forEach(d => {
+          c.fillStyle = '#5fd35f';
+          c.beginPath(); c.arc(d * 5, -5, 4.5, 0, TAU); c.fill();
+          c.fillStyle = '#fff';
+          c.beginPath(); c.arc(d * 5, -5, 3, 0, TAU); c.fill();
+          c.fillStyle = '#173';
+          c.beginPath(); c.arc(d * 5, -5, 1.5, 0, TAU); c.fill();
+        });
+        break;
+      case 'mushroom':
+        c.fillStyle = '#f5e6cf';
+        c.fillRect(-3, -2, 6, 10);
+        c.fillStyle = '#e2564d';
+        c.beginPath(); c.arc(0, -2, 9, Math.PI, 0); c.fill();
+        c.fillStyle = '#fff';
+        [[-4, -5], [3, -6], [0, -9]].forEach(([a, b]) => { c.beginPath(); c.arc(a, b, 1.6, 0, TAU); c.fill(); });
+        break;
+      case 'fern':
+        c.strokeStyle = '#3f9e4a'; c.lineWidth = 2.6; c.lineCap = 'round';
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i - 2) * 0.42 + sway;
+          c.beginPath(); c.moveTo(0, 8);
+          c.quadraticCurveTo(Math.cos(a) * 9, 8 + Math.sin(a) * 10, Math.cos(a) * 16, 8 + Math.sin(a) * 18);
+          c.stroke();
+        }
+        break;
+      case 'parrot':
+        c.fillStyle = '#ff4d4d';
+        c.beginPath(); c.ellipse(0, 0, 11, 8, 0, 0, TAU); c.fill();
+        c.fillStyle = '#3dc4ff';
+        c.beginPath(); c.ellipse(-3, 1, 7, 5, 0.4, 0, TAU); c.fill();
+        c.fillStyle = '#ffd166';
+        c.beginPath(); c.moveTo(10, -3); c.lineTo(17, 0); c.lineTo(10, 2); c.closePath(); c.fill();
+        c.fillStyle = '#222';
+        c.beginPath(); c.arc(7, -3, 1.6, 0, TAU); c.fill();
+        break;
+      case 'rock':
+        c.fillStyle = '#9aa3ae';
+        c.beginPath();
+        c.moveTo(-15, 7); c.lineTo(-8, -8); c.lineTo(6, -10); c.lineTo(15, 4); c.lineTo(6, 10);
+        c.closePath(); c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.18)';
+        c.beginPath(); c.moveTo(-8, -8); c.lineTo(6, -10); c.lineTo(2, -2); c.closePath(); c.fill();
+        break;
+      case 'monkey':
+        c.fillStyle = '#a9743f';
+        c.beginPath(); c.ellipse(0, 5, 12, 11, 0, 0, TAU); c.fill();
+        c.beginPath(); c.arc(0, -9, 10, 0, TAU); c.fill();
+        [-1, 1].forEach(d => { c.beginPath(); c.arc(d * 10, -11, 4.5, 0, TAU); c.fill(); });
+        c.fillStyle = '#e0b183';
+        c.beginPath(); c.ellipse(0, -7, 7, 6, 0, 0, TAU); c.fill();
+        c.fillStyle = '#3a2a1a';
+        [-1, 1].forEach(d => { c.beginPath(); c.arc(d * 3, -9, 1.7, 0, TAU); c.fill(); });
+        break;
+      case 'bush':
+        [[-9, 2, 12], [9, 3, 11], [0, -5, 14]].forEach(([a, b, rr]) => {
+          c.fillStyle = ['#3f9e4a', '#4fae4f', '#5cc25c'][(o.seed + a) % 3];
+          c.beginPath(); c.arc(a, b, rr, 0, TAU); c.fill();
+        });
+        break;
+      case 'log':
+        c.fillStyle = '#8a5a3b';
+        c.beginPath(); c.roundRect ? c.roundRect(-24, -8, 48, 16, 8) : c.rect(-24, -8, 48, 16); c.fill();
+        c.fillStyle = '#a9743f';
+        c.beginPath(); c.ellipse(-24, 0, 5, 8, 0, 0, TAU); c.fill();
+        c.strokeStyle = '#6d442c'; c.lineWidth = 1.6;
+        c.beginPath(); c.ellipse(-24, 0, 2.5, 4, 0, 0, TAU); c.stroke();
+        break;
+      case 'palm':
+        c.fillStyle = '#8a6a3b';
+        c.fillRect(-4, -6, 8, 32);
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * TAU + sway;
+          c.fillStyle = i % 2 ? '#3f9e4a' : '#4fbe55';
+          c.beginPath(); c.ellipse(Math.cos(a) * 18, -8 + Math.sin(a) * 11, 18, 7, a, 0, TAU); c.fill();
+        }
+        c.fillStyle = '#c98a52';
+        [[-6, -4], [6, -2]].forEach(([a, b]) => { c.beginPath(); c.arc(a, b, 4, 0, TAU); c.fill(); });
+        break;
+      case 'toucan':
+        c.fillStyle = '#20232b';
+        c.beginPath(); c.ellipse(0, 2, 15, 12, 0, 0, TAU); c.fill();
+        c.fillStyle = '#fff';
+        c.beginPath(); c.ellipse(-2, -2, 8, 6, 0, 0, TAU); c.fill();
+        c.fillStyle = '#ff9e3d';
+        c.beginPath(); c.moveTo(12, -4); c.quadraticCurveTo(30, -1, 12, 5); c.closePath(); c.fill();
+        c.fillStyle = '#fff';
+        c.beginPath(); c.arc(7, -6, 3, 0, TAU); c.fill();
+        c.fillStyle = '#222';
+        c.beginPath(); c.arc(8, -6, 1.5, 0, TAU); c.fill();
+        break;
+      case 'hut':
+        c.fillStyle = '#c9a978';
+        c.fillRect(-22, -6, 44, 28);
+        c.fillStyle = '#8a5a3b';
+        c.beginPath(); c.moveTo(-30, -6); c.lineTo(0, -30); c.lineTo(30, -6); c.closePath(); c.fill();
+        c.fillStyle = '#5a3a24';
+        c.fillRect(-7, 6, 14, 16);
+        break;
+      case 'bigtree':
+        c.fillStyle = '#7a5a3b';
+        c.fillRect(-7, -4, 14, 40);
+        [[0, -22, 26], [-18, -12, 18], [18, -12, 18], [0, -36, 18]].forEach(([a, b, rr], i) => {
+          c.fillStyle = ['#2f7d33', '#3f9e4a', '#4fae4f'][i % 3];
+          c.beginPath(); c.arc(a + Math.sin(t + o.seed) * 1.5, b, rr, 0, TAU); c.fill();
+        });
+        break;
+      case 'giant':
+        c.fillStyle = '#6d4a2f';
+        c.fillRect(-12, -10, 24, 56);
+        c.fillStyle = '#5a3a24';
+        c.beginPath(); c.moveTo(-12, 30); c.lineTo(-26, 46); c.lineTo(-12, 46); c.closePath(); c.fill();
+        c.beginPath(); c.moveTo(12, 30); c.lineTo(26, 46); c.lineTo(12, 46); c.closePath(); c.fill();
+        [[0, -34, 34], [-26, -16, 24], [26, -16, 24], [0, -54, 24]].forEach(([a, b, rr], i) => {
+          c.fillStyle = ['#256b2b', '#2f7d33', '#3f9e4a'][i % 3];
+          c.beginPath(); c.arc(a + Math.sin(t * 0.8 + o.seed) * 2, b, rr, 0, TAU); c.fill();
+        });
+        break;
+    }
+    c.restore();
+  }
+
+  // ---------- world ----------
+  const canvas = $('game'), ctx = canvas.getContext('2d');
+  const stage = $('stage');
+  let things = [], holes = [], me = null, running = false, timeLeft = GAME_SECONDS;
+  let camX = 0, camY = 0, zoom = 1, best = 0, eaten = [];
+  try { best = parseInt(localStorage.getItem('flocade-chomped-best') || '0', 10) || 0; } catch {}
+
+  const sizeOf = (r) => clamp(Math.floor((r - 18) / 16) + 1, 1, 9);   // hole radius -> what it can eat
+
+  function makeWorld() {
+    things = [];
+    let seed = 1;
+    const add = (kind, n) => {
+      for (let i = 0; i < n; i++) {
+        const k = KINDS.find(z => z.k === kind);
+        things.push({
+          ...k, x: 90 + Math.random() * (WORLD - 180), y: 90 + Math.random() * (WORLD - 180),
+          seed: seed++, scale: 1, spin: 0, gone: false,
+        });
+      }
+    };
+    add('leaf', 150); add('flower', 90); add('frog', 45); add('mushroom', 60);
+    add('fern', 70); add('parrot', 34); add('rock', 40);
+    add('monkey', 30); add('bush', 46); add('log', 26);
+    add('palm', 28); add('toucan', 16);
+    add('hut', 10); add('bigtree', 14); add('giant', 7);
+  }
+
+  function newGame() {
+    makeWorld();
+    holes = [];
+    me = { isMe: true, x: WORLD / 2, y: WORLD / 2, r: 26, score: 0, name: 'YOU', skin: skinOf(skinKey), vx: 0, vy: 0 };
+    holes.push(me);
+    const names = ['Gulper', 'Muncher', 'Nibbles'];
+    for (let i = 0; i < RIVALS; i++) {
+      holes.push({
+        isMe: false, x: 200 + Math.random() * (WORLD - 400), y: 200 + Math.random() * (WORLD - 400),
+        r: 24, score: 0, name: names[i], skin: SKINS[(i + 1) % SKINS.length],
+        tx: 0, ty: 0, think: 0,
+      });
+    }
+    timeLeft = GAME_SECONDS;
+    eaten = [];
+    camX = me.x; camY = me.y;
+    running = true;
+    $('startCard').hidden = true;
+    $('endCard').hidden = true;
+  }
+
+  function eatCheck(h, dt) {
+    const cap = sizeOf(h.r);
+    for (const o of things) {
+      if (o.gone) continue;
+      const d = Math.hypot(o.x - h.x, o.y - h.y);
+      if (d > h.r + o.r) continue;
+      if (o.size > cap) {
+        // too big — nudge it about a bit so you can tell it wobbles
+        o.spin = Math.sin(performance.now() / 90 + o.seed) * 0.06;
+        continue;
+      }
+      if (o.falling === undefined) o.falling = 0;
+      o.falling += dt * 3.4;
+      const k = clamp(o.falling, 0, 1);
+      o.scale = 1 - k;
+      o.spin = k * 5;
+      o.x += (h.x - o.x) * k * 0.28;
+      o.y += (h.y - o.y) * k * 0.28;
+      if (k >= 1) {
+        o.gone = true;
+        h.score += o.pts;
+        h.r = Math.min(190, h.r + o.pts * 0.42);
+        if (h.isMe) {
+          eaten.push({ x: h.x, y: h.y, pts: o.pts, t: performance.now() / 1000 });
+          bite(o.pts);
+        }
+      }
+    }
+    // big holes swallow little holes — you pop back up small, no harm done
+    holes.forEach(other => {
+      if (other === h) return;
+      const d = Math.hypot(other.x - h.x, other.y - h.y);
+      if (d < h.r * 0.7 && h.r > other.r * 1.25) {
+        h.score += Math.round(other.r);
+        h.r = Math.min(190, h.r + other.r * 0.25);
+        other.r = 24;
+        other.x = 120 + Math.random() * (WORLD - 240);
+        other.y = 120 + Math.random() * (WORLD - 240);
+        if (other.isMe) banner = { text: 'Gulp! You got swallowed — back you go!', t: performance.now() / 1000 };
+        if (h.isMe) banner = { text: 'You swallowed ' + other.name + '!', t: performance.now() / 1000 };
+      }
+    });
+  }
+  let banner = null;
+
+  function botThink(h, dt) {
+    h.think -= dt;
+    if (h.think <= 0 || Math.hypot(h.tx - h.x, h.ty - h.y) < 40) {
+      const cap = sizeOf(h.r);
+      let best2 = null, bd = 1e9;
+      for (const o of things) {
+        if (o.gone || o.size > cap) continue;
+        const d = Math.hypot(o.x - h.x, o.y - h.y);
+        if (d < bd) { bd = d; best2 = o; }
+      }
+      if (best2) { h.tx = best2.x; h.ty = best2.y; }
+      else { h.tx = 100 + Math.random() * (WORLD - 200); h.ty = 100 + Math.random() * (WORLD - 200); }
+      h.think = 0.8 + Math.random();
+    }
+    const a = Math.atan2(h.ty - h.y, h.tx - h.x);
+    const sp = 132 * (26 / Math.max(26, h.r)) ** 0.35;
+    h.x = clamp(h.x + Math.cos(a) * sp * dt, h.r, WORLD - h.r);
+    h.y = clamp(h.y + Math.sin(a) * sp * dt, h.r, WORLD - h.r);
+  }
+
+  // ---------- sound ----------
+  let actx = null, muted = false;
+  function ac() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function bite(pts) {
+    const a = ac();
+    if (!a || muted) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'triangle';
+    const f = clamp(420 - pts * 4, 110, 420);
+    o.frequency.setValueAtTime(f, a.currentTime);
+    o.frequency.exponentialRampToValueAtTime(f * 0.55, a.currentTime + 0.12);
+    g.gain.setValueAtTime(0.07, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.14);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + 0.15);
+  }
+
+  // ---------- loop ----------
+  let last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+
+    if (running) {
+      // player follows your finger / keys
+      let ax = 0, ay = 0;
+      if (aim) { ax = aim.x; ay = aim.y; }
+      else { ax = (keys.right ? 1 : 0) - (keys.left ? 1 : 0); ay = (keys.down ? 1 : 0) - (keys.up ? 1 : 0); }
+      const m = Math.hypot(ax, ay);
+      const sp = 168 * Math.pow(26 / Math.max(26, me.r), 0.3);
+      if (m > 0.01) {
+        me.x = clamp(me.x + (ax / m) * sp * dt, me.r, WORLD - me.r);
+        me.y = clamp(me.y + (ay / m) * sp * dt, me.r, WORLD - me.r);
+      }
+      holes.forEach(h => { if (!h.isMe) botThink(h, dt); });
+      holes.forEach(h => eatCheck(h, dt));
+
+      timeLeft -= dt;
+      if (timeLeft <= 0) { timeLeft = 0; endGame(); }
+
+      camX += (me.x - camX) * Math.min(1, dt * 6);
+      camY += (me.y - camY) * Math.min(1, dt * 6);
+      const wantZoom = clamp(46 / me.r, 0.42, 1.05);
+      zoom += (wantZoom - zoom) * Math.min(1, dt * 2);
+
+      $('hudScore').textContent = me.score;
+      $('hudSize').textContent = sizeOf(me.r);
+      const mm = Math.floor(timeLeft / 60), ss = Math.floor(timeLeft % 60);
+      $('hudTime').textContent = mm + ':' + String(ss).padStart(2, '0');
+      $('hudTimeWrap').classList.toggle('low', timeLeft < 20);
+      const sorted = holes.slice().sort((a, b) => b.score - a.score);
+      $('board').innerHTML = sorted.map(h =>
+        '<div class="' + (h.isMe ? 'me' : '') + '">🕳️ ' + h.name + ' ' + h.score + '</div>').join('');
+    }
+    render(t);
+  }
+  requestAnimationFrame(frame);
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  function render(t) {
+    const rect = stage.getBoundingClientRect();
+    const w = rect.width, h = rect.height;
+    ctx.fillStyle = '#0a1f10';
+    ctx.fillRect(0, 0, w, h);
+    if (!me) return;
+    const sc = zoom * Math.max(w, h) / 900;
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(sc, sc);
+    ctx.translate(-camX, -camY);
+
+    // forest floor
+    ctx.fillStyle = '#2f6b32';
+    ctx.fillRect(0, 0, WORLD, WORLD);
+    for (let i = 0; i < 90; i++) {
+      const x = ((i * 137) % 40) * 60 + ((i * 53) % 60);
+      const y = ((i * 91) % 40) * 60 + ((i * 29) % 60);
+      ctx.fillStyle = i % 3 ? 'rgba(60,140,66,0.5)' : 'rgba(30,90,38,0.5)';
+      ctx.beginPath(); ctx.ellipse(x, y, 70, 46, i, 0, TAU); ctx.fill();
+    }
+    // a river across the middle
+    ctx.fillStyle = 'rgba(70,150,200,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(0, WORLD * 0.62);
+    for (let x = 0; x <= WORLD; x += 120) ctx.lineTo(x, WORLD * 0.62 + Math.sin(x / 260) * 70);
+    for (let x = WORLD; x >= 0; x -= 120) ctx.lineTo(x, WORLD * 0.62 + Math.sin(x / 260) * 70 + 90);
+    ctx.closePath(); ctx.fill();
+    // edge
+    ctx.strokeStyle = '#123a18';
+    ctx.lineWidth = 18;
+    ctx.strokeRect(0, 0, WORLD, WORLD);
+
+    // holes go under the scenery so things look like they drop in
+    holes.forEach(hh => drawHole(ctx, hh.x, hh.y, hh.r, hh.skin, t, hh.x));
+
+    // scenery, sorted so nearer things draw on top
+    const vis = things.filter(o => !o.gone &&
+      Math.abs(o.x - camX) < w / sc / 2 + 90 && Math.abs(o.y - camY) < h / sc / 2 + 90);
+    vis.sort((a, b) => a.y - b.y);
+    vis.forEach(o => drawThing(ctx, o, t));
+
+    ctx.restore();
+
+    // score pops
+    eaten = eaten.filter(e => t - e.t < 0.8);
+    eaten.forEach(e => {
+      const k = (t - e.t) / 0.8;
+      const px = w / 2 + (e.x - camX) * sc, py = h / 2 + (e.y - camY) * sc - k * 34;
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      ctx.fillStyle = '#ffe600';
+      ctx.font = 'bold 17px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('+' + e.pts, px, py);
+      ctx.restore();
+    });
+    if (banner && t - banner.t < 2.2) {
+      ctx.fillStyle = 'rgba(26,15,56,0.9)';
+      ctx.font = 'bold 15px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const tw = ctx.measureText(banner.text).width + 26;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(w / 2 - tw / 2, 12, tw, 32, 10) : ctx.rect(w / 2 - tw / 2, 12, tw, 32);
+      ctx.fill();
+      ctx.fillStyle = '#ffe600';
+      ctx.fillText(banner.text, w / 2, 33);
+    }
+  }
+
+  // ---------- controls ----------
+  let aim = null;
+  const keys = {};
+  addEventListener('keydown', (e) => {
+    if (['ArrowUp', 'KeyW'].includes(e.code)) { keys.up = 1; e.preventDefault(); }
+    if (['ArrowDown', 'KeyS'].includes(e.code)) { keys.down = 1; e.preventDefault(); }
+    if (['ArrowLeft', 'KeyA'].includes(e.code)) { keys.left = 1; e.preventDefault(); }
+    if (['ArrowRight', 'KeyD'].includes(e.code)) { keys.right = 1; e.preventDefault(); }
+  });
+  addEventListener('keyup', (e) => {
+    if (['ArrowUp', 'KeyW'].includes(e.code)) keys.up = 0;
+    if (['ArrowDown', 'KeyS'].includes(e.code)) keys.down = 0;
+    if (['ArrowLeft', 'KeyA'].includes(e.code)) keys.left = 0;
+    if (['ArrowRight', 'KeyD'].includes(e.code)) keys.right = 0;
+  });
+  function aimAt(e) {
+    const r = stage.getBoundingClientRect();
+    const dx = (e.clientX - r.left) - r.width / 2;
+    const dy = (e.clientY - r.top) - r.height / 2;
+    aim = Math.hypot(dx, dy) < 12 ? null : { x: dx, y: dy };
+  }
+  stage.addEventListener('pointerdown', (e) => { if (!running) return; ac(); aimAt(e); stage.setPointerCapture(e.pointerId); });
+  stage.addEventListener('pointermove', (e) => { if (aim) aimAt(e); });
+  stage.addEventListener('pointerup', () => { aim = null; });
+  stage.addEventListener('pointercancel', () => { aim = null; });
+
+  // ---------- skins UI ----------
+  function buildSkins() {
+    const wrap = $('skins');
+    wrap.innerHTML = '';
+    SKINS.forEach(s => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'skin' + (s.key === skinKey ? ' on' : '');
+      b.dataset.key = s.key;
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 112;
+      const cc = cv.getContext('2d');
+      const nm = document.createElement('span');
+      nm.textContent = s.name;
+      b.append(cv, nm);
+      b.addEventListener('click', () => {
+        skinKey = s.key;
+        try { localStorage.setItem('flocade-chomped-skin', skinKey); } catch {}
+        wrap.querySelectorAll('.skin').forEach(x => x.classList.toggle('on', x.dataset.key === skinKey));
+      });
+      wrap.appendChild(b);
+      const spin = () => {
+        if (!document.body.contains(cv)) return;
+        requestAnimationFrame(spin);
+        const t = performance.now() / 1000;
+        cc.clearRect(0, 0, 112, 112);
+        cc.fillStyle = '#2f6b32';
+        cc.fillRect(0, 0, 112, 112);
+        drawHole(cc, 56, 58, 40, s, t);
+      };
+      spin();
+    });
+  }
+  buildSkins();
+
+  $('playBtn').addEventListener('click', () => { ac(); newGame(); });
+  $('againBtn').addEventListener('click', () => newGame());
+  $('skinBtn').addEventListener('click', () => { $('endCard').hidden = true; $('startCard').hidden = false; });
+
+  function endGame() {
+    running = false;
+    if (me.score > best) {
+      best = me.score;
+      try { localStorage.setItem('flocade-chomped-best', String(best)); } catch {}
+    }
+    const sorted = holes.slice().sort((a, b) => b.score - a.score);
+    const rank = sorted.indexOf(me) + 1;
+    $('endTitle').textContent = rank === 1 ? 'BIGGEST HOLE!' : "TIME'S UP!";
+    $('endEmoji').textContent = rank === 1 ? '🏆🕳️' : '🕳️';
+    $('endBody').textContent = 'You chomped ' + me.score + ' points of rainforest and got to size ' +
+      sizeOf(me.r) + '. Best ever: ' + best + '.';
+    $('endBoard').innerHTML = sorted.map((h, i) =>
+      (i + 1) + '. ' + (h.isMe ? '<b>YOU</b>' : h.name) + ' — ' + h.score).join('<br>');
+    $('endCard').hidden = false;
+  }
+
+  // Test hook.
+  window.__ch = {
+    skins: SKINS.map(s => s.key),
+    start: (skin) => { if (skin) skinKey = skin; newGame(); },
+    tick: (n = 60, dt = 0.05) => {
+      for (let i = 0; i < n; i++) {
+        holes.forEach(h => { if (!h.isMe) botThink(h, dt); });
+        holes.forEach(h => eatCheck(h, dt));
+      }
+    },
+    moveTo: (x, y) => { me.x = x; me.y = y; },
+    nearest: (maxSize) => {
+      let b = null, bd = 1e9;
+      for (const o of things) {
+        if (o.gone || (maxSize && o.size > maxSize)) continue;
+        const d = Math.hypot(o.x - me.x, o.y - me.y);
+        if (d < bd) { bd = d; b = o; }
+      }
+      return b && { k: b.k, x: b.x, y: b.y, size: b.size, pts: b.pts };
+    },
+    find: (minSize) => {
+      const o = things.find(z => !z.gone && z.size >= minSize);
+      return o && { k: o.k, x: o.x, y: o.y, size: o.size, pts: o.pts };
+    },
+    setTime: (s) => { timeLeft = s; },
+    state: () => ({
+      running, score: me && me.score, r: me && +me.r.toFixed(1), size: me && sizeOf(me.r),
+      skin: me && me.skin.key, left: things.filter(o => !o.gone).length,
+      total: things.length, timeLeft: +timeLeft.toFixed(1),
+      holes: holes.map(h => ({ name: h.name, score: h.score, r: +h.r.toFixed(1) })),
+      ended: !$('endCard').hidden, endTitle: $('endTitle').textContent,
+    }),
+  };
+  </script>
+</body>
+</html>

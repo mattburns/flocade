@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Play Paint — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column; overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.5rem 0.8rem; background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.5rem 0.55rem; text-decoration: none; white-space: nowrap;
+    }
+    .hud {
+      flex: 1; display: flex; justify-content: center; gap: 1rem;
+      font-family: 'Press Start 2P', monospace; font-size: 0.58rem; color: var(--cyan);
+    }
+    .hud b { color: var(--yellow); }
+
+    #stage { flex: 1; min-height: 0; position: relative; touch-action: none; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    .board {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(26,15,56,0.82); border: 2px solid var(--panel2);
+      border-radius: 12px; padding: 0.4rem 0.55rem; font-size: 0.72rem; line-height: 1.6;
+      pointer-events: none; min-width: 104px;
+    }
+    .board .me { color: var(--yellow); font-weight: 700; }
+
+    .overlay {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,1,16,0.88); padding: 1.2rem;
+    }
+    .overlay[hidden] { display: none; }
+    .card {
+      background: var(--panel); border: 3px solid var(--pink); border-radius: 22px;
+      padding: 1.3rem; max-width: 25rem; width: 100%; text-align: center;
+      box-shadow: 0 0 34px rgba(255,46,136,0.35);
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace; color: var(--pink);
+      font-size: clamp(1rem, 5vw, 1.5rem); line-height: 1.6;
+      text-shadow: 0 0 18px rgba(255,46,136,0.7);
+    }
+    .card p { font-size: 0.92rem; color: var(--text); margin-top: 0.7rem; line-height: 1.55; }
+    .card p.small { color: var(--dim); font-size: 0.84rem; }
+    .picks { display: flex; gap: 0.7rem; margin-top: 1rem; }
+    .pick {
+      flex: 1; background: var(--panel2); border: 3px solid transparent; border-radius: 18px;
+      padding: 0.8rem 0.4rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    }
+    .pick canvas { width: 74px; height: 74px; }
+    .pick .nm { font-family: 'Press Start 2P', monospace; font-size: 0.6rem; }
+    .pick.uni .nm { color: #ffd6f5; }
+    .pick.pig .nm { color: #ff9ec7; }
+    .pick.on { border-color: var(--yellow); }
+    .btn {
+      background: var(--pink); color: #fff; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.7rem;
+      padding: 0.9rem 1rem; width: 100%; margin-top: 1rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .btn.ghost { background: none; border: 2px solid var(--panel2); box-shadow: none; }
+    .btn:active { transform: translateY(3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" href="../../">&larr; ARCADE</a>
+    <div class="hud">
+      <span>PAINTED <b id="hudPct">0.0%</b></span>
+      <span>BEST <b id="hudBest">0.0%</b></span>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div class="board" id="board"></div>
+
+    <div class="overlay" id="startCard">
+      <div class="card">
+        <h1>PLAY PAINT</h1>
+        <p class="small">Paint the ground by looping around it. Come back to your own colour to fill it in — but if anyone runs over your wet paint trail, they pop!</p>
+        <div class="picks">
+          <button class="pick uni on" id="pickUni" type="button">
+            <canvas width="148" height="148"></canvas><span class="nm">UNICORN</span>
+          </button>
+          <button class="pick pig" id="pickPig" type="button">
+            <canvas width="148" height="148"></canvas><span class="nm">PIG</span>
+          </button>
+        </div>
+        <p class="small" id="pickBlurb">Unicorns paint in <b>rainbow</b>.</p>
+        <button class="btn" id="playBtn" type="button">PLAY!</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="endCard" hidden>
+      <div class="card">
+        <h1 id="endTitle">POP!</h1>
+        <div style="font-size:2.2rem" id="endEmoji">💥</div>
+        <p id="endBody"></p>
+        <button class="btn" id="againBtn" type="button">PLAY AGAIN</button>
+        <button class="btn ghost" id="changeBtn" type="button">CHANGE ANIMAL</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // Play Paint — by Flo.
+  // "Basically the same thing as Paper.io. But every one is either
+  //  a unicorn or a pig. The unicorn's colour is rainbow and the
+  //  pig's colour is pink."
+  // ==========================================================
+
+  const GW = 110, GH = 110;      // the field, in cells
+  const VIEW = 34;               // roughly how many cells fit across the screen
+  const STEP = 0.075;            // seconds per cell of movement
+  const BOTS = 5;
+  const WIN_PCT = 45;
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const owner = new Uint8Array(GW * GH);      // 0 = unpainted, else player id
+  const trailOf = new Uint8Array(GW * GH);    // 0 = no trail, else player id
+  const idx = (x, y) => y * GW + x;
+  const inGrid = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH;
+
+  const canvas = $('game'), ctx = canvas.getContext('2d');
+  const stage = $('stage');
+
+  let players = [], me = null, running = false, best = 0;
+  let camX = GW / 2, camY = GH / 2, cell = 20, t0 = 0;
+  let pops = [];
+
+  try { best = parseFloat(localStorage.getItem('flocade-play-paint-best') || '0') || 0; } catch {}
+  $('hudBest').textContent = best.toFixed(1) + '%';
+
+  // ---------- looks ----------
+  // Unicorns paint in rainbow, pigs paint in pink — each player gets their own
+  // shade inside those families so you can still tell everyone apart.
+  function tileColour(p, x, y, t) {
+    if (p.type === 'unicorn') {
+      const h = ((x + y) * 7 + t * 60 + p.tint) % 360;
+      return 'hsl(' + h + ',85%,66%)';
+    }
+    return 'hsl(' + (330 + p.tint % 30) + ',' + (72 + (p.tint % 3) * 6) + '%,' + (62 + ((x + y) % 2) * 4) + '%)';
+  }
+  function headColour(p, t) {
+    return p.type === 'unicorn' ? 'hsl(' + ((t * 90 + p.tint) % 360) + ',90%,70%)' : 'hsl(' + (335 + p.tint % 25) + ',80%,70%)';
+  }
+
+  function drawUnicorn(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    c.fillStyle = '#fff8fc';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    // rainbow mane
+    for (let i = 0; i < 6; i++) {
+      c.fillStyle = 'hsl(' + ((i * 60 + t * 90 + tint) % 360) + ',90%,66%)';
+      c.beginPath();
+      c.ellipse(-r * 0.62 + Math.sin(i) * 2, -r * 0.7 + i * r * 0.28, r * 0.42, r * 0.2, 0.5, 0, Math.PI * 2);
+      c.fill();
+    }
+    // horn
+    c.fillStyle = '#ffe600';
+    c.beginPath();
+    c.moveTo(-r * 0.16, -r * 0.82); c.lineTo(0, -r * 1.7); c.lineTo(r * 0.16, -r * 0.82);
+    c.closePath(); c.fill();
+    // ears
+    c.fillStyle = '#fff8fc';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.62, -r * 0.62, r * 0.2, r * 0.3, s * 0.5, 0, Math.PI * 2); c.fill(); });
+    // face
+    c.fillStyle = '#3a2a4d';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.32, -r * 0.05, r * 0.11, r * 0.15, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#ffc0dd';
+    c.beginPath(); c.ellipse(0, r * 0.42, r * 0.36, r * 0.24, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+  function drawPig(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    const base = 'hsl(' + (335 + tint % 25) + ',80%,' + (74) + '%)';
+    c.fillStyle = base;
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    // ears
+    [-1, 1].forEach(s => {
+      c.fillStyle = 'hsl(' + (335 + tint % 25) + ',72%,64%)';
+      c.beginPath();
+      c.moveTo(s * r * 0.3, -r * 0.72); c.lineTo(s * r * 0.86, -r * 1.12); c.lineTo(s * r * 0.82, -r * 0.42);
+      c.closePath(); c.fill();
+    });
+    // snout
+    c.fillStyle = 'hsl(' + (335 + tint % 25) + ',85%,84%)';
+    c.beginPath(); c.ellipse(0, r * 0.3, r * 0.46, r * 0.34, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#a85a7a';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.16, r * 0.3, r * 0.08, r * 0.12, 0, 0, Math.PI * 2); c.fill(); });
+    // eyes
+    c.fillStyle = '#3a2a4d';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.36, -r * 0.24, r * 0.11, r * 0.14, 0, 0, Math.PI * 2); c.fill(); });
+    c.restore();
+  }
+  const drawAnimal = (c, p, x, y, r, t) =>
+    p.type === 'unicorn' ? drawUnicorn(c, x, y, r, t, p.tint) : drawPig(c, x, y, r, t, p.tint);
+
+  // pick-screen previews
+  (function previews() {
+    let t = 0;
+    const uc = $('pickUni').querySelector('canvas').getContext('2d');
+    const pc = $('pickPig').querySelector('canvas').getContext('2d');
+    (function loop() {
+      requestAnimationFrame(loop);
+      t += 0.016;
+      uc.clearRect(0, 0, 148, 148);
+      pc.clearRect(0, 0, 148, 148);
+      drawUnicorn(uc, 74, 82, 42, t, 0);
+      drawPig(pc, 74, 80, 42, t, 0);
+    })();
+  })();
+
+  // ---------- setting up a game ----------
+  function blank(p, cx, cy) {
+    p.homeX = cx; p.homeY = cy;
+    for (let y = cy - 2; y <= cy + 2; y++) {
+      for (let x = cx - 2; x <= cx + 2; x++) {
+        if (inGrid(x, y)) owner[idx(x, y)] = p.id;
+      }
+    }
+  }
+  function newGame(type) {
+    owner.fill(0); trailOf.fill(0);
+    players = []; pops = [];
+    const spots = [];
+    for (let i = 0; i < BOTS + 1; i++) {
+      const a = (i / (BOTS + 1)) * Math.PI * 2;
+      spots.push([Math.round(GW / 2 + Math.cos(a) * 34), Math.round(GH / 2 + Math.sin(a) * 34)]);
+    }
+    for (let i = 0; i <= BOTS; i++) {
+      const isMe = i === 0;
+      const p = {
+        id: i + 1,
+        isMe,
+        type: isMe ? type : (Math.random() < 0.5 ? 'unicorn' : 'pig'),
+        tint: isMe ? 0 : 40 + i * 47,
+        x: spots[i][0], y: spots[i][1],
+        dx: 0, dy: -1, wantDx: 0, wantDy: -1,
+        trail: [], alive: true, pct: 0,
+        name: isMe ? 'YOU' : ['Sparkle', 'Snorty', 'Twinkle', 'Truffle', 'Glitter', 'Piggy'][i - 1] || 'Bot',
+        out: false, plan: 0, goHomeAt: 18, homeX: spots[i][0], homeY: spots[i][1],
+      };
+      blank(p, p.x, p.y);
+      players.push(p);
+    }
+    me = players[0];
+    camX = me.x; camY = me.y;
+    recount();
+    running = true;
+    $('startCard').hidden = true;
+    $('endCard').hidden = true;
+  }
+
+  // ---------- claiming ----------
+  const seen = new Uint8Array(GW * GH);
+  const stack = new Int32Array(GW * GH);
+  function capture(p) {
+    seen.fill(0);
+    let sp = 0;
+    const solid = (i) => owner[i] === p.id || trailOf[i] === p.id;
+    // flood in from the edges through everything that isn't mine
+    for (let x = 0; x < GW; x++) {
+      for (const y of [0, GH - 1]) { const i = idx(x, y); if (!solid(i) && !seen[i]) { seen[i] = 1; stack[sp++] = i; } }
+    }
+    for (let y = 0; y < GH; y++) {
+      for (const x of [0, GW - 1]) { const i = idx(x, y); if (!solid(i) && !seen[i]) { seen[i] = 1; stack[sp++] = i; } }
+    }
+    while (sp > 0) {
+      const i = stack[--sp];
+      const x = i % GW, y = (i / GW) | 0;
+      if (x > 0) { const j = i - 1; if (!seen[j] && !solid(j)) { seen[j] = 1; stack[sp++] = j; } }
+      if (x < GW - 1) { const j = i + 1; if (!seen[j] && !solid(j)) { seen[j] = 1; stack[sp++] = j; } }
+      if (y > 0) { const j = i - GW; if (!seen[j] && !solid(j)) { seen[j] = 1; stack[sp++] = j; } }
+      if (y < GH - 1) { const j = i + GW; if (!seen[j] && !solid(j)) { seen[j] = 1; stack[sp++] = j; } }
+    }
+    // anything the outside couldn't reach is now painted in
+    for (let i = 0; i < owner.length; i++) if (!seen[i]) owner[i] = p.id;
+    p.trail.forEach(i => { trailOf[i] = 0; });
+    p.trail.length = 0;
+  }
+
+  function kill(p, why) {
+    if (!p.alive) return;
+    p.alive = false;
+    p.trail.forEach(i => { trailOf[i] = 0; });
+    p.trail.length = 0;
+    for (let i = 0; i < owner.length; i++) if (owner[i] === p.id) owner[i] = 0;
+    pops.push({ x: p.x, y: p.y, t: performance.now() / 1000, type: p.type, tint: p.tint });
+    if (p.isMe) endGame(false, why);
+    else setTimeout(() => respawn(p), 2200);
+  }
+  function respawn(p) {
+    if (!running) return;
+    for (let tries = 0; tries < 60; tries++) {
+      const x = 6 + Math.floor(Math.random() * (GW - 12));
+      const y = 6 + Math.floor(Math.random() * (GH - 12));
+      let clear = true;
+      for (let yy = y - 3; yy <= y + 3 && clear; yy++) {
+        for (let xx = x - 3; xx <= x + 3; xx++) {
+          if (!inGrid(xx, yy) || owner[idx(xx, yy)] || trailOf[idx(xx, yy)]) { clear = false; break; }
+        }
+      }
+      if (!clear) continue;
+      p.x = x; p.y = y; p.dx = 0; p.dy = -1; p.alive = true; p.out = false; p.legs = null;
+      blank(p, x, y);
+      recount();
+      return;
+    }
+  }
+
+  function recount() {
+    const counts = new Array(players.length + 2).fill(0);
+    for (let i = 0; i < owner.length; i++) counts[owner[i]]++;
+    players.forEach(p => { p.pct = counts[p.id] * 100 / (GW * GH); });
+  }
+
+  // ---------- one step of movement ----------
+  function stepPlayer(p) {
+    if (!p.alive) return;
+    if (p.isMe) {
+      // no reversing straight back into your own trail
+      if (!(p.wantDx === -p.dx && p.wantDy === -p.dy)) { p.dx = p.wantDx; p.dy = p.wantDy; }
+    } else botThink(p);
+
+    const nx = p.x + p.dx, ny = p.y + p.dy;
+    if (!inGrid(nx, ny)) { kill(p, 'edge'); return; }
+    p.x = nx; p.y = ny;
+    const i = idx(nx, ny);
+
+    // running over wet paint pops whoever owns it
+    const tOwner = trailOf[i];
+    if (tOwner) {
+      const victim = players.find(q => q.id === tOwner);
+      if (victim) { kill(victim, victim === p ? 'self' : 'crossed'); if (victim === p) return; }
+    }
+    if (owner[i] === p.id) {
+      if (p.trail.length) { capture(p); recount(); }
+      p.out = false;
+    } else {
+      trailOf[i] = p.id;
+      p.trail.push(i);
+      p.out = true;
+    }
+  }
+
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  // Pick the first direction that won't kill this bot: no reversing, no walking
+  // off the field, and never onto its own wet paint.
+  function safeStep(p, prefs) {
+    for (const [dx, dy] of prefs) {
+      if (!dx && !dy) continue;
+      if (dx === -p.dx && dy === -p.dy) continue;
+      const nx = p.x + dx, ny = p.y + dy;
+      if (nx < 1 || ny < 1 || nx > GW - 2 || ny > GH - 2) continue;
+      if (trailOf[idx(nx, ny)] === p.id) continue;
+      return [dx, dy];
+    }
+    return null;
+  }
+  function botThink(p) {
+    const onMine = owner[idx(p.x, p.y)] === p.id;
+    // Back home with nothing to paint? Plan a rectangle: out a bit, turn once,
+    // along a bit, then home — which reliably encloses a proper chunk.
+    if (onMine && !p.trail.length && (!p.legs || !p.legs.length)) {
+      const d = DIRS[Math.floor(Math.random() * 4)];
+      const turn = Math.random() < 0.5 ? 1 : -1;
+      p.legs = [
+        [d[0], d[1], 7 + Math.floor(Math.random() * 10)],
+        [d[1] * turn, -d[0] * turn, 6 + Math.floor(Math.random() * 9)],
+      ];
+    }
+    let prefs;
+    if (p.legs && p.legs.length) {
+      const leg = p.legs[0];
+      prefs = [[leg[0], leg[1]]];
+      if (--leg[2] <= 0) p.legs.shift();
+    } else {
+      // head back to my own patch
+      const ddx = Math.sign(p.homeX - p.x), ddy = Math.sign(p.homeY - p.y);
+      prefs = Math.abs(p.homeX - p.x) >= Math.abs(p.homeY - p.y)
+        ? [[ddx, 0], [0, ddy], [0, -ddy], [-ddx, 0]]
+        : [[0, ddy], [ddx, 0], [-ddx, 0], [0, -ddy]];
+    }
+    const s = safeStep(p, [...prefs, ...DIRS]);
+    if (s) { p.dx = s[0]; p.dy = s[1]; }
+  }
+
+  // ---------- loop ----------
+  let acc = 0, last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+    if (running) {
+      acc += dt;
+      while (acc >= STEP) {
+        acc -= STEP;
+        players.forEach(stepPlayer);
+        if (running && me.alive && me.pct >= WIN_PCT) endGame(true);
+      }
+      camX += (me.x - camX) * Math.min(1, dt * 7);
+      camY += (me.y - camY) * Math.min(1, dt * 7);
+    }
+    render(t);
+  }
+  requestAnimationFrame(frame);
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cell = Math.max(10, Math.min(r.width, r.height) / VIEW);
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  function render(t) {
+    const r = stage.getBoundingClientRect();
+    const w = r.width, h = r.height;
+    ctx.fillStyle = '#150a2e';
+    ctx.fillRect(0, 0, w, h);
+    const ox = w / 2 - camX * cell, oy = h / 2 - camY * cell;
+
+    const x0 = clamp(Math.floor(-ox / cell) - 1, 0, GW - 1);
+    const x1 = clamp(Math.ceil((w - ox) / cell) + 1, 0, GW);
+    const y0 = clamp(Math.floor(-oy / cell) - 1, 0, GH - 1);
+    const y1 = clamp(Math.ceil((h - oy) / cell) + 1, 0, GH);
+
+    // unpainted ground
+    ctx.fillStyle = '#1d1140';
+    ctx.fillRect(ox + x0 * cell, oy + y0 * cell, (x1 - x0) * cell, (y1 - y0) * cell);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let x = x0; x <= x1; x++) {
+      ctx.beginPath(); ctx.moveTo(ox + x * cell, oy + y0 * cell); ctx.lineTo(ox + x * cell, oy + y1 * cell); ctx.stroke();
+    }
+    for (let y = y0; y <= y1; y++) {
+      ctx.beginPath(); ctx.moveTo(ox + x0 * cell, oy + y * cell); ctx.lineTo(ox + x1 * cell, oy + y * cell); ctx.stroke();
+    }
+
+    // painted ground
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const o = owner[idx(x, y)];
+        if (!o) continue;
+        const p = players[o - 1];
+        if (!p) continue;
+        ctx.fillStyle = tileColour(p, x, y, t);
+        ctx.fillRect(ox + x * cell, oy + y * cell, cell + 0.6, cell + 0.6);
+      }
+    }
+    // wet trails
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const tr = trailOf[idx(x, y)];
+        if (!tr) continue;
+        const p = players[tr - 1];
+        if (!p) continue;
+        ctx.fillStyle = tileColour(p, x, y, t);
+        ctx.fillRect(ox + x * cell + cell * 0.14, oy + y * cell + cell * 0.14, cell * 0.72, cell * 0.72);
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(ox + x * cell + cell * 0.14, oy + y * cell + cell * 0.14, cell * 0.72, cell * 0.72);
+      }
+    }
+    // world edge
+    ctx.strokeStyle = '#ff2e88';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(ox, oy, GW * cell, GH * cell);
+
+    // the animals
+    players.forEach(p => {
+      if (!p.alive) return;
+      const px = ox + (p.x + 0.5) * cell, py = oy + (p.y + 0.5) * cell;
+      if (px < -60 || py < -60 || px > w + 60 || py > h + 60) return;
+      drawAnimal(ctx, p, px, py, cell * 0.85, t);
+      if (p.isMe) {
+        ctx.strokeStyle = '#ffe600';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(px, py, cell * 1.15, 0, Math.PI * 2); ctx.stroke();
+      }
+    });
+
+    // pops
+    pops = pops.filter(pp => t - pp.t < 0.6);
+    pops.forEach(pp => {
+      const k = (t - pp.t) / 0.6;
+      const px = ox + (pp.x + 0.5) * cell, py = oy + (pp.y + 0.5) * cell;
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = pp.type === 'unicorn' ? 'hsl(' + ((t * 200) % 360) + ',90%,70%)' : '#ff8fc0';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(px, py, cell * (0.6 + k * 2.4), 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    });
+
+    // scoreboard
+    if (running) {
+      const sorted = players.slice().sort((a, b) => b.pct - a.pct);
+      $('board').innerHTML = sorted.slice(0, 6).map(p =>
+        '<div class="' + (p.isMe ? 'me' : '') + '">' + (p.type === 'unicorn' ? '🦄' : '🐷') + ' ' +
+        p.name + ' ' + p.pct.toFixed(1) + '%</div>').join('');
+      $('hudPct').textContent = me.pct.toFixed(1) + '%';
+    }
+  }
+
+  // ---------- controls ----------
+  function setDir(dx, dy) {
+    if (!running || !me.alive) return;
+    if (dx === -me.dx && dy === -me.dy) return;
+    me.wantDx = dx; me.wantDy = dy;
+  }
+  addEventListener('keydown', (e) => {
+    if (e.code === 'ArrowUp' || e.code === 'KeyW') { setDir(0, -1); e.preventDefault(); }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') { setDir(0, 1); e.preventDefault(); }
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { setDir(-1, 0); e.preventDefault(); }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { setDir(1, 0); e.preventDefault(); }
+  });
+  let touchStart = null;
+  stage.addEventListener('pointerdown', (e) => {
+    if (!running) return;
+    touchStart = { x: e.clientX, y: e.clientY };
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!touchStart) return;
+    const dx = e.clientX - touchStart.x, dy = e.clientY - touchStart.y;
+    if (Math.hypot(dx, dy) < 18) return;
+    if (Math.abs(dx) > Math.abs(dy)) setDir(Math.sign(dx), 0);
+    else setDir(0, Math.sign(dy));
+    touchStart = { x: e.clientX, y: e.clientY };
+  });
+  const endTouch = () => { touchStart = null; };
+  stage.addEventListener('pointerup', endTouch);
+  stage.addEventListener('pointercancel', endTouch);
+
+  // ---------- start / end ----------
+  let chosen = 'unicorn';
+  $('pickUni').addEventListener('click', () => {
+    chosen = 'unicorn';
+    $('pickUni').classList.add('on'); $('pickPig').classList.remove('on');
+    $('pickBlurb').innerHTML = 'Unicorns paint in <b>rainbow</b>.';
+  });
+  $('pickPig').addEventListener('click', () => {
+    chosen = 'pig';
+    $('pickPig').classList.add('on'); $('pickUni').classList.remove('on');
+    $('pickBlurb').innerHTML = 'Pigs paint in <b>pink</b>.';
+  });
+  $('playBtn').addEventListener('click', () => newGame(chosen));
+  $('againBtn').addEventListener('click', () => newGame(chosen));
+  $('changeBtn').addEventListener('click', () => { $('endCard').hidden = true; $('startCard').hidden = false; });
+
+  function endGame(won, why) {
+    running = false;
+    const pct = me.pct;
+    if (pct > best) {
+      best = pct;
+      try { localStorage.setItem('flocade-play-paint-best', String(best)); } catch {}
+    }
+    $('hudBest').textContent = best.toFixed(1) + '%';
+    $('endTitle').textContent = won ? 'YOU WIN!' : 'POP!';
+    $('endEmoji').textContent = won ? '🏆' : (me.type === 'unicorn' ? '🦄💥' : '🐷💥');
+    const reason = why === 'self' ? 'You ran over your own wet paint!'
+      : why === 'edge' ? 'You painted yourself right off the edge!'
+      : 'Someone ran over your wet paint!';
+    $('endBody').textContent = won
+      ? 'You painted ' + pct.toFixed(1) + '% of the field. The whole place is yours!'
+      : reason + ' You painted ' + pct.toFixed(1) + '%.';
+    $('endCard').hidden = false;
+  }
+
+  // Test hook.
+  window.__pp = {
+    start: (type) => newGame(type || 'unicorn'),
+    setDir,
+    step: (n = 1) => { for (let i = 0; i < n; i++) { players.forEach(stepPlayer); } recount(); },
+    state: () => ({
+      running,
+      me: me && { type: me.type, x: me.x, y: me.y, alive: me.alive, pct: +me.pct.toFixed(2), trail: me.trail.length },
+      players: players.map(p => ({ name: p.name, type: p.type, alive: p.alive, pct: +p.pct.toFixed(2) })),
+      painted: players.reduce((s, p) => s + p.pct, 0).toFixed(1),
+      ended: !$('endCard').hidden,
+      endTitle: $('endTitle').textContent,
+    }),
+    forceWin: () => { for (let i = 0; i < owner.length * 0.5; i++) owner[i] = me.id; recount(); },
+  };
+  </script>
+</body>
+</html>
