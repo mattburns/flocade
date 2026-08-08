@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Room — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --green: #3dff8b;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.55rem 0.8rem;
+      background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.55rem; padding: 0.5rem 0.55rem; white-space: nowrap; text-decoration: none;
+    }
+    .navBtn:hover { border-color: var(--pink); }
+    .ttl {
+      flex: 1; text-align: center;
+      font-family: 'Press Start 2P', monospace; font-size: 0.68rem; color: var(--yellow);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .left { font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--cyan); white-space: nowrap; }
+    .left b { color: var(--yellow); }
+
+    .view { flex: 1; min-height: 0; overflow-y: auto; }
+    .view[hidden] { display: none; }
+
+    /* rooms menu */
+    .intro { text-align: center; padding: 1rem 1rem 0.2rem; }
+    .intro h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.8vw, 1.5rem); color: var(--pink);
+      text-shadow: 0 0 18px rgba(255,46,136,0.75); line-height: 1.6;
+    }
+    .intro p { color: var(--dim); font-size: 0.92rem; margin-top: 0.5rem; }
+    .rooms {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 0.85rem; padding: 1rem;
+    }
+    .roomBtn {
+      background: var(--panel); border: 3px solid var(--panel2); border-radius: 18px;
+      padding: 0.7rem; display: flex; flex-direction: column; gap: 0.45rem; align-items: center;
+      transition: transform 0.08s, border-color 0.1s;
+    }
+    .roomBtn:hover, .roomBtn:focus-visible {
+      border-color: var(--pink); transform: translateY(-3px); outline: none;
+      box-shadow: 0 0 20px rgba(255,46,136,0.3);
+    }
+    .roomBtn canvas { width: 100%; aspect-ratio: 4/3; border-radius: 12px; display: block; }
+    .roomBtn .nm { font-family: 'Press Start 2P', monospace; font-size: 0.62rem; color: var(--yellow); }
+    .roomBtn .st { font-size: 0.78rem; color: var(--dim); }
+    .roomBtn .st.done { color: var(--green); }
+
+    /* play area */
+    #stage { position: relative; width: 100%; height: 100%; touch-action: none; }
+    #room { display: block; width: 100%; height: 100%; }
+
+    .banner {
+      position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+      background: rgba(26,15,56,0.94); border: 2px solid var(--cyan);
+      border-radius: 999px; padding: 0.5rem 0.9rem;
+      font-size: 0.88rem; color: var(--text); white-space: nowrap;
+      pointer-events: none; opacity: 0; transition: opacity 0.2s;
+    }
+    .banner.show { opacity: 1; }
+
+    .doneCard {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      /* only lightly dimmed, so you can admire the room you just filled */
+      background: rgba(6,1,16,0.45); padding: 1.2rem;
+      align-items: flex-end;
+    }
+    .doneCard[hidden] { display: none; }
+    .card {
+      background: var(--panel); border: 3px solid var(--pink); border-radius: 20px;
+      padding: 1.3rem; max-width: 24rem; width: 100%; text-align: center;
+      box-shadow: 0 0 34px rgba(255,46,136,0.35);
+    }
+    .card h2 {
+      font-family: 'Press Start 2P', monospace; color: var(--yellow);
+      font-size: clamp(0.9rem, 4.4vw, 1.2rem); line-height: 1.6;
+    }
+    .card p { font-size: 0.92rem; color: var(--text); margin-top: 0.7rem; line-height: 1.5; }
+    .card .btn {
+      background: var(--pink); color: #fff; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.65rem;
+      padding: 0.85rem 1rem; width: 100%; margin-top: 0.7rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .card .btn.ghost { background: none; border: 2px solid var(--panel2); box-shadow: none; }
+    .card .btn:active { transform: translateY(3px); box-shadow: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" id="backBtn" href="../../">&larr; ARCADE</a>
+    <div class="ttl" id="title">MY ROOM</div>
+    <div class="left" id="leftCount"></div>
+  </div>
+
+  <div class="view" id="menuView">
+    <div class="intro">
+      <h1>MY ROOM</h1>
+      <p>An empty room and a box of stuff. Tap the box, something pops out — put it where it goes! Keep going until the box is empty and your room is finished.</p>
+    </div>
+    <div class="rooms" id="rooms"></div>
+  </div>
+
+  <div class="view" id="playView" hidden>
+    <div id="stage">
+      <canvas id="room"></canvas>
+      <div class="banner" id="banner"></div>
+      <div class="doneCard" id="doneCard" hidden>
+        <div class="card">
+          <h2 id="doneTitle">ROOM FINISHED!</h2>
+          <div style="font-size:2.2rem">🏠✨</div>
+          <p id="doneBody"></p>
+          <button class="btn" id="nextRoomBtn">NEXT ROOM ▶</button>
+          <button class="btn ghost" id="menuBtn">ALL ROOMS</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // My Room — by Flo.
+  // "There is a blank room and a box of stuff. If you tap the box,
+  //  something comes out. You have to place it correctly in the
+  //  room. Repeat until the box is empty and it goes away."
+  // ==========================================================
+
+  // Virtual drawing space, sized snugly around the room so it fills the screen.
+  const VW = 520, VH = 600;
+  const TW = 76, TH = 38, ZH = 30;   // iso tile width/height, and one unit of height
+  const OX = 260, OY = 152;          // where grid (0,0) lands on screen
+  const GRID = 6;
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+
+  // grid -> screen
+  const sx = (gx, gy) => OX + (gx - gy) * (TW / 2);
+  const sy = (gx, gy, gz = 0) => OY + (gx + gy) * (TH / 2) - gz * ZH;
+
+  function shade(hex, amt) {
+    const n = parseInt(hex.slice(1), 16);
+    const r = clamp(((n >> 16) & 255) + amt, 0, 255);
+    const g = clamp(((n >> 8) & 255) + amt, 0, 255);
+    const b = clamp((n & 255) + amt, 0, 255);
+    return '#' + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1);
+  }
+
+  let c = null;   // current context, set per draw
+
+  // A cuboid sitting on the floor: footprint w×d cells at (gx,gy), height h units.
+  function box(gx, gy, w, d, h, col, zBase = 0) {
+    const x0 = gx, x1 = gx + w, y0 = gy, y1 = gy + d;
+    const top = zBase + h;
+    const P = (a, b, z) => [sx(a, b), sy(a, b, z)];
+    const quad = (pts, fill) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+      c.closePath();
+      c.fill();
+      c.strokeStyle = 'rgba(80,60,40,0.22)';
+      c.lineWidth = 1.2;
+      c.stroke();
+    };
+    // left face (plane y = y1, faces down-left) and right face (plane x = x1)
+    quad([P(x0, y1, zBase), P(x1, y1, zBase), P(x1, y1, top), P(x0, y1, top)], shade(col, -34));
+    quad([P(x1, y0, zBase), P(x1, y1, zBase), P(x1, y1, top), P(x1, y0, top)], shade(col, -16));
+    quad([P(x0, y0, top), P(x1, y0, top), P(x1, y1, top), P(x0, y1, top)], shade(col, 16));
+  }
+  // A flat thing lying on the floor (rug, mat)
+  function flat(gx, gy, w, d, col, z = 0.02) {
+    const P = (a, b) => [sx(a, b), sy(a, b, z)];
+    c.fillStyle = col;
+    c.beginPath();
+    [[gx, gy], [gx + w, gy], [gx + w, gy + d], [gx, gy + d]].forEach((p, i) => {
+      const q = P(p[0], p[1]);
+      i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]);
+    });
+    c.closePath();
+    c.fill();
+  }
+  // A blob (pillow, plant, ball) centred on a grid point
+  function blob(gx, gy, gz, rx, ry, col) {
+    c.fillStyle = col;
+    c.beginPath();
+    c.ellipse(sx(gx, gy), sy(gx, gy, gz), rx, ry, 0, 0, Math.PI * 2);
+    c.fill();
+  }
+  function faceKawaii(x, y, s, col = '#4a3b2a') {
+    c.fillStyle = col;
+    [-1, 1].forEach(d => {
+      c.beginPath(); c.ellipse(x + d * 4 * s, y, 1.7 * s, 2.2 * s, 0, 0, Math.PI * 2); c.fill();
+    });
+    c.strokeStyle = col; c.lineWidth = 1.4 * s; c.lineCap = 'round';
+    c.beginPath(); c.arc(x, y + 2 * s, 2.2 * s, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
+    c.fillStyle = 'rgba(255,140,180,0.6)';
+    [-1, 1].forEach(d => {
+      c.beginPath(); c.ellipse(x + d * 7.5 * s, y + 2.4 * s, 2.4 * s, 1.4 * s, 0, 0, Math.PI * 2); c.fill();
+    });
+  }
+
+  // ==========================================================
+  // The stuff that comes out of the box
+  // ==========================================================
+  const ITEMS = {
+    bed: { name: 'Bed', emoji: '🛏️', draw(g) {
+      box(g.gx, g.gy, 2, 3, 0.5, '#c9a978');
+      box(g.gx + 0.05, g.gy + 0.6, 1.9, 2.4, 0.75, '#b7d97f');       // duvet
+      box(g.gx + 0.2, g.gy + 0.1, 1.6, 0.5, 0.85, '#fff6e0');        // pillow
+      box(g.gx, g.gy + 2.85, 2, 0.15, 1.3, '#a8c96a');               // footboard
+      box(g.gx, g.gy - 0.15, 2, 0.15, 1.6, '#a8c96a');               // headboard
+    } },
+    wardrobe: { name: 'Wardrobe', emoji: '🚪', draw(g) {
+      box(g.gx, g.gy, 1.6, 1, 3.2, '#d9e8a8');
+      box(g.gx + 0.05, g.gy - 0.02, 0.72, 0.06, 2.9, '#f2f7dd', 0.15);
+      box(g.gx + 0.83, g.gy - 0.02, 0.72, 0.06, 2.9, '#f2f7dd', 0.15);
+      blob(g.gx + 0.78, g.gy - 0.05, 1.6, 3, 5, '#8a7a4a');
+      blob(g.gx + 0.86, g.gy - 0.05, 1.6, 3, 5, '#8a7a4a');
+    } },
+    bedside: { name: 'Bedside table', emoji: '🛋️', draw(g) {
+      box(g.gx, g.gy, 0.9, 0.9, 0.9, '#e8c39a');
+      box(g.gx + 0.08, g.gy - 0.02, 0.74, 0.06, 0.3, '#fbe7cd', 0.35);
+      // lamp
+      box(g.gx + 0.35, g.gy + 0.35, 0.18, 0.18, 0.5, '#ffb15c', 0.9);
+      blob(g.gx + 0.44, g.gy + 0.44, 1.62, 15, 10, '#ffd58a');
+    } },
+    desk: { name: 'Desk', emoji: '💻', draw(g) {
+      box(g.gx, g.gy, 2.2, 0.9, 0.12, '#d3b183', 0.85);
+      box(g.gx + 0.05, g.gy + 0.08, 0.12, 0.7, 0.85, '#c3a173');
+      box(g.gx + 2.03, g.gy + 0.08, 0.12, 0.7, 0.85, '#c3a173');
+      box(g.gx + 1.3, g.gy + 0.1, 0.8, 0.7, 0.7, '#c9a978');        // drawers
+      // monitor + keyboard
+      box(g.gx + 0.35, g.gy + 0.28, 0.75, 0.1, 0.62, '#9fd6a0', 0.97);
+      box(g.gx + 0.3, g.gy + 0.55, 0.85, 0.28, 0.05, '#cfe89b', 0.97);
+    } },
+    chair: { name: 'Chair', emoji: '🪑', draw(g) {
+      box(g.gx + 0.2, g.gy + 0.2, 0.55, 0.55, 0.1, '#b7d97f', 0.55);
+      box(g.gx + 0.42, g.gy + 0.42, 0.12, 0.12, 0.55, '#e8e3c0');
+      box(g.gx + 0.2, g.gy + 0.68, 0.55, 0.1, 0.62, '#a8c96a', 0.62);
+      blob(g.gx + 0.48, g.gy + 0.48, 0.06, 16, 8, '#e0dcbb');
+    } },
+    rug: { name: 'Rug', emoji: '🟠', draw(g) {
+      flat(g.gx, g.gy, 2.2, 2.2, '#f6a96b');
+      flat(g.gx + 0.35, g.gy + 0.35, 1.5, 1.5, '#ffe0c4');
+    } },
+    plant: { name: 'Plant', emoji: '🪴', draw(g) {
+      box(g.gx + 0.3, g.gy + 0.3, 0.4, 0.4, 0.42, '#e0a86b');
+      const px = sx(g.gx + 0.5, g.gy + 0.5), py = sy(g.gx + 0.5, g.gy + 0.5, 0.42);
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + 0.4;
+        c.fillStyle = i % 2 ? '#5fbf6a' : '#7ed77f';
+        c.beginPath();
+        c.ellipse(px + Math.cos(a) * 15, py - 16 + Math.sin(a) * 9, 12, 7, a, 0, Math.PI * 2);
+        c.fill();
+      }
+    } },
+    teddy: { name: 'Teddy', emoji: '🧸', draw(g) {
+      const x = sx(g.gx + 0.5, g.gy + 0.5), y = sy(g.gx + 0.5, g.gy + 0.5, 0);
+      c.fillStyle = '#f2b8cd';
+      c.beginPath(); c.ellipse(x, y - 14, 15, 13, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(x, y - 32, 12, 11, 0, 0, Math.PI * 2); c.fill();
+      [-11, 11].forEach(d => { c.beginPath(); c.ellipse(x + d, y - 40, 5, 5, 0, 0, Math.PI * 2); c.fill(); });
+      c.fillStyle = '#ffe0ec';
+      c.beginPath(); c.ellipse(x, y - 28, 6, 5, 0, 0, Math.PI * 2); c.fill();
+      faceKawaii(x, y - 33, 1);
+    } },
+    toybox: { name: 'Toy box', emoji: '🧩', draw(g) {
+      box(g.gx, g.gy, 1.3, 0.9, 0.85, '#ffb3c9');
+      box(g.gx - 0.03, g.gy - 0.03, 1.36, 0.96, 0.12, '#ff8fb1', 0.85);
+      blob(g.gx + 0.4, g.gy + 0.2, 1.1, 9, 9, '#7ed7f0');
+      blob(g.gx + 0.85, g.gy + 0.35, 1.15, 8, 8, '#ffe600');
+    } },
+    bookshelf: { name: 'Bookshelf', emoji: '📚', draw(g) {
+      box(g.gx, g.gy, 1.4, 0.5, 2.4, '#d8b98c');
+      for (let s2 = 0; s2 < 3; s2++) {
+        box(g.gx + 0.06, g.gy - 0.02, 1.28, 0.06, 0.06, '#f0dcc0', 0.55 + s2 * 0.62);
+        for (let i = 0; i < 5; i++) {
+          box(g.gx + 0.12 + i * 0.24, g.gy - 0.03, 0.16, 0.05, 0.42,
+              ['#ff8fb1', '#7ed7f0', '#ffe600', '#a8e06a', '#c9a2ff'][(i + s2) % 5], 0.61 + s2 * 0.62);
+        }
+      }
+    } },
+    beanbag: { name: 'Beanbag', emoji: '🫘', draw(g) {
+      const x = sx(g.gx + 0.6, g.gy + 0.6), y = sy(g.gx + 0.6, g.gy + 0.6, 0);
+      c.fillStyle = '#a78bfa';
+      c.beginPath(); c.ellipse(x, y - 12, 34, 22, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#c4b0ff';
+      c.beginPath(); c.ellipse(x, y - 24, 25, 14, 0, 0, Math.PI * 2); c.fill();
+    } },
+    // ---- kitchen ----
+    counter: { name: 'Kitchen counter', emoji: '🧑‍🍳', draw(g) {
+      box(g.gx, g.gy, 2.4, 0.9, 1.0, '#f0e0c0');
+      box(g.gx - 0.04, g.gy - 0.04, 2.48, 0.98, 0.12, '#d9c39a', 1.0);
+      for (let i = 0; i < 3; i++) box(g.gx + 0.15 + i * 0.75, g.gy - 0.03, 0.55, 0.05, 0.3, '#e2cda6', 0.55);
+    } },
+    fridge: { name: 'Fridge', emoji: '🧊', draw(g) {
+      box(g.gx, g.gy, 1, 0.9, 3, '#e8f4f8');
+      box(g.gx + 0.06, g.gy - 0.03, 0.88, 0.05, 1.1, '#cfe6ef', 1.8);
+      box(g.gx + 0.06, g.gy - 0.03, 0.88, 0.05, 1.55, '#cfe6ef', 0.15);
+      blob(g.gx + 0.82, g.gy - 0.06, 1.6, 3, 8, '#9ab6c2');
+      blob(g.gx + 0.82, g.gy - 0.06, 2.6, 3, 8, '#9ab6c2');
+    } },
+    cooker: { name: 'Cooker', emoji: '🍳', draw(g) {
+      box(g.gx, g.gy, 1.1, 0.9, 1.0, '#dfe4ea');
+      box(g.gx - 0.03, g.gy - 0.03, 1.16, 0.96, 0.1, '#4a4f57', 1.0);
+      [[0.3, 0.3], [0.75, 0.3], [0.3, 0.62], [0.75, 0.62]].forEach(([a, b]) => {
+        blob(g.gx + a, g.gy + b, 1.12, 8, 5, '#2f333a');
+      });
+      box(g.gx + 0.1, g.gy - 0.02, 0.9, 0.05, 0.45, '#b9c0c9', 0.35);
+    } },
+    table: { name: 'Table', emoji: '🍽️', draw(g) {
+      box(g.gx, g.gy, 1.7, 1.7, 0.12, '#c4e08a', 0.75);
+      [[0.1, 0.1], [1.5, 0.1], [0.1, 1.5], [1.5, 1.5]].forEach(([a, b]) => {
+        box(g.gx + a, g.gy + b, 0.12, 0.12, 0.75, '#b09068');
+      });
+      blob(g.gx + 0.85, g.gy + 0.85, 0.95, 16, 9, '#fff6e0');
+      blob(g.gx + 0.85, g.gy + 0.85, 1.02, 8, 5, '#ffd166');
+    } },
+    sink: { name: 'Sink', emoji: '🚰', draw(g) {
+      box(g.gx, g.gy, 1, 0.85, 0.95, '#eef3f6');
+      box(g.gx + 0.1, g.gy + 0.12, 0.8, 0.6, 0.1, '#c6dce6', 0.95);
+      box(g.gx + 0.42, g.gy + 0.1, 0.08, 0.08, 0.4, '#a9bcc6', 1.05);
+      blob(g.gx + 0.46, g.gy + 0.3, 1.45, 7, 4, '#a9bcc6');
+    } },
+    // ---- bathroom ----
+    toilet: { name: 'Toilet', emoji: '🚽', draw(g) {
+      box(g.gx + 0.15, g.gy + 0.1, 0.55, 0.35, 1.3, '#f4f8fa');            // cistern
+      box(g.gx + 0.12, g.gy + 0.42, 0.62, 0.55, 0.75, '#fbfdfe');          // bowl
+      blob(g.gx + 0.43, g.gy + 0.7, 0.78, 17, 10, '#e6eef2');
+      blob(g.gx + 0.43, g.gy + 0.7, 0.8, 12, 7, '#cddbe2');
+      blob(g.gx + 0.66, g.gy + 0.2, 1.32, 4, 3, '#b9ccd6');
+    } },
+    bath: { name: 'Bath', emoji: '🛁', draw(g) {
+      box(g.gx, g.gy, 2.2, 1.1, 0.85, '#eaf6fb');
+      box(g.gx + 0.12, g.gy + 0.12, 1.96, 0.86, 0.1, '#bfe4f2', 0.78);
+      box(g.gx + 0.3, g.gy + 0.25, 1.6, 0.6, 0.06, '#8fd4ee', 0.8);        // water
+      blob(g.gx + 2.05, g.gy + 0.55, 1.05, 5, 4, '#b7c7cf');
+      blob(g.gx + 1.1, g.gy + 0.5, 0.94, 8, 6, '#fff');                     // bubbles
+      blob(g.gx + 0.75, g.gy + 0.4, 0.96, 6, 5, '#fff');
+    } },
+    basin: { name: 'Basin', emoji: '🪥', draw(g) {
+      box(g.gx + 0.2, g.gy + 0.25, 0.55, 0.45, 1.05, '#f2f7f9');
+      box(g.gx + 0.05, g.gy + 0.12, 0.85, 0.7, 0.16, '#fbfdfe', 1.05);
+      blob(g.gx + 0.48, g.gy + 0.45, 1.22, 15, 9, '#dbe9ef');
+      blob(g.gx + 0.48, g.gy + 0.2, 1.35, 4, 3, '#b9ccd6');
+    } },
+    towels: { name: 'Towels', emoji: '🧺', draw(g) {
+      box(g.gx + 0.15, g.gy + 0.15, 0.7, 0.6, 0.35, '#ffd6e8');
+      box(g.gx + 0.18, g.gy + 0.18, 0.64, 0.54, 0.3, '#bfe4f2', 0.35);
+      box(g.gx + 0.22, g.gy + 0.22, 0.56, 0.46, 0.26, '#fff0b8', 0.65);
+    } },
+    duck: { name: 'Rubber duck', emoji: '🦆', draw(g) {
+      const x = sx(g.gx + 0.5, g.gy + 0.5), y = sy(g.gx + 0.5, g.gy + 0.5, 0);
+      c.fillStyle = '#ffdf4f';
+      c.beginPath(); c.ellipse(x, y - 9, 13, 9, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(x - 5, y - 22, 8, 8, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#ff9e3d';
+      c.beginPath(); c.ellipse(x - 13, y - 21, 5, 3, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#3a2a1a';
+      c.beginPath(); c.arc(x - 6, y - 24, 1.7, 0, Math.PI * 2); c.fill();
+    } },
+    bin: { name: 'Bin', emoji: '🗑️', draw(g) {
+      box(g.gx + 0.3, g.gy + 0.3, 0.4, 0.4, 0.6, '#c7cfd6');
+      box(g.gx + 0.27, g.gy + 0.27, 0.46, 0.46, 0.08, '#aab4bd', 0.6);
+    } },
+    lamp: { name: 'Floor lamp', emoji: '💡', draw(g) {
+      box(g.gx + 0.42, g.gy + 0.42, 0.16, 0.16, 0.1, '#b09068');
+      box(g.gx + 0.46, g.gy + 0.46, 0.08, 0.08, 2.1, '#c9a978', 0.1);
+      blob(g.gx + 0.5, g.gy + 0.5, 2.35, 20, 13, '#ffe9a8');
+    } },
+  };
+
+  // ==========================================================
+  // The rooms
+  // ==========================================================
+  const ROOMS = [
+    { key: 'bedroom', name: 'BEDROOM', floor: '#e9d9b8', wall: '#eef5d8', wall2: '#e3edc8',
+      items: [
+        { k: 'bed', gx: 0.2, gy: 0.2 }, { k: 'wardrobe', gx: 4.2, gy: 0.1 },
+        { k: 'bedside', gx: 2.4, gy: 0.3 }, { k: 'desk', gx: 0.2, gy: 4.6 },
+        { k: 'chair', gx: 1.6, gy: 3.5 }, { k: 'rug', gx: 2.9, gy: 2.6 },
+        { k: 'teddy', gx: 4.7, gy: 2.2 }, { k: 'plant', gx: 5.0, gy: 4.7 },
+      ] },
+    { key: 'kitchen', name: 'KITCHEN', floor: '#e6dcc8', wall: '#dff0ee', wall2: '#d3e7e5',
+      items: [
+        { k: 'counter', gx: 0.2, gy: 0.2 }, { k: 'fridge', gx: 4.6, gy: 0.2 },
+        { k: 'cooker', gx: 3.1, gy: 0.2 }, { k: 'sink', gx: 0.2, gy: 1.6 },
+        { k: 'table', gx: 2.4, gy: 2.8 }, { k: 'chair', gx: 1.4, gy: 3.2 },
+        { k: 'chair2', item: 'chair', gx: 4.3, gy: 3.4 }, { k: 'plant', gx: 0.3, gy: 4.8 },
+      ] },
+    { key: 'bathroom', name: 'BATHROOM', floor: '#dfe9ee', wall: '#e7f4f8', wall2: '#daecf2',
+      items: [
+        { k: 'bath', gx: 0.2, gy: 0.2 }, { k: 'toilet', gx: 4.6, gy: 0.3 },
+        { k: 'basin', gx: 3.2, gy: 0.3 }, { k: 'towels', gx: 4.9, gy: 2.0 },
+        { k: 'bin', gx: 4.9, gy: 3.4 }, { k: 'rug', gx: 1.3, gy: 2.8 },
+        { k: 'duck', gx: 0.4, gy: 4.9 }, { k: 'plant', gx: 3.4, gy: 4.8 },
+      ] },
+    { key: 'playroom', name: 'PLAYROOM', floor: '#efdfd0', wall: '#fdeef2', wall2: '#f8e2e8',
+      items: [
+        { k: 'bookshelf', gx: 0.2, gy: 0.2 }, { k: 'toybox', gx: 4.3, gy: 0.3 },
+        { k: 'beanbag', gx: 3.4, gy: 3.6 }, { k: 'rug', gx: 1.4, gy: 2.4 },
+        { k: 'teddy', gx: 0.4, gy: 2.0 }, { k: 'table', gx: 3.2, gy: 1.0 },
+        { k: 'lamp', gx: 5.0, gy: 4.8 }, { k: 'plant', gx: 0.3, gy: 4.9 },
+      ] },
+  ];
+  const itemDef = (t) => ITEMS[t.item || t.k];
+
+  // ==========================================================
+  // Sound
+  // ==========================================================
+  let actx = null, muted = false;
+  function ac() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return null; } }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function beep(f, dur, type = 'sine', vol = 0.07, slide) {
+    const a = ac();
+    if (!a || muted) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, a.currentTime);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
+    g.gain.setValueAtTime(vol, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + dur);
+  }
+  const sfx = {
+    pop: () => beep(520, 0.1, 'triangle', 0.08, 780),
+    place: () => { beep(660, 0.09, 'sine', 0.09); setTimeout(() => beep(990, 0.14, 'sine', 0.08), 80); },
+    nope: () => beep(240, 0.14, 'triangle', 0.06, 190),
+    done: () => [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => beep(f, 0.18, 'sine', 0.09), i * 130)),
+  };
+
+  // ==========================================================
+  // Game state
+  // ==========================================================
+  const canvas = $('room'), stage = $('stage');
+  const ctx = canvas.getContext('2d');
+  let room = null, targets = [], queue = [], held = null, pointer = null;
+  let boxGone = 0, sparkles = [], wobble = 0, hintFor = null, misses = 0;
+  let scale = 1, offX = 0, offY = 0;
+
+  const DONE_KEY = 'flocade-my-room-done';
+  const getDone = () => { try { return JSON.parse(localStorage.getItem(DONE_KEY)) || []; } catch { return []; } };
+  const markDone = (k) => {
+    const d = getDone();
+    if (!d.includes(k)) { d.push(k); try { localStorage.setItem(DONE_KEY, JSON.stringify(d)); } catch {} }
+  };
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    scale = Math.min(r.width / VW, r.height / VH);
+    offX = (r.width - VW * scale) / 2;
+    offY = (r.height - VH * scale) / 2;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener('resize', resize);
+
+  // screen (css px inside stage) -> virtual coords
+  const toV = (px, py) => ({ x: (px - offX) / scale, y: (py - offY) / scale });
+
+  // where the box sits, in virtual coords
+  const BOX = { x: 84, y: 452 };
+
+  function startRoom(r) {
+    room = r;
+    targets = r.items.map((t, i) => ({ ...t, i, placed: false }));
+    queue = targets.map((t) => t.i).sort(() => Math.random() - 0.5);
+    held = null; sparkles = []; boxGone = 0; hintFor = null; misses = 0;
+    $('title').textContent = r.name;
+    $('backBtn').textContent = '← ROOMS';
+    $('backBtn').removeAttribute('href');
+    $('doneCard').hidden = true;
+    menuView.hidden = true; playView.hidden = false;
+    resize();
+    updateCount();
+    banner('Tap the box to get something out!');
+  }
+
+  function updateCount() {
+    $('leftCount').innerHTML = 'IN BOX <b>' + queue.length + '</b>';
+  }
+
+  let bannerTimer = null;
+  function banner(msg, ms = 2200) {
+    const b = $('banner');
+    b.textContent = msg;
+    b.classList.add('show');
+    if (bannerTimer) clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(() => b.classList.remove('show'), ms);
+  }
+
+  // ---------- drawing ----------
+  function drawRoom(t) {
+    const r = room;
+    // walls
+    const wallTop = 4;
+    const P = (gx, gy, gz) => [sx(gx, gy), sy(gx, gy, gz)];
+    const poly = (pts, fill) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+      c.closePath(); c.fill();
+    };
+    // left wall (plane gx = 0), right wall (plane gy = 0)
+    poly([P(0, 0, 0), P(0, GRID, 0), P(0, GRID, wallTop), P(0, 0, wallTop)], r.wall2);
+    poly([P(0, 0, 0), P(GRID, 0, 0), P(GRID, 0, wallTop), P(0, 0, wallTop)], r.wall);
+    // skirting
+    poly([P(0, 0, 0), P(0, GRID, 0), P(0, GRID, 0.22), P(0, 0, 0.22)], shade(r.wall2, -30));
+    poly([P(0, 0, 0), P(GRID, 0, 0), P(GRID, 0, 0.22), P(0, 0, 0.22)], shade(r.wall, -30));
+    // floor tiles
+    for (let gx = 0; gx < GRID; gx++) {
+      for (let gy = 0; gy < GRID; gy++) {
+        poly([P(gx, gy, 0), P(gx + 1, gy, 0), P(gx + 1, gy + 1, 0), P(gx, gy + 1, 0)],
+             (gx + gy) % 2 ? r.floor : shade(r.floor, 8));
+      }
+    }
+    // floor edge so it looks like a platform
+    poly([P(GRID, 0, 0), P(GRID, GRID, 0), P(GRID, GRID, -0.35), P(GRID, 0, -0.35)], shade(r.floor, -46));
+    poly([P(0, GRID, 0), P(GRID, GRID, 0), P(GRID, GRID, -0.35), P(0, GRID, -0.35)], shade(r.floor, -60));
+  }
+
+  function drawTargetHints(t) {
+    // While you're holding something, every empty spot shows a dashed outline.
+    targets.forEach(tg => {
+      if (tg.placed) return;
+      const isHint = hintFor === tg.i;
+      const x = sx(tg.gx + 0.5, tg.gy + 0.5), y = sy(tg.gx + 0.5, tg.gy + 0.5);
+      c.save();
+      c.setLineDash([7, 6]);
+      c.lineWidth = isHint ? 4 : 2.5;
+      c.strokeStyle = isHint ? 'rgba(255,230,0,0.95)' : 'rgba(255,255,255,0.75)';
+      c.beginPath();
+      c.ellipse(x, y, 34, 19, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+      if (isHint) {
+        c.fillStyle = 'rgba(255,230,0,0.9)';
+        c.font = 'bold 20px Inter, sans-serif';
+        c.textAlign = 'center';
+        c.fillText('↓', x, y - 26 - Math.abs(Math.sin(t * 5)) * 5);
+      }
+    });
+  }
+
+  function drawBox(t) {
+    if (queue.length === 0 && boxGone >= 1) return;
+    const k = boxGone > 0 ? ease(boxGone) : 0;
+    c.save();
+    c.translate(BOX.x, BOX.y);
+    c.scale(1 - k * 0.6, 1 - k * 0.6);
+    c.globalAlpha = 1 - k;
+    const bob = Math.sin(t * 2.4) * 3;
+    c.translate(0, bob);
+    // cardboard box in iso
+    const w = 62, h = 34, d = 46;
+    c.fillStyle = '#d9a066';
+    c.beginPath();
+    c.moveTo(-w, 0); c.lineTo(0, h / 2); c.lineTo(0, h / 2 + d); c.lineTo(-w, d); c.closePath(); c.fill();
+    c.fillStyle = '#c08a4e';
+    c.beginPath();
+    c.moveTo(w, 0); c.lineTo(0, h / 2); c.lineTo(0, h / 2 + d); c.lineTo(w, d); c.closePath(); c.fill();
+    c.fillStyle = '#f0bd83';
+    c.beginPath();
+    c.moveTo(-w, 0); c.lineTo(0, -h / 2); c.lineTo(w, 0); c.lineTo(0, h / 2); c.closePath(); c.fill();
+    // ribbon + label
+    c.fillStyle = '#ff8fb1';
+    c.fillRect(-6, -h / 2 - 2, 12, h + d);
+    c.fillStyle = '#fff';
+    c.font = 'bold 15px Inter, sans-serif';
+    c.textAlign = 'center';
+    c.fillText(queue.length, 0, h / 2 + 26);
+    c.restore();
+    if (!boxGone) {
+      c.fillStyle = 'rgba(255,255,255,0.9)';
+      c.font = 'bold 15px Inter, sans-serif';
+      c.textAlign = 'center';
+      c.fillText(held ? '' : 'TAP ME', BOX.x, BOX.y + 108);
+    }
+  }
+
+  function draw(now) {
+    requestAnimationFrame(draw);
+    if (!room) return;
+    const t = now / 1000;
+    const r = stage.getBoundingClientRect();
+    ctx.clearRect(0, 0, r.width, r.height);
+    ctx.save();
+    ctx.translate(offX, offY);
+    ctx.scale(scale, scale);
+    c = ctx;
+
+    drawRoom(t);
+    if (held) drawTargetHints(t);
+
+    // placed things, back to front
+    const placed = targets.filter(x => x.placed).sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+    placed.forEach(tg => {
+      const pop = tg.pop === undefined ? 1 : clamp((t - tg.pop) / 0.25, 0, 1);
+      c.save();
+      if (pop < 1) {
+        const x = sx(tg.gx + 0.5, tg.gy + 0.5), y = sy(tg.gx + 0.5, tg.gy + 0.5);
+        c.translate(x, y);
+        const s2 = 0.7 + 0.35 * ease(pop);
+        c.scale(s2, s2 - 0.05 * Math.sin(pop * Math.PI));
+        c.translate(-x, -y);
+      }
+      itemDef(tg).draw(tg);
+      c.restore();
+    });
+
+    drawBox(t);
+
+    // the thing you're holding, under your finger
+    if (held && pointer) {
+      const v = pointer;
+      c.save();
+      c.globalAlpha = 0.96;
+      c.translate(v.x - sx(held.gx + 0.5, held.gy + 0.5), v.y - sy(held.gx + 0.5, held.gy + 0.5) - 18);
+      if (wobble > 0) c.translate(Math.sin(t * 40) * wobble * 8, 0);
+      itemDef(held).draw(held);
+      c.restore();
+      // name tag
+      c.fillStyle = 'rgba(26,15,56,0.9)';
+      const label = itemDef(held).name;
+      c.font = 'bold 14px Inter, sans-serif';
+      const w = c.measureText(label).width + 22;
+      c.beginPath();
+      c.roundRect ? c.roundRect(v.x - w / 2, v.y + 14, w, 24, 8) : c.rect(v.x - w / 2, v.y + 14, w, 24);
+      c.fill();
+      c.fillStyle = '#ffe600';
+      c.textAlign = 'center';
+      c.fillText(label, v.x, v.y + 31);
+    }
+
+    // sparkles
+    sparkles = sparkles.filter(s2 => t - s2.t < 0.7);
+    sparkles.forEach(s2 => {
+      const k = (t - s2.t) / 0.7;
+      c.save();
+      c.globalAlpha = 1 - k;
+      c.fillStyle = s2.col;
+      const rr2 = 4 + k * 16;
+      c.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+        const rad = i % 2 ? rr2 * 0.4 : rr2;
+        const px = s2.x + Math.cos(a + s2.rot) * rad, py = s2.y + Math.sin(a + s2.rot) * rad * 0.6;
+        i ? c.lineTo(px, py) : c.moveTo(px, py);
+      }
+      c.closePath(); c.fill();
+      c.restore();
+    });
+
+    if (wobble > 0) wobble = Math.max(0, wobble - 0.03);
+    if (queue.length === 0 && !held && boxGone > 0 && boxGone < 1) {
+      boxGone = Math.min(1, boxGone + 0.02);
+      if (boxGone >= 1) finishRoom();
+    }
+    c.restore();
+  }
+  requestAnimationFrame(draw);
+
+  // ---------- interaction ----------
+  function nearBox(v) {
+    return Math.hypot(v.x - BOX.x, v.y - BOX.y - 20) < 96;
+  }
+  function popFromBox() {
+    if (!queue.length || held) return;
+    const idx = queue[0];
+    held = targets.find(x => x.i === idx);
+    misses = 0; hintFor = null;
+    sfx.pop();
+    banner('Where does the ' + itemDef(held).name.toLowerCase() + ' go?', 1800);
+  }
+  function dropHeld(v) {
+    if (!held) return;
+    // nearest empty target to the drop point
+    let best = null, bestD = Infinity;
+    targets.forEach(tg => {
+      if (tg.placed) return;
+      const d = Math.hypot(v.x - sx(tg.gx + 0.5, tg.gy + 0.5), v.y - sy(tg.gx + 0.5, tg.gy + 0.5));
+      if (d < bestD) { bestD = d; best = tg; }
+    });
+    if (best && best.i === held.i && bestD < 90) {
+      held.placed = true;
+      held.pop = performance.now() / 1000;
+      const px = sx(held.gx + 0.5, held.gy + 0.5), py = sy(held.gx + 0.5, held.gy + 0.5);
+      for (let i = 0; i < 5; i++) {
+        sparkles.push({ x: px + (Math.random() - 0.5) * 60, y: py + (Math.random() - 0.5) * 34,
+                        t: performance.now() / 1000 + i * 0.04, rot: Math.random() * 3,
+                        col: ['#ffe600', '#ff8fb1', '#7ee8fa'][i % 3] });
+      }
+      queue.shift();
+      held = null; hintFor = null;
+      sfx.place();
+      updateCount();
+      banner(queue.length ? 'Perfect! Tap the box again.' : 'That was the last one!', 1600);
+      if (!queue.length) boxGone = 0.001;
+    } else {
+      misses++;
+      wobble = 1;
+      sfx.nope();
+      if (misses >= 3) {
+        hintFor = held.i;
+        banner('Try the flashing spot!', 2000);
+      } else {
+        banner('Not there — have another go!', 1400);
+      }
+    }
+  }
+
+  stage.addEventListener('pointerdown', (e) => {
+    if (!room || !$('doneCard').hidden) return;
+    ac();
+    const rect = stage.getBoundingClientRect();
+    const v = toV(e.clientX - rect.left, e.clientY - rect.top);
+    pointer = v;
+    if (!held && nearBox(v)) { popFromBox(); stage.setPointerCapture(e.pointerId); return; }
+    if (held) stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', (e) => {
+    if (!room) return;
+    const rect = stage.getBoundingClientRect();
+    pointer = toV(e.clientX - rect.left, e.clientY - rect.top);
+  });
+  stage.addEventListener('pointerup', (e) => {
+    if (!room || !held) return;
+    const rect = stage.getBoundingClientRect();
+    const v = toV(e.clientX - rect.left, e.clientY - rect.top);
+    pointer = v;
+    // a plain tap on the box just pops it out; only drop if we've moved away
+    if (nearBox(v)) return;
+    dropHeld(v);
+  });
+
+  function finishRoom() {
+    markDone(room.key);
+    sfx.done();
+    const next = ROOMS[(ROOMS.findIndex(r => r.key === room.key) + 1) % ROOMS.length];
+    $('doneTitle').textContent = 'MY ' + room.name + ' IS FINISHED!';
+    $('doneBody').textContent = 'The box is empty and everything is where it should be. Lovely.';
+    $('nextRoomBtn').textContent = 'NEXT: ' + next.name + ' ▶';
+    $('nextRoomBtn').onclick = () => startRoom(next);
+    $('doneCard').hidden = false;
+  }
+
+  // ---------- menu ----------
+  const menuView = $('menuView'), playView = $('playView');
+  function buildMenu() {
+    const done = getDone();
+    const box2 = $('rooms');
+    box2.innerHTML = '';
+    ROOMS.forEach(r => {
+      const btn = document.createElement('button');
+      btn.className = 'roomBtn';
+      btn.type = 'button';
+      btn.dataset.key = r.key;
+      const cv = document.createElement('canvas');
+      cv.width = 400; cv.height = 300;
+      const cc = cv.getContext('2d');
+      // a little preview: the finished room, scaled down
+      cc.fillStyle = '#1a0f38';
+      cc.fillRect(0, 0, 400, 300);
+      cc.save();
+      const s2 = 0.42;
+      cc.translate(200 - (OX - 60) * s2, 40 - (OY - 60) * s2);
+      cc.scale(s2, s2);
+      const prev = c;
+      c = cc;
+      const saveRoom = room;
+      room = r;
+      drawRoom(0);
+      r.items.slice().sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy)).forEach(t => itemDef(t).draw(t));
+      room = saveRoom;
+      c = prev;
+      cc.restore();
+      const nm = document.createElement('div');
+      nm.className = 'nm';
+      nm.textContent = r.name;
+      const st = document.createElement('div');
+      st.className = 'st' + (done.includes(r.key) ? ' done' : '');
+      st.textContent = done.includes(r.key) ? '✓ Finished — do it again?' : r.items.length + ' things to place';
+      btn.append(cv, nm, st);
+      btn.addEventListener('click', () => startRoom(r));
+      box2.appendChild(btn);
+    });
+  }
+  function goMenu() {
+    room = null; held = null;
+    playView.hidden = true; menuView.hidden = false;
+    $('title').textContent = 'MY ROOM';
+    $('leftCount').textContent = '';
+    $('backBtn').textContent = '← ARCADE';
+    $('backBtn').setAttribute('href', '../../');
+    buildMenu();
+  }
+  $('menuBtn').addEventListener('click', goMenu);
+  $('backBtn').addEventListener('click', (e) => { if (room) { e.preventDefault(); goMenu(); } });
+
+  goMenu();
+
+  // Test hook.
+  window.__mr = {
+    rooms: ROOMS.map(r => ({ key: r.key, name: r.name, items: r.items.length })),
+    start: (k) => startRoom(ROOMS.find(r => r.key === k)),
+    state: () => ({
+      view: menuView.hidden ? 'play' : 'menu',
+      room: room ? room.key : null,
+      inBox: queue.length,
+      held: held ? itemDef(held).name : null,
+      placed: targets.filter(t => t.placed).length,
+      total: targets.length,
+      hint: hintFor !== null,
+      boxGone: boxGone >= 1,
+      done: !$('doneCard').hidden,
+      saved: getDone(),
+    }),
+    tapBox: () => { pointer = { x: BOX.x, y: BOX.y }; popFromBox(); },
+    dropAt: (gx, gy) => { dropHeld({ x: sx(gx, gy), y: sy(gx, gy) }); },
+    dropOnCorrect: () => {
+      if (!held) return false;
+      dropHeld({ x: sx(held.gx + 0.5, held.gy + 0.5), y: sy(held.gx + 0.5, held.gy + 0.5) });
+      return true;
+    },
+    wipe: () => { try { localStorage.removeItem(DONE_KEY); } catch {} },
+  };
+  </script>
+</body>
+</html>
