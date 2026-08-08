@@ -172,9 +172,19 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * clamp(t, 0, 1);
   const ease = (t) => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+  // splitmix32: every call is fully mixed, so episode 1 and episode 2 — whose
+  // seeds are only one apart — pick completely different villains, words and
+  // gossip. A plain LCG kept them clustered and early episodes all matched.
   function rng(seed) {
     let s = (seed >>> 0) || 1;
-    return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    return () => {
+      s = (s + 0x9E3779B9) >>> 0;
+      let x = s;
+      x = Math.imul(x ^ (x >>> 16), 2246822507) >>> 0;
+      x = Math.imul(x ^ (x >>> 13), 3266489909) >>> 0;
+      x = (x ^ (x >>> 16)) >>> 0;
+      return x / 4294967296;
+    };
   }
   function rr(c, x, y, w, h, r) {
     c.beginPath();
@@ -274,6 +284,8 @@
     win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.14, 'square', 0.08), i * 110)),
     bad: () => beep(200, 0.35, 'sawtooth', 0.08, 70),
     pop: () => beep(660, 0.07, 'triangle', 0.06, 880),
+    nom: () => beep(180, 0.1, 'triangle', 0.07, 110),
+    bell: () => { for (let i = 0; i < 8; i++) setTimeout(() => beep(i % 2 ? 1320 : 990, 0.16, 'sine', 0.1), i * 130); },
   };
   $('muteBtn').addEventListener('click', () => {
     muted = !muted;
@@ -871,7 +883,364 @@
            [10, () => sfx.pop()], [15.6, () => sfx.pop()], [21.2, () => sfx.pop()]],
   };
 
-  const SHOWS = [SUPER_SNAIL, DRAW_THAT, ALIEN_MOVIE, GLIDE];
+  // ==========================================================
+  // SHOW 5 — ALL THE FRIENDS
+  // Three nine-year-olds who talk all through playtime. Mia is
+  // kind and arty, small and quiet. Layla-Grace is the opposite —
+  // still kind, but sporty, tall and loud. They're best friends.
+  // Joe joined at the start of the year: cheeky but nice, and he
+  // always brings his mum's flapjacks (then eats two of them).
+  // Every episode is a different bit of The Latest Gossip, and
+  // the bell rings at the end.
+  // ==========================================================
+  const KIDS = {
+    mia: { name: 'MIA', top: '#b38bff', trouser: '#4a3570', skin: '#f3d9b0', hair: '#3b2b20', scale: 0.84 },
+    lg:  { name: 'LAYLA-GRACE', top: '#00f0ff', trouser: '#1f5f8b', skin: '#8d5524', hair: '#1f1f26', scale: 1.14 },
+    joe: { name: 'JOE', top: '#3dff8b', trouser: '#2c7a4b', skin: '#e0b183', hair: '#b85c38', scale: 0.97 },
+  };
+
+  const GOSSIP = [
+    { title: 'THE NEW CLIMBING FRAME', lines: [
+      { who: 'lg', text: "HAVE YOU SEEN THE NEW CLIMBING FRAME?! I got to the top in NINE SECONDS!" },
+      { who: 'mia', text: "I drew it at lunch. The bendy bit is really hard to get right." },
+      { who: 'joe', text: "Nine seconds? I did it in eight. While eating a flapjack." },
+      { who: 'lg', text: "YOU ABSOLUTELY DID NOT, JOE!" },
+    ] },
+    { title: 'MISS PATEL\'S MISSING SANDWICH', lines: [
+      { who: 'joe', text: "Someone nicked Miss Patel's sandwich out the staff room. Big mystery." },
+      { who: 'mia', text: "Maybe it was the seagull. It's been watching us all week." },
+      { who: 'lg', text: "IT WAS DEFINITELY THE SEAGULL! I SAW ITS FACE! IT LOOKED GUILTY!" },
+      { who: 'joe', text: "...it was cheese and pickle, apparently. Not that I'd know." },
+    ] },
+    { title: 'THE SCHOOL TRIP', lines: [
+      { who: 'lg', text: "THE TRIP IS ON THURSDAY! I'M SITTING AT THE BACK OF THE COACH!" },
+      { who: 'mia', text: "I'm bringing my sketchbook. I want to draw the big glass roof." },
+      { who: 'joe', text: "I'm bringing snacks. Obviously. That's my whole job." },
+      { who: 'mia', text: "You are quite good at that bit, to be fair." },
+    ] },
+    { title: 'THE WOBBLY TOOTH', lines: [
+      { who: 'joe', text: "My tooth's SO wobbly. Look. Look at it. LOOK." },
+      { who: 'mia', text: "I don't want to look, Joe. I really don't want to look." },
+      { who: 'lg', text: "I'LL PULL IT OUT! I'M REALLY STRONG! I DID PULL-UPS TODAY!" },
+      { who: 'joe', text: "That's a no from me, thanks Layla-Grace." },
+    ] },
+    { title: 'THE TALENT SHOW', lines: [
+      { who: 'mia', text: "I might do a painting for the talent show. A really big one." },
+      { who: 'lg', text: "I'M DOING CARTWHEELS! ELEVEN IN A ROW! MAYBE TWELVE!" },
+      { who: 'joe', text: "I'm going to juggle. I can't juggle. That's the funny bit." },
+      { who: 'mia', text: "We should do one together. All three of us." },
+    ] },
+    { title: 'THE GIANT PUDDLE', lines: [
+      { who: 'lg', text: "THE PUDDLE BY THE BINS IS ENORMOUS! IT'S BASICALLY A LAKE!" },
+      { who: 'joe', text: "I jumped in it. My socks are still wet. Worth it though." },
+      { who: 'mia', text: "It's got a rainbow on top. From the oil. It's actually really pretty." },
+      { who: 'lg', text: "MIA FINDS SOMETHING BEAUTIFUL IN A PUDDLE. CLASSIC MIA!" },
+    ] },
+    { title: 'THE NEW KID\'S DOG', lines: [
+      { who: 'joe', text: "The new kid's got a dog that can do a backflip. Allegedly." },
+      { who: 'mia', text: "I'd love to draw a dog doing a backflip. That'd be lovely." },
+      { who: 'lg', text: "I WANT TO MEET THIS DOG! TOMORROW! FIRST THING!" },
+      { who: 'joe', text: "It might have been a cartwheel. Or a sit. I wasn't listening properly." },
+    ] },
+    { title: 'WHO IS FASTEST', lines: [
+      { who: 'lg', text: "I AM THE FASTEST IN THE WHOLE OF YEAR FIVE. FACT." },
+      { who: 'joe', text: "You're the loudest in the whole of Year Five, that's for sure." },
+      { who: 'mia', text: "I'm not fastest at running. But I am fastest at colouring in." },
+      { who: 'lg', text: "THAT COUNTS! THAT ABSOLUTELY COUNTS, MIA!" },
+    ] },
+  ];
+  const FLAPJACK_KINDS = ['raisin', 'chocolate chip', 'golden syrup', 'apple', 'honey', 'banana'];
+
+  function friendsEpisode(seed) {
+    const r = rng(seed * 37 + 19);
+    return {
+      topic: GOSSIP[Math.floor(r() * GOSSIP.length)],
+      flapjack: FLAPJACK_KINDS[Math.floor(r() * FLAPJACK_KINDS.length)],
+    };
+  }
+
+  // one of the three, drawn with their feet on y
+  function drawKid(c, x, y, who, t, opts = {}) {
+    const k = KIDS[who];
+    const s = k.scale * (opts.scale || 1);
+    const talk = opts.talking ? Math.abs(Math.sin(t * 9)) * 2.5 : 0;
+    const idle = Math.sin(t * 1.6 + (who === 'lg' ? 1 : who === 'joe' ? 2 : 0)) * 1.2;
+    c.save();
+    c.translate(x, y - talk - idle);
+    c.scale(s, s);
+    // legs + shoes
+    c.fillStyle = k.trouser;
+    c.fillRect(-9, -20, 7, 16); c.fillRect(2, -20, 7, 16);
+    c.fillStyle = '#fff';
+    rr(c, -11, -6, 10, 6, 3); c.fill();
+    rr(c, 1, -6, 10, 6, 3); c.fill();
+    // body
+    c.fillStyle = k.top;
+    rr(c, -13, -46, 26, 28, 9); c.fill();
+    if (who === 'lg') {   // sporty stripe
+      c.fillStyle = '#fff';
+      c.fillRect(-13, -38, 26, 4);
+    }
+    // arms
+    c.strokeStyle = k.top; c.lineWidth = 6; c.lineCap = 'round';
+    const armUp = opts.armUp ? 16 : 0;
+    c.beginPath();
+    c.moveTo(-11, -40); c.lineTo(-20, -30 - armUp);
+    c.moveTo(11, -40); c.lineTo(20, -30 - armUp);
+    c.stroke();
+    c.fillStyle = k.skin;
+    c.beginPath(); c.arc(-20, -30 - armUp, 4.5, 0, Math.PI * 2);
+    c.arc(20, -30 - armUp, 4.5, 0, Math.PI * 2); c.fill();
+    // head
+    c.fillStyle = k.skin;
+    c.beginPath(); c.arc(0, -60, 14, 0, Math.PI * 2); c.fill();
+    // hair, different for each of them
+    c.fillStyle = k.hair;
+    if (who === 'mia') {
+      c.beginPath(); c.arc(0, -62, 14.5, Math.PI, 0); c.fill();
+      c.beginPath(); c.ellipse(-13, -56, 5, 13, 0, 0, Math.PI * 2);
+      c.ellipse(13, -56, 5, 13, 0, 0, Math.PI * 2); c.fill();
+    } else if (who === 'lg') {
+      c.beginPath(); c.arc(0, -62, 14.5, Math.PI, 0); c.fill();
+      c.beginPath(); c.ellipse(0, -78, 6, 9, 0, 0, Math.PI * 2); c.fill();   // high ponytail
+      c.fillStyle = '#ff2e88';                                              // headband
+      c.fillRect(-14, -68, 28, 4);
+    } else {
+      c.beginPath(); c.arc(0, -63, 14.5, Math.PI, 0); c.fill();
+      for (const dx of [-7, 0, 7]) {                                         // messy tufts
+        c.beginPath(); c.moveTo(dx - 4, -74); c.lineTo(dx + 1, -84); c.lineTo(dx + 5, -73); c.closePath(); c.fill();
+      }
+    }
+    kawaiiEyes(c, 0, -60, 7);
+    c.fillStyle = '#ff9ec7';
+    c.beginPath(); c.ellipse(-9, -54, 3.4, 2.2, 0, 0, Math.PI * 2);
+    c.ellipse(9, -54, 3.4, 2.2, 0, 0, Math.PI * 2); c.fill();
+    // mouths: Mia a small smile, Layla-Grace a big open one, Joe a cheeky smirk
+    c.strokeStyle = '#1b1030'; c.lineWidth = 2; c.lineCap = 'round';
+    if (opts.talking && who === 'lg') {
+      c.fillStyle = '#1b1030';
+      c.beginPath(); c.ellipse(0, -50, 5.5, 4.5, 0, 0, Math.PI * 2); c.fill();
+    } else if (who === 'joe') {
+      c.beginPath(); c.arc(1.5, -53, 5, 0.05 * Math.PI, 0.75 * Math.PI); c.stroke();
+    } else {
+      c.beginPath(); c.arc(0, -53, 4, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
+    }
+    // Mia's sketchbook
+    if (who === 'mia' && opts.sketchbook) {
+      c.fillStyle = '#fffdf7';
+      rr(c, 14, -40, 15, 19, 2); c.fill();
+      c.strokeStyle = '#b38bff'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(17, -34); c.lineTo(26, -34);
+      c.moveTo(17, -30); c.lineTo(24, -30); c.stroke();
+    }
+    c.restore();
+    return { headY: y - 84 * s, s };
+  }
+
+  function tubOfFlapjacks(c, x, y, left, kind) {
+    c.save();
+    c.translate(x, y);
+    c.fillStyle = '#d9d2e8';
+    rr(c, -22, -8, 44, 18, 4); c.fill();
+    for (let i = 0; i < left; i++) {
+      c.fillStyle = '#e0a95e';
+      rr(c, -18 + i * 12, -13, 10, 8, 2); c.fill();
+      c.fillStyle = '#c98a52';
+      c.fillRect(-16 + i * 12, -11, 6, 1.6);
+    }
+    c.fillStyle = '#8b8299';
+    c.fillRect(-24, -10, 48, 3);
+    c.restore();
+  }
+
+  function wrapLines(c, text, maxW, font) {
+    c.font = font;
+    const words = text.split(' ');
+    const out = [];
+    let cur = '';
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w;
+      if (c.measureText(test).width > maxW && cur) { out.push(cur); cur = w; }
+      else cur = test;
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+  function speech(c, cx, bottomY, text, name, col) {
+    const font = '600 13px Inter, sans-serif';
+    const lines = wrapLines(c, text, 196, font);
+    c.font = font;
+    const w = Math.max(110, Math.min(220, Math.max(...lines.map(l => c.measureText(l).width)) + 22));
+    const h = lines.length * 17 + 26;
+    const x = clamp(cx - w / 2, 8, W - w - 8);
+    const y = clamp(bottomY - h - 14, 30, H);
+    c.fillStyle = '#fffdf7';
+    rr(c, x, y, w, h, 11); c.fill();
+    c.strokeStyle = col; c.lineWidth = 3; c.stroke();
+    c.fillStyle = '#fffdf7';
+    c.beginPath();
+    c.moveTo(clamp(cx, x + 14, x + w - 26) - 8, y + h - 1);
+    c.lineTo(clamp(cx, x + 14, x + w - 26) + 2, y + h + 13);
+    c.lineTo(clamp(cx, x + 14, x + w - 26) + 10, y + h - 1);
+    c.fill();
+    txt(c, name, x + 10, y + 12, 8, col, 'left', true);
+    lines.forEach((l, i) => txt(c, l, x + w / 2, y + 30 + i * 17, 13, '#1b1030'));
+  }
+
+  function playground(c, t) {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#7ec8f5'); g.addColorStop(1, '#cbeaff');
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    // clouds
+    for (let i = 0; i < 3; i++) {
+      const cx = ((t * 6 + i * 240) % (W + 160)) - 80;
+      c.fillStyle = 'rgba(255,255,255,0.9)';
+      c.beginPath();
+      c.arc(cx, 44 + i * 14, 16, 0, Math.PI * 2);
+      c.arc(cx + 18, 40 + i * 14, 20, 0, Math.PI * 2);
+      c.arc(cx + 40, 46 + i * 14, 14, 0, Math.PI * 2);
+      c.fill();
+    }
+    // school building
+    c.fillStyle = '#d9a066';
+    c.fillRect(20, 96, 190, 108);
+    c.fillStyle = '#b07a3e';
+    c.beginPath(); c.moveTo(10, 96); c.lineTo(115, 62); c.lineTo(220, 96); c.closePath(); c.fill();
+    c.fillStyle = '#9fe0ff';
+    for (let i = 0; i < 3; i++) c.fillRect(40 + i * 58, 118, 34, 30);
+    c.fillStyle = '#7a4a24';
+    c.fillRect(96, 156, 34, 48);
+    // fence
+    c.strokeStyle = '#8b8299'; c.lineWidth = 4;
+    for (let x = 236; x < W; x += 20) { c.beginPath(); c.moveTo(x, 132); c.lineTo(x, 204); c.stroke(); }
+    c.beginPath(); c.moveTo(232, 146); c.lineTo(W, 146);
+    c.moveTo(232, 186); c.lineTo(W, 186); c.stroke();
+    // climbing frame
+    c.strokeStyle = '#ff2e88'; c.lineWidth = 5;
+    c.beginPath();
+    c.moveTo(470, 204); c.lineTo(470, 132); c.lineTo(566, 132); c.lineTo(566, 204);
+    c.moveTo(470, 156); c.lineTo(566, 156);
+    c.moveTo(470, 180); c.lineTo(566, 180);
+    c.stroke();
+    // playground floor
+    c.fillStyle = '#9aa3ae'; c.fillRect(0, 204, W, H - 204);
+    c.fillStyle = '#8e97a2'; c.fillRect(0, 204, W, 6);
+    // painted hopscotch
+    c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 3;
+    for (let i = 0; i < 4; i++) c.strokeRect(48, 250 + i * 24, 44, 22);
+    c.strokeStyle = 'rgba(255,230,0,0.6)';
+    c.beginPath(); c.arc(560, 300, 46, Math.PI, 0); c.stroke();
+  }
+
+  const GROUND = 318;
+  const ALL_FRIENDS = {
+    key: 'friends', title: 'ALL THE FRIENDS', kind: 'TV SHOW', length: 31, still: 16,
+    blurb: 'Three nine-year-olds and all of playtime to fill. Mia is quiet and arty, Layla-Grace is loud and sporty, and Joe brings the flapjacks. A different bit of Latest Gossip every episode.',
+    make: friendsEpisode,
+    draw(c, ep, t, epNum) {
+      if (t < 3) {
+        card(c, 'ALL THE FRIENDS', 'Episode ' + epNum + ' — ' + ep.topic.title, '#3dff8b', t, 22);
+        return;
+      }
+      playground(c, t);
+      txt(c, 'ALL THE FRIENDS', W / 2, 22, 13, '#ff2e88', 'center', true);
+
+      const MIA_X = 200, LG_X = 300, JOE_X = 415;
+      // Joe runs in from the right with the tub
+      const joeX = t < 7.5 ? W + 60 : (t < 10 ? lerp(W + 60, JOE_X, ease((t - 7.5) / 2.5)) : JOE_X);
+
+      // who is speaking right now?
+      const LINE_START = 12.5, LINE_DUR = 2.4;
+      const li = Math.floor((t - LINE_START) / LINE_DUR);
+      const inGossip = t >= LINE_START && li >= 0 && li < ep.topic.lines.length;
+      const speaker = inGossip ? ep.topic.lines[li].who : null;
+
+      // flapjack time
+      const FLAP_START = 22.1;
+      let left = 4, joeAte = 0;
+      if (t >= FLAP_START + 1.4) { left = 3; joeAte = 1; }
+      if (t >= FLAP_START + 2.4) { left = 2; joeAte = 2; }
+      if (t >= FLAP_START + 3.6) left = 1;
+      if (t >= FLAP_START + 4.6) left = 0;
+
+      const bell = t >= 27.5;
+
+      drawKid(c, MIA_X, GROUND, 'mia', t, {
+        talking: speaker === 'mia', sketchbook: true,
+        armUp: bell ? 1 : 0,
+      });
+      drawKid(c, LG_X, GROUND, 'lg', t, {
+        talking: speaker === 'lg',
+        armUp: (speaker === 'lg' || bell) ? 1 : 0,
+      });
+      if (t >= 7.5) {
+        drawKid(c, joeX, GROUND, 'joe', t, {
+          talking: speaker === 'joe',
+          armUp: bell ? 1 : 0,
+        });
+        if (t < FLAP_START || left > 0) tubOfFlapjacks(c, joeX - 30, GROUND - 42, t < FLAP_START ? 4 : left, ep.flapjack);
+      }
+
+      // name labels
+      [[MIA_X, 'mia'], [LG_X, 'lg']].concat(t >= 10 ? [[joeX, 'joe']] : []).forEach(([x, who]) => {
+        txt(c, KIDS[who].name, x, GROUND + 14, 8, '#1b1030', 'center', true);
+      });
+
+      // ---- the beats ----
+      if (t >= 3.6 && t < 7.4) {
+        speech(c, MIA_X, GROUND - 96, "Best friends since Reception, us two.", 'MIA', '#b38bff');
+      }
+      if (t >= 10 && t < 12.4) {
+        speech(c, joeX, GROUND - 96, "Alright! Mum made " + ep.flapjack + " flapjacks. FOUR of them. To share.", 'JOE', '#3dff8b');
+      }
+      if (t >= 11 && t < 12.4) {
+        c.fillStyle = '#ff2e88';
+        rr(c, W / 2 - 150, 40, 300, 34, 10); c.fill();
+        txt(c, 'THE LATEST GOSSIP', W / 2, 57, 13, '#fff', 'center', true);
+      }
+      if (inGossip) {
+        const line = ep.topic.lines[li];
+        const sx = line.who === 'mia' ? MIA_X : line.who === 'lg' ? LG_X : joeX;
+        speech(c, sx, GROUND - 96, line.text, KIDS[line.who].name, KIDS[line.who].top);
+        txt(c, ep.topic.title, W / 2, 44, 11, '#1b1030', 'center', true);
+      }
+      // Joe cheekily has two
+      if (t >= FLAP_START && t < 27.4) {
+        if (t < FLAP_START + 2.6) {
+          if (joeAte > 0) txt(c, 'NOM!', joeX + 34, GROUND - 96, 15, '#ff2e88', 'center', true);
+          if (joeAte >= 2) txt(c, 'JOE HAS EATEN 2', W / 2, 44, 12, '#ff2e88', 'center', true);
+        } else if (t < FLAP_START + 4.4) {
+          speech(c, MIA_X, GROUND - 96, "Joe! There were four!", 'MIA', '#b38bff');
+        } else {
+          speech(c, LG_X, GROUND - 96, "WE STILL GET A BITE EACH THOUGH! AND THEY ARE SO GOOD!", 'LAYLA-GRACE', '#00f0ff');
+        }
+      }
+      // the bell
+      if (bell && t < 29) {
+        c.save();
+        c.translate(W - 60, 78);
+        c.rotate(Math.sin(t * 26) * 0.35);
+        c.fillStyle = '#ffe600';
+        c.beginPath(); c.arc(0, 0, 18, Math.PI, 0); c.fill();
+        c.fillRect(-18, 0, 36, 5);
+        c.fillStyle = '#c9a227';
+        c.beginPath(); c.arc(0, 7, 5, 0, Math.PI * 2); c.fill();
+        c.restore();
+        txt(c, 'BRRRIIINNNGGG!', W / 2, 62, 20, '#ff2e88', 'center', true);
+      }
+      if (t >= 29) {
+        c.fillStyle = 'rgba(5,1,13,0.75)';
+        c.fillRect(0, 0, W, H);
+        txt(c, "THAT'S THE BELL!", W / 2, H / 2 - 20, 20, '#ffe600', 'center', true);
+        txt(c, 'More gossip next playtime.', W / 2, H / 2 + 16, 14, '#efe9ff');
+      }
+    },
+    cues: [[0, () => sfx.theme([523, 587, 659, 784, 659])], [7.6, () => sfx.pop()],
+           [11, () => sfx.pop()], [23.5, () => sfx.nom()], [24.5, () => sfx.nom()],
+           [27.5, () => sfx.bell()]],
+  };
+
+  const SHOWS = [ALL_FRIENDS, SUPER_SNAIL, DRAW_THAT, ALIEN_MOVIE, GLIDE];
 
   // ==========================================================
   // The telly
@@ -905,7 +1274,7 @@
       const cc = cv.getContext('2d');
       cc.scale(320 / W, 180 / H);
       // a still from partway through episode 1
-      s.draw(cc, s.make(1), s.key === 'aliens' ? 12 : 10, 1);
+      s.draw(cc, s.make(1), s.still ?? (s.key === 'aliens' ? 12 : 10), 1);
       const kind = document.createElement('div');
       kind.className = 'kind';
       kind.textContent = s.kind;
