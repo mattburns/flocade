@@ -1,5 +1,11 @@
 [
   {
+    "slug": "my-library",
+    "title": "My Library",
+    "icon": "📚",
+    "description": "A real bookshelf with 14 real books — Alice, Oz, The Jungle Book, Anne of Green Gables and more. Proper page-turning, your place is saved, and every word works with no internet at all."
+  },
+  {
     "slug": "pong",
     "title": "Pong",
     "icon": "🏓",

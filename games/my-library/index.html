@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Library — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221;
+      --panel: #1a0f38;
+      --panel2: #241155;
+      --pink: #ff2e88;
+      --cyan: #00f0ff;
+      --yellow: #ffe600;
+      --green: #3dff8b;
+      --text: #efe9ff;
+      --dim: #a396c9;
+    }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column; overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+    input, textarea, [contenteditable] { -webkit-user-select: text; user-select: text; touch-action: manipulation; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.7rem; background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 10px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.52rem; padding: 0.5rem 0.5rem; text-decoration: none; white-space: nowrap;
+    }
+    .navBtn:hover { border-color: var(--pink); }
+    .ttl {
+      flex: 1; text-align: center; min-width: 0;
+      font-family: 'Press Start 2P', monospace; font-size: 0.62rem; color: var(--yellow);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .view { flex: 1; min-height: 0; overflow-y: auto; }
+    .view[hidden] { display: none; }
+
+    /* ---------- shelf ---------- */
+    .intro { text-align: center; padding: 1rem 1rem 0.2rem; }
+    .intro h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(1rem, 4.8vw, 1.5rem); color: var(--pink);
+      text-shadow: 0 0 18px rgba(255,46,136,0.75); line-height: 1.6;
+    }
+    .intro p { color: var(--dim); font-size: 0.9rem; margin-top: 0.5rem; }
+    .continueRow { padding: 0 1rem; }
+    .continueBtn {
+      width: 100%; margin-top: 0.8rem; background: var(--green); color: #05240f;
+      border: none; border-radius: 14px; padding: 0.85rem 1rem;
+      font-family: 'Press Start 2P', monospace; font-size: 0.6rem;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+    }
+    .continueBtn[hidden] { display: none; }
+    .shelf {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.9rem; padding: 1rem;
+    }
+    .book {
+      background: var(--panel); border: 3px solid var(--panel2); border-radius: 16px;
+      padding: 0.55rem; display: flex; flex-direction: column; gap: 0.45rem; text-align: left;
+      transition: transform 0.08s, border-color 0.1s;
+    }
+    .book:hover, .book:focus-visible {
+      border-color: var(--pink); transform: translateY(-3px); outline: none;
+      box-shadow: 0 0 18px rgba(255,46,136,0.3);
+    }
+    .cover {
+      aspect-ratio: 2/3; border-radius: 10px; position: relative; overflow: hidden;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 0.55rem; color: #10131f;
+      box-shadow: inset -8px 0 14px rgba(0,0,0,0.22);
+    }
+    .cover .em { font-size: 1.6rem; text-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+    .cover .ct {
+      font-family: Georgia, 'Times New Roman', serif; font-weight: 700;
+      font-size: 0.92rem; line-height: 1.25; text-shadow: 0 1px 2px rgba(255,255,255,0.35);
+    }
+    .cover .ca { font-size: 0.66rem; opacity: 0.75; margin-top: 0.2rem; }
+    .cover .spine {
+      position: absolute; left: 0; top: 0; bottom: 0; width: 9px;
+      background: rgba(0,0,0,0.18);
+    }
+    .book .meta { font-size: 0.68rem; color: var(--dim); }
+    .bar { height: 5px; background: var(--panel2); border-radius: 999px; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--green); }
+
+    /* ---------- reader ---------- */
+    #readView { display: flex; flex-direction: column; overflow: hidden; }
+    #paper { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+    #viewport { position: absolute; inset: 0; overflow: hidden; }
+    #flow {
+      height: 100%;
+      column-gap: 34px;
+      column-fill: auto;
+      padding: 0;
+      transition: transform 0.16s ease-out;
+      font-family: Georgia, 'Times New Roman', serif;
+      -webkit-user-select: text; user-select: text;
+    }
+    #flow h2 {
+      font-size: 1.05em; margin: 0 0 0.9em; line-height: 1.35;
+      font-variant: small-caps; letter-spacing: 0.02em;
+      break-after: avoid;
+    }
+    #flow p { margin: 0 0 0.85em; text-align: justify; hyphens: auto; }
+    #flow p.first::first-letter { font-size: 2.6em; float: left; line-height: 0.85; padding: 0.06em 0.09em 0 0; }
+
+    /* themes */
+    body.paper { --pg: #fffdf6; --ink: #2b2620; --pgdim: #7a7268; }
+    body.sepia { --pg: #f4e7d0; --ink: #45372a; --pgdim: #8b7960; }
+    body.night { --pg: #14121c; --ink: #ccc6d8; --pgdim: #7b748c; }
+    #paper { background: var(--pg); color: var(--ink); }
+    #flow { color: var(--ink); }
+
+    .tapzone { position: absolute; top: 0; bottom: 0; width: 32%; z-index: 2; }
+    .tapzone.left { left: 0; }
+    .tapzone.right { right: 0; width: 42%; }
+
+    .readbar {
+      flex: none; display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 0.6rem; background: var(--panel); border-top: 2px solid var(--panel2);
+    }
+    .readbar button {
+      background: var(--panel2); border: none; border-radius: 10px;
+      padding: 0.55rem 0.6rem; font-size: 0.85rem;
+    }
+    .readbar .pageno {
+      flex: 1; text-align: center; font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem; color: var(--cyan);
+    }
+
+    .sheet {
+      position: absolute; inset: 0; z-index: 6; background: rgba(6,1,16,0.8);
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .sheet[hidden] { display: none; }
+    .sheetInner {
+      background: var(--panel); border: 3px solid var(--cyan); border-bottom: none;
+      border-radius: 20px 20px 0 0; width: min(100%, 30rem);
+      max-height: 78%; overflow-y: auto; padding: 0.9rem;
+    }
+    .sheetInner h3 {
+      font-family: 'Press Start 2P', monospace; font-size: 0.62rem; color: var(--yellow);
+      margin-bottom: 0.7rem; text-align: center;
+    }
+    .chapList button {
+      display: block; width: 100%; text-align: left; background: none;
+      border: none; border-bottom: 1px solid var(--panel2);
+      padding: 0.65rem 0.4rem; font-size: 0.92rem; color: var(--text);
+    }
+    .chapList button.on { color: var(--yellow); font-weight: 700; }
+    .opts { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+    .opts button {
+      background: var(--panel2); border: 2px solid transparent; border-radius: 12px;
+      padding: 0.6rem 0.8rem; font-size: 0.85rem;
+    }
+    .opts button.on { border-color: var(--yellow); color: var(--yellow); }
+    .closeSheet {
+      width: 100%; margin-top: 0.8rem; background: var(--pink); color: #fff; border: none;
+      border-radius: 999px; padding: 0.8rem; font-family: 'Press Start 2P', monospace; font-size: 0.6rem;
+    }
+    .about { font-size: 0.86rem; line-height: 1.6; color: var(--dim); }
+    .about b { color: var(--text); }
+  </style>
+</head>
+<body class="paper">
+  <div class="topbar">
+    <a class="navBtn" id="backBtn" href="../../">&larr; ARCADE</a>
+    <div class="ttl" id="title">MY LIBRARY</div>
+    <button class="navBtn" id="aboutBtn">?</button>
+  </div>
+
+  <!-- ============ SHELF ============ -->
+  <div class="view" id="shelfView">
+    <div class="intro">
+      <h1>MY LIBRARY</h1>
+      <p id="introLine">Real books, all yours, and they work with no internet at all — perfect for a plane.</p>
+    </div>
+    <div class="continueRow">
+      <button class="continueBtn" id="continueBtn" hidden></button>
+    </div>
+    <div class="shelf" id="shelf"></div>
+  </div>
+
+  <!-- ============ READER ============ -->
+  <div class="view" id="readView" hidden>
+    <div id="paper">
+      <div id="viewport"><div id="flow"></div></div>
+      <div class="tapzone left" id="tapLeft"></div>
+      <div class="tapzone right" id="tapRight"></div>
+
+      <div class="sheet" id="sheet" hidden>
+        <div class="sheetInner">
+          <h3 id="sheetTitle">CONTENTS</h3>
+          <div id="sheetBody"></div>
+          <button class="closeSheet" id="closeSheet">CLOSE</button>
+        </div>
+      </div>
+    </div>
+    <div class="readbar">
+      <button id="contentsBtn" title="Contents">☰</button>
+      <button id="prevChap" title="Previous chapter">⏮</button>
+      <span class="pageno" id="pageNo"></span>
+      <button id="nextChap" title="Next chapter">⏭</button>
+      <button id="optsBtn" title="Reading options">Aa</button>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ==========================================================
+  // My Library — a real ebook reader with real books.
+  //
+  // Every book here is out of copyright and in the public domain.
+  // The texts were digitised by the volunteers of Project Gutenberg
+  // (gutenberg.org); the Project Gutenberg header and footer have
+  // been removed, as its licence permits for public domain works.
+  // They are bundled with the app so they work with no internet.
+  // ==========================================================
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  const KEY = 'flocade-my-library';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = (s) => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {} };
+  let store = load();
+  store.prefs = store.prefs || { size: 3, theme: 'paper' };
+  store.progress = store.progress || {};
+
+  const SIZES = [15, 17, 19, 22, 25, 29];
+  let index = [], book = null, bookSlug = null, chap = 0, page = 0, pages = 1;
+
+  // ---------- shelf ----------
+  function cover(b) {
+    const d = document.createElement('div');
+    d.className = 'cover';
+    d.style.background = `linear-gradient(150deg, ${b.cols[0]}, ${b.cols[1]})`;
+    d.innerHTML = `<div class="spine"></div>
+      <div class="em">${b.emoji}</div>
+      <div><div class="ct">${b.title}</div><div class="ca">${b.author}</div></div>`;
+    return d;
+  }
+  function buildShelf() {
+    const wrap = $('shelf');
+    wrap.innerHTML = '';
+    index.forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'book';
+      btn.type = 'button';
+      btn.dataset.slug = b.slug;
+      const pr = store.progress[b.slug];
+      const pct = pr ? Math.round((pr.chap / b.chapters) * 100) : 0;
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = pr
+        ? `Chapter ${pr.chap + 1} of ${b.chapters} · ${pct}%`
+        : `${b.chapters} chapters · ${(b.words / 1000).toFixed(0)}k words`;
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.innerHTML = `<i style="width:${pct}%"></i>`;
+      btn.append(cover(b), meta, bar);
+      btn.addEventListener('click', () => openBook(b.slug));
+      wrap.appendChild(btn);
+    });
+    // continue reading
+    const last = store.last && index.find(b => b.slug === store.last);
+    const cb = $('continueBtn');
+    if (last) {
+      const pr = store.progress[last.slug] || { chap: 0 };
+      cb.textContent = '▶ CARRY ON: ' + last.title.toUpperCase().slice(0, 22);
+      cb.hidden = false;
+      cb.onclick = () => openBook(last.slug);
+    } else cb.hidden = true;
+  }
+
+  // ---------- reader ----------
+  const flow = $('flow'), viewport = $('viewport');
+  function colWidth() { return viewport.clientWidth; }
+  const GAP = 34;
+
+  function layoutChapter(keepPage) {
+    const c = book.chapters[chap];
+    const size = SIZES[store.prefs.size];
+    const w = colWidth();
+    flow.style.columnWidth = w + 'px';
+    flow.style.width = w + 'px';
+    flow.style.fontSize = size + 'px';
+    flow.style.lineHeight = 1.62;
+    flow.style.padding = '18px 20px';
+    flow.innerHTML = '';
+    const h = document.createElement('h2');
+    h.textContent = c.t;
+    flow.appendChild(h);
+    c.p.forEach((para, i) => {
+      const p = document.createElement('p');
+      if (i === 0) p.className = 'first';
+      p.textContent = para;
+      flow.appendChild(p);
+    });
+    // how many pages did that make?
+    flow.style.transform = 'none';
+    pages = Math.max(1, Math.round(flow.scrollWidth / (w + GAP)));
+    page = clamp(keepPage ? page : 0, 0, pages - 1);
+    showPage();
+  }
+  function showPage() {
+    const w = colWidth();
+    flow.style.transform = `translateX(${-page * (w + GAP)}px)`;
+    $('pageNo').textContent = `CH ${chap + 1}/${book.chapters.length} · P ${page + 1}/${pages}`;
+    store.progress[bookSlug] = { chap, page };
+    store.last = bookSlug;
+    save(store);
+  }
+  function turn(d) {
+    const np = page + d;
+    if (np < 0) {
+      if (chap > 0) { chap--; layoutChapter(false); page = pages - 1; showPage(); }
+      return;
+    }
+    if (np >= pages) {
+      if (chap < book.chapters.length - 1) { chap++; page = 0; layoutChapter(false); }
+      return;
+    }
+    page = np;
+    showPage();
+  }
+  function gotoChapter(i) {
+    chap = clamp(i, 0, book.chapters.length - 1);
+    page = 0;
+    layoutChapter(false);
+  }
+
+  async function openBook(slug) {
+    const meta = index.find(b => b.slug === slug);
+    $('title').textContent = meta.title.toUpperCase();
+    $('shelfView').hidden = true;
+    $('readView').hidden = false;
+    $('backBtn').textContent = '← SHELF';
+    $('backBtn').removeAttribute('href');
+    flow.innerHTML = '<p style="font-family:Inter,sans-serif">Opening the book…</p>';
+    const res = await fetch('books/' + slug + '.json');
+    book = await res.json();
+    bookSlug = slug;
+    const pr = store.progress[slug] || { chap: 0, page: 0 };
+    chap = clamp(pr.chap, 0, book.chapters.length - 1);
+    layoutChapter(false);
+    page = clamp(pr.page || 0, 0, pages - 1);
+    showPage();
+  }
+  function goShelf() {
+    book = null;
+    $('readView').hidden = true;
+    $('shelfView').hidden = false;
+    $('title').textContent = 'MY LIBRARY';
+    $('backBtn').textContent = '← ARCADE';
+    $('backBtn').setAttribute('href', '../../');
+    $('sheet').hidden = true;
+    buildShelf();
+  }
+  $('backBtn').addEventListener('click', (e) => { if (book) { e.preventDefault(); goShelf(); } });
+
+  // page turning
+  $('tapLeft').addEventListener('click', () => turn(-1));
+  $('tapRight').addEventListener('click', () => turn(1));
+  $('prevChap').addEventListener('click', () => gotoChapter(chap - 1));
+  $('nextChap').addEventListener('click', () => gotoChapter(chap + 1));
+  addEventListener('keydown', (e) => {
+    if (!book || !$('sheet').hidden) return;
+    if (['ArrowRight', 'Space', 'PageDown'].includes(e.code)) { turn(1); e.preventDefault(); }
+    if (['ArrowLeft', 'PageUp'].includes(e.code)) { turn(-1); e.preventDefault(); }
+  });
+  let swipe = null;
+  viewport.addEventListener('pointerdown', (e) => { swipe = { x: e.clientX, y: e.clientY }; });
+  viewport.addEventListener('pointerup', (e) => {
+    if (!swipe) return;
+    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    swipe = null;
+    if (Math.abs(dx) > 46 && Math.abs(dx) > Math.abs(dy)) turn(dx < 0 ? 1 : -1);
+  });
+  let resizeTimer = null;
+  addEventListener('resize', () => {
+    if (!book) return;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => layoutChapter(true), 150);
+  });
+
+  // ---------- sheets ----------
+  function openSheet(kind) {
+    const body = $('sheetBody');
+    body.innerHTML = '';
+    if (kind === 'contents') {
+      $('sheetTitle').textContent = 'CONTENTS';
+      const list = document.createElement('div');
+      list.className = 'chapList';
+      book.chapters.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = c.t;
+        if (i === chap) b.className = 'on';
+        b.addEventListener('click', () => { $('sheet').hidden = true; gotoChapter(i); });
+        list.appendChild(b);
+      });
+      body.appendChild(list);
+    } else if (kind === 'opts') {
+      $('sheetTitle').textContent = 'READING';
+      const mk = (label, items, cur, on) => {
+        const row = document.createElement('div');
+        row.className = 'opts';
+        row.style.marginBottom = '0.9rem';
+        items.forEach(([val, txt]) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = txt;
+          if (val === cur) b.className = 'on';
+          b.addEventListener('click', () => { on(val); openSheet('opts'); });
+          row.appendChild(b);
+        });
+        const h = document.createElement('div');
+        h.style.cssText = 'font-size:.78rem;color:var(--dim);text-align:center;margin-bottom:.4rem';
+        h.textContent = label;
+        body.append(h, row);
+      };
+      mk('Text size', [[0, 'A'], [1, 'A'], [2, 'A'], [3, 'A'], [4, 'A'], [5, 'A']].map(
+        ([i]) => [i, 'A']), store.prefs.size, (v) => {
+        store.prefs.size = v; save(store); layoutChapter(false);
+      });
+      [...body.querySelectorAll('.opts button')].forEach((b, i) => { b.style.fontSize = (11 + i * 3) + 'px'; });
+      mk('Paper', [['paper', '📄 Bright'], ['sepia', '🧡 Sepia'], ['night', '🌙 Night']],
+        store.prefs.theme, (v) => {
+          store.prefs.theme = v; save(store);
+          document.body.className = v;
+          layoutChapter(true);
+        });
+    } else {
+      $('sheetTitle').textContent = 'ABOUT THESE BOOKS';
+      const d = document.createElement('div');
+      d.className = 'about';
+      d.innerHTML = `<p>Every book in here is a <b>real book</b> that is out of copyright and in the
+        <b>public domain</b> — the authors wrote them between 1812 and 1911.</p>
+        <p style="margin-top:.7rem">The texts were typed up and checked by the volunteers of
+        <b>Project Gutenberg</b> (gutenberg.org), who put public domain books online for free.
+        Their header and footer have been taken off so the books read cleanly, which their
+        licence allows for public domain works.</p>
+        <p style="margin-top:.7rem">They're stored inside the app, so once Flocade has loaded once,
+        every book works with <b>no internet at all</b>. Aeroplane friendly. ✈️</p>
+        <p style="margin-top:.7rem"><b>${index.length} books · ${(index.reduce((s, b) => s + b.words, 0) / 1000).toFixed(0)},000 words</b></p>`;
+      body.appendChild(d);
+    }
+    $('sheet').hidden = false;
+  }
+  $('contentsBtn').addEventListener('click', () => openSheet('contents'));
+  $('optsBtn').addEventListener('click', () => openSheet('opts'));
+  $('aboutBtn').addEventListener('click', () => openSheet('about'));
+  $('closeSheet').addEventListener('click', () => { $('sheet').hidden = true; });
+  $('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) $('sheet').hidden = true; });
+
+  // ---------- boot ----------
+  (async function boot() {
+    document.body.className = store.prefs.theme;
+    const res = await fetch('books.json');
+    index = await res.json();
+    $('introLine').textContent =
+      `${index.length} real books — ${(index.reduce((s, b) => s + b.words, 0) / 1000).toFixed(0)},000 words — and they all work with no internet at all. Perfect for a plane.`;
+    buildShelf();
+  })();
+
+  // Test hook.
+  window.__lib = {
+    books: () => index,
+    open: openBook,
+    shelf: goShelf,
+    turn, gotoChapter,
+    setSize: (i) => { store.prefs.size = i; save(store); layoutChapter(false); },
+    setTheme: (t) => { store.prefs.theme = t; save(store); document.body.className = t; layoutChapter(true); },
+    state: () => ({
+      view: $('shelfView').hidden ? 'read' : 'shelf',
+      book: bookSlug, chap, page, pages,
+      chapters: book ? book.chapters.length : 0,
+      chapterTitle: book ? book.chapters[chap].t : null,
+      firstWords: book ? (book.chapters[chap].p[0] || '').slice(0, 60) : null,
+      visibleText: flow.textContent.slice(0, 80),
+      prefs: store.prefs,
+      progress: store.progress,
+    }),
+  };
+  </script>
+</body>
+</html>

@@ -6,7 +6,7 @@
 // bumps, anything already cached is served cache-first and silently
 // re-fetched in the background (stale-while-revalidate), so updates still
 // flow to players one visit late.
-const CACHE_VERSION = 'flocade-v24';
+const CACHE_VERSION = 'flocade-v25';
 
 // Files the gallery itself needs.
 const SHELL_ASSETS = [
@@ -56,6 +56,22 @@ const EXTRA_GAME_ASSETS = [
   'games/lego-smash/three.module.min.js',
   'games/mini-life/three.module.min.js',
   'games/mushroom-city/three.module.min.js',
+  // My Library ships the whole bookshelf so it reads offline on a plane.
+  'games/my-library/books.json',
+  'games/my-library/books/alice.json',
+  'games/my-library/books/andersen.json',
+  'games/my-library/books/anne.json',
+  'games/my-library/books/black-beauty.json',
+  'games/my-library/books/grimm.json',
+  'games/my-library/books/happy-prince.json',
+  'games/my-library/books/heidi.json',
+  'games/my-library/books/jungle-book.json',
+  'games/my-library/books/little-women.json',
+  'games/my-library/books/looking-glass.json',
+  'games/my-library/books/oz.json',
+  'games/my-library/books/pinocchio.json',
+  'games/my-library/books/prince-pauper.json',
+  'games/my-library/books/willows.json',
   'games/my-world/three.module.min.js',
   'games/pixel-paint/oneoffs.js',
   'games/pixel-paint/pictures.js',
