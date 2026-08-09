@@ -1,5 +1,11 @@
 [
   {
+    "slug": "time-freeze",
+    "title": "Time Freeze",
+    "icon": "⏱️",
+    "description": "Watch half a second of a disaster — then time stops dead! Move things about while it's frozen, start the clock again, and hope you've fixed it. 16 scenes: bin the crisps, catch a waiter's plates, keep Granny out of the puddle, and swap the groom."
+  },
+  {
     "slug": "my-library",
     "title": "My Library",
     "icon": "📚",
