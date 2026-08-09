@@ -1,0 +1,212 @@
+[
+ {
+  "slug": "alice",
+  "title": "Alice's Adventures in Wonderland",
+  "author": "Lewis Carroll",
+  "year": 1865,
+  "blurb": "Alice falls down a rabbit hole into a world of talking rabbits, mad tea parties and a very shouty Queen.",
+  "emoji": "🐇",
+  "cols": [
+   "#6ec6ff",
+   "#b388ff"
+  ],
+  "chapters": 12,
+  "words": 26379,
+  "kb": 147
+ },
+ {
+  "slug": "looking-glass",
+  "title": "Through the Looking-Glass",
+  "author": "Lewis Carroll",
+  "year": 1871,
+  "blurb": "Alice climbs through a mirror into a back-to-front world laid out like a giant chess game.",
+  "emoji": "🪞",
+  "cols": [
+   "#b388ff",
+   "#ff8fd8"
+  ],
+  "chapters": 12,
+  "words": 29229,
+  "kb": 165
+ },
+ {
+  "slug": "oz",
+  "title": "The Wonderful Wizard of Oz",
+  "author": "L. Frank Baum",
+  "year": 1900,
+  "blurb": "A cyclone carries Dorothy to Oz, where she follows the yellow brick road with a scarecrow, a tin man and a lion.",
+  "emoji": "🌪️",
+  "cols": [
+   "#7ed77f",
+   "#ffe600"
+  ],
+  "chapters": 25,
+  "words": 39439,
+  "kb": 206
+ },
+ {
+  "slug": "jungle-book",
+  "title": "The Jungle Book",
+  "author": "Rudyard Kipling",
+  "year": 1894,
+  "blurb": "Mowgli is raised by wolves, taught by a bear and a panther, and hunted by the tiger Shere Khan.",
+  "emoji": "🐯",
+  "cols": [
+   "#ff9e3d",
+   "#3f9e4a"
+  ],
+  "chapters": 14,
+  "words": 50760,
+  "kb": 271
+ },
+ {
+  "slug": "anne",
+  "title": "Anne of Green Gables",
+  "author": "L. M. Montgomery",
+  "year": 1908,
+  "blurb": "A talkative red-haired orphan is sent to Green Gables by mistake — and turns the whole place upside down.",
+  "emoji": "🌺",
+  "cols": [
+   "#7ed7f0",
+   "#ff8fb1"
+  ],
+  "chapters": 38,
+  "words": 101994,
+  "kb": 562
+ },
+ {
+  "slug": "black-beauty",
+  "title": "Black Beauty",
+  "author": "Anna Sewell",
+  "year": 1877,
+  "blurb": "A horse tells his own life story, from a green meadow to the busy streets of London.",
+  "emoji": "🐴",
+  "cols": [
+   "#8a5a3b",
+   "#d9a066"
+  ],
+  "chapters": 49,
+  "words": 59503,
+  "kb": 300
+ },
+ {
+  "slug": "willows",
+  "title": "The Wind in the Willows",
+  "author": "Kenneth Grahame",
+  "year": 1908,
+  "blurb": "Mole, Ratty, Badger and the hopeless show-off Toad muck about on the river bank.",
+  "emoji": "🐸",
+  "cols": [
+   "#3f9e4a",
+   "#7ed7f0"
+  ],
+  "chapters": 12,
+  "words": 58317,
+  "kb": 324
+ },
+ {
+  "slug": "heidi",
+  "title": "Heidi",
+  "author": "Johanna Spyri",
+  "year": 1881,
+  "blurb": "A little girl is sent to live with her gruff grandfather high up in the Swiss Alps.",
+  "emoji": "🏔️",
+  "cols": [
+   "#9fd8ff",
+   "#7ed77f"
+  ],
+  "chapters": 23,
+  "words": 91116,
+  "kb": 480
+ },
+ {
+  "slug": "little-women",
+  "title": "Little Women",
+  "author": "Louisa May Alcott",
+  "year": 1868,
+  "blurb": "Meg, Jo, Beth and Amy grow up together — putting on plays, falling out, and making do.",
+  "emoji": "📖",
+  "cols": [
+   "#ff8fb1",
+   "#b388ff"
+  ],
+  "chapters": 47,
+  "words": 185796,
+  "kb": 992
+ },
+ {
+  "slug": "grimm",
+  "title": "Grimms' Fairy Tales",
+  "author": "Jacob and Wilhelm Grimm",
+  "year": 1812,
+  "blurb": "Dozens of the old tales: golden birds, brave tailors, wicked queens and lucky youngest sons.",
+  "emoji": "🏰",
+  "cols": [
+   "#b388ff",
+   "#ffd166"
+  ],
+  "chapters": 65,
+  "words": 100599,
+  "kb": 518
+ },
+ {
+  "slug": "andersen",
+  "title": "Andersen's Fairy Tales",
+  "author": "Hans Christian Andersen",
+  "year": 1837,
+  "blurb": "The Little Mermaid, The Ugly Duckling, The Snow Queen and more, by the great Danish storyteller.",
+  "emoji": "🦢",
+  "cols": [
+   "#7ed7f0",
+   "#ffffff"
+  ],
+  "chapters": 23,
+  "words": 55276,
+  "kb": 297
+ },
+ {
+  "slug": "happy-prince",
+  "title": "The Happy Prince and Other Tales",
+  "author": "Oscar Wilde",
+  "year": 1888,
+  "blurb": "Five gentle, funny, slightly sad tales — a gold statue, a nightingale, a selfish giant.",
+  "emoji": "🕊️",
+  "cols": [
+   "#ffd166",
+   "#7ed7f0"
+  ],
+  "chapters": 5,
+  "words": 16161,
+  "kb": 87
+ },
+ {
+  "slug": "pinocchio",
+  "title": "The Adventures of Pinocchio",
+  "author": "Carlo Collodi",
+  "year": 1883,
+  "blurb": "A wooden puppet who tells whopping lies goes looking for trouble, and finds plenty.",
+  "emoji": "🪵",
+  "cols": [
+   "#d9a066",
+   "#ff5a5a"
+  ],
+  "chapters": 36,
+  "words": 39796,
+  "kb": 217
+ },
+ {
+  "slug": "prince-pauper",
+  "title": "The Prince and the Pauper",
+  "author": "Mark Twain",
+  "year": 1881,
+  "blurb": "A prince and a beggar boy who look identical swap places — and neither can convince anyone.",
+  "emoji": "👑",
+  "cols": [
+   "#ffd166",
+   "#9a6fd6"
+  ],
+  "chapters": 33,
+  "words": 68680,
+  "kb": 384
+ }
+]
