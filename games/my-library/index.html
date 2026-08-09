@@ -45,7 +45,9 @@
     }
 
     .view { flex: 1; min-height: 0; overflow-y: auto; }
-    .view[hidden] { display: none; }
+    /* !important so a later id rule (#readView sets display:flex) can't win and
+       leave both views on screen at once. */
+    .view[hidden] { display: none !important; }
 
     /* ---------- shelf ---------- */
     .intro { text-align: center; padding: 1rem 1rem 0.2rem; }
@@ -114,6 +116,9 @@
       font-variant: small-caps; letter-spacing: 0.02em;
       break-after: avoid;
     }
+    /* Ratty's picnic basket is one 66-letter word. Without this it overflows its
+       column and bleeds onto the next page. */
+    #flow { overflow-wrap: break-word; }
     #flow p { margin: 0 0 0.85em; text-align: justify; hyphens: auto; }
     #flow p.first::first-letter { font-size: 2.6em; float: left; line-height: 0.85; padding: 0.06em 0.09em 0 0; }
 
@@ -141,8 +146,9 @@
       font-size: 0.5rem; color: var(--cyan);
     }
 
+    /* Lives outside the two views so About still opens from the shelf. */
     .sheet {
-      position: absolute; inset: 0; z-index: 6; background: rgba(6,1,16,0.8);
+      position: fixed; inset: 0; z-index: 6; background: rgba(6,1,16,0.8);
       display: flex; align-items: flex-end; justify-content: center;
     }
     .sheet[hidden] { display: none; }
@@ -200,14 +206,6 @@
       <div id="viewport"><div id="flow"></div></div>
       <div class="tapzone left" id="tapLeft"></div>
       <div class="tapzone right" id="tapRight"></div>
-
-      <div class="sheet" id="sheet" hidden>
-        <div class="sheetInner">
-          <h3 id="sheetTitle">CONTENTS</h3>
-          <div id="sheetBody"></div>
-          <button class="closeSheet" id="closeSheet">CLOSE</button>
-        </div>
-      </div>
     </div>
     <div class="readbar">
       <button id="contentsBtn" title="Contents">☰</button>
@@ -215,6 +213,14 @@
       <span class="pageno" id="pageNo"></span>
       <button id="nextChap" title="Next chapter">⏭</button>
       <button id="optsBtn" title="Reading options">Aa</button>
+    </div>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheetInner">
+      <h3 id="sheetTitle">CONTENTS</h3>
+      <div id="sheetBody"></div>
+      <button class="closeSheet" id="closeSheet">CLOSE</button>
     </div>
   </div>
 
@@ -289,18 +295,24 @@
 
   // ---------- reader ----------
   const flow = $('flow'), viewport = $('viewport');
-  function colWidth() { return viewport.clientWidth; }
-  const GAP = 34;
+  const GAP = 34;   // space between two columns
+  const PAD = 20;   // margin down each side of the page
+
+  // A column is the screen minus its side margins — not the whole screen. Slide
+  // by anything else and the text creeps sideways a little more every turn.
+  function colWidth() { return Math.max(120, viewport.clientWidth - PAD * 2); }
+  function step() { return colWidth() + GAP; }
 
   function layoutChapter(keepPage) {
+    if (!book) return;
     const c = book.chapters[chap];
     const size = SIZES[store.prefs.size];
     const w = colWidth();
     flow.style.columnWidth = w + 'px';
-    flow.style.width = w + 'px';
+    flow.style.width = (w + PAD * 2) + 'px';   // border-box, so content is exactly w
     flow.style.fontSize = size + 'px';
     flow.style.lineHeight = 1.62;
-    flow.style.padding = '18px 20px';
+    flow.style.padding = `18px ${PAD}px`;
     flow.innerHTML = '';
     const h = document.createElement('h2');
     h.textContent = c.t;
@@ -313,13 +325,26 @@
     });
     // how many pages did that make?
     flow.style.transform = 'none';
-    pages = Math.max(1, Math.round(flow.scrollWidth / (w + GAP)));
+    pages = countPages();
     page = clamp(keepPage ? page : 0, 0, pages - 1);
     showPage();
   }
+
+  // Two measurements, because browsers disagree about whether an overflowing
+  // block's scrollWidth includes the right-hand padding: how far the content
+  // scrolls, and how far right the last block actually sits. Take the larger.
+  function countPages() {
+    const w = colWidth(), st = step();
+    const byScroll = Math.round((flow.scrollWidth - PAD - w) / st) + 1;
+    const left = flow.getBoundingClientRect().left + PAD;
+    let far = 0;
+    for (const el of flow.children) far = Math.max(far, el.getBoundingClientRect().right - left);
+    const byBlocks = Math.round((far - w) / st) + 1;
+    return clamp(Math.max(byScroll, byBlocks), 1, 5000);
+  }
+
   function showPage() {
-    const w = colWidth();
-    flow.style.transform = `translateX(${-page * (w + GAP)}px)`;
+    flow.style.transform = `translateX(${-page * step()}px)`;
     $('pageNo').textContent = `CH ${chap + 1}/${book.chapters.length} · P ${page + 1}/${pages}`;
     store.progress[bookSlug] = { chap, page };
     store.last = bookSlug;
