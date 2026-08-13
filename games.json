@@ -1,5 +1,11 @@
 [
   {
+    "slug": "animate-oo",
+    "title": "Animate-oo",
+    "icon": "🎥",
+    "description": "Not a game — a proper little 3D animation studio. Build characters from eight skeletons, cover them in fur, colours and patterns, give them moves on a timeline, set up camera shots and lighting, then film the whole thing and keep the video."
+  },
+  {
     "slug": "time-freeze",
     "title": "Time Freeze",
     "icon": "⏱️",
