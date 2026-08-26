@@ -69,16 +69,18 @@
     }
     .card p { font-size: 0.92rem; color: var(--text); margin-top: 0.7rem; line-height: 1.55; }
     .card p.small { color: var(--dim); font-size: 0.84rem; }
-    .picks { display: flex; gap: 0.7rem; margin-top: 1rem; }
-    .pick {
-      flex: 1; background: var(--panel2); border: 3px solid transparent; border-radius: 18px;
-      padding: 0.8rem 0.4rem; display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    .picks {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0.45rem; margin-top: 0.9rem;
     }
-    .pick canvas { width: 74px; height: 74px; }
-    .pick .nm { font-family: 'Press Start 2P', monospace; font-size: 0.6rem; }
-    .pick.uni .nm { color: #ffd6f5; }
-    .pick.pig .nm { color: #ff9ec7; }
-    .pick.on { border-color: var(--yellow); }
+    .pick {
+      background: var(--panel2); border: 3px solid transparent; border-radius: 14px;
+      padding: 0.45rem 0.2rem 0.4rem; display: flex; flex-direction: column;
+      align-items: center; gap: 0.25rem;
+    }
+    .pick canvas { width: 58px; height: 58px; }
+    .pick .nm { font-family: 'Press Start 2P', monospace; font-size: 0.4rem; line-height: 1.4; }
+    .pick.on { border-color: var(--yellow); background: var(--panel3, #32196e); }
     .btn {
       background: var(--pink); color: #fff; border: none; border-radius: 999px;
       font-family: 'Press Start 2P', monospace; font-size: 0.7rem;
@@ -106,14 +108,7 @@
       <div class="card">
         <h1>PLAY PAINT</h1>
         <p class="small">Paint the ground by looping around it. Come back to your own colour to fill it in — but if anyone runs over your wet paint trail, they pop!</p>
-        <div class="picks">
-          <button class="pick uni on" id="pickUni" type="button">
-            <canvas width="148" height="148"></canvas><span class="nm">UNICORN</span>
-          </button>
-          <button class="pick pig" id="pickPig" type="button">
-            <canvas width="148" height="148"></canvas><span class="nm">PIG</span>
-          </button>
-        </div>
+        <div class="picks" id="picks"></div>
         <p class="small" id="pickBlurb">Unicorns paint in <b>rainbow</b>.</p>
         <button class="btn" id="playBtn" type="button">PLAY!</button>
       </div>
@@ -165,39 +160,37 @@
   $('hudBest').textContent = best.toFixed(1) + '%';
 
   // ---------- looks ----------
-  // Unicorns paint in rainbow, pigs paint in pink — each player gets their own
-  // shade inside those families so you can still tell everyone apart.
-  function tileColour(p, x, y, t) {
-    if (p.type === 'unicorn') {
-      const h = ((x + y) * 7 + t * 60 + p.tint) % 360;
-      return 'hsl(' + h + ',85%,66%)';
-    }
-    return 'hsl(' + (330 + p.tint % 30) + ',' + (72 + (p.tint % 3) * 6) + '%,' + (62 + ((x + y) % 2) * 4) + '%)';
+  // Every animal lives in one table: how its paint looks on the ground, what
+  // colour it pops, and how to draw its face. Adding an animal is one entry.
+  const mod = (n, m) => ((n % m) + m) % m;
+  // A steady per-tile speckle, so cherries and cat patches land in the same
+  // place every time instead of shimmering as you walk past.
+  function hash2(x, y) {
+    let h = (x * 374761393 + y * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
-  function headColour(p, t) {
-    return p.type === 'unicorn' ? 'hsl(' + ((t * 90 + p.tint) % 360) + ',90%,70%)' : 'hsl(' + (335 + p.tint % 25) + ',80%,70%)';
-  }
+  // Bots get a slightly different shade of their own animal's colours, so two
+  // capybaras are still telling apart without either stopping being a capybara.
+  const HSL = (h, s, l, tint) =>
+    'hsl(' + h + ',' + s + '%,' + Math.max(16, Math.min(94, l + (tint % 4) * 3)) + '%)';
 
   function drawUnicorn(c, x, y, r, t, tint) {
     c.save(); c.translate(x, y);
     c.fillStyle = '#fff8fc';
     c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
-    // rainbow mane
     for (let i = 0; i < 6; i++) {
       c.fillStyle = 'hsl(' + ((i * 60 + t * 90 + tint) % 360) + ',90%,66%)';
       c.beginPath();
       c.ellipse(-r * 0.62 + Math.sin(i) * 2, -r * 0.7 + i * r * 0.28, r * 0.42, r * 0.2, 0.5, 0, Math.PI * 2);
       c.fill();
     }
-    // horn
     c.fillStyle = '#ffe600';
     c.beginPath();
     c.moveTo(-r * 0.16, -r * 0.82); c.lineTo(0, -r * 1.7); c.lineTo(r * 0.16, -r * 0.82);
     c.closePath(); c.fill();
-    // ears
     c.fillStyle = '#fff8fc';
     [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.62, -r * 0.62, r * 0.2, r * 0.3, s * 0.5, 0, Math.PI * 2); c.fill(); });
-    // face
     c.fillStyle = '#3a2a4d';
     [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.32, -r * 0.05, r * 0.11, r * 0.15, 0, 0, Math.PI * 2); c.fill(); });
     c.fillStyle = '#ffc0dd';
@@ -206,41 +199,332 @@
   }
   function drawPig(c, x, y, r, t, tint) {
     c.save(); c.translate(x, y);
-    const base = 'hsl(' + (335 + tint % 25) + ',80%,' + (74) + '%)';
-    c.fillStyle = base;
+    c.fillStyle = 'hsl(' + (335 + tint % 25) + ',80%,74%)';
     c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
-    // ears
     [-1, 1].forEach(s => {
       c.fillStyle = 'hsl(' + (335 + tint % 25) + ',72%,64%)';
       c.beginPath();
       c.moveTo(s * r * 0.3, -r * 0.72); c.lineTo(s * r * 0.86, -r * 1.12); c.lineTo(s * r * 0.82, -r * 0.42);
       c.closePath(); c.fill();
     });
-    // snout
     c.fillStyle = 'hsl(' + (335 + tint % 25) + ',85%,84%)';
     c.beginPath(); c.ellipse(0, r * 0.3, r * 0.46, r * 0.34, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = '#a85a7a';
     [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.16, r * 0.3, r * 0.08, r * 0.12, 0, 0, Math.PI * 2); c.fill(); });
-    // eyes
     c.fillStyle = '#3a2a4d';
     [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.36, -r * 0.24, r * 0.11, r * 0.14, 0, 0, Math.PI * 2); c.fill(); });
     c.restore();
   }
-  const drawAnimal = (c, p, x, y, r, t) =>
-    p.type === 'unicorn' ? drawUnicorn(c, x, y, r, t, p.tint) : drawPig(c, x, y, r, t, p.tint);
+  function drawAxolotl(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    // frilly gills, three a side, wafting
+    for (const s of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const a = (-0.5 + i * 0.5) + Math.sin(t * 2 + i + s) * 0.12;
+        const gx = s * r * 0.78, gy = -r * 0.32 + i * r * 0.36;
+        c.strokeStyle = '#ff9ec7'; c.lineWidth = r * 0.12; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(s * r * 0.5, gy);
+        c.lineTo(gx + s * Math.cos(a) * r * 0.34, gy + Math.sin(a) * r * 0.2); c.stroke();
+        c.fillStyle = '#ffc2de';
+        c.beginPath();
+        c.arc(gx + s * Math.cos(a) * r * 0.42, gy + Math.sin(a) * r * 0.26, r * 0.19, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    c.fillStyle = '#ffd9ea';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    // pale stripes, the colour it paints in
+    c.save();
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.clip();
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = -2; i <= 2; i++) c.fillRect(i * r * 0.52 - r * 0.13, -r, r * 0.26, r * 2);
+    c.restore();
+    c.fillStyle = '#3a2a4d';
+    [-1, 1].forEach(s => { c.beginPath(); c.arc(s * r * 0.34, -r * 0.1, r * 0.1, 0, Math.PI * 2); c.fill(); });
+    c.strokeStyle = '#e0709e'; c.lineWidth = r * 0.1; c.lineCap = 'round';
+    c.beginPath(); c.arc(0, r * 0.18, r * 0.3, 0.35, Math.PI - 0.35); c.stroke();
+    c.restore();
+  }
+  function drawCapybara(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    [-1, 1].forEach(s => {
+      c.fillStyle = '#4f321b';
+      c.beginPath(); c.ellipse(s * r * 0.6, -r * 0.72, r * 0.22, r * 0.19, 0, 0, Math.PI * 2); c.fill();
+    });
+    c.fillStyle = '#6b4423';
+    c.beginPath(); c.ellipse(0, 0, r, r * 0.94, 0, 0, Math.PI * 2); c.fill();
+    // the cherry it paints with, balanced on its head
+    c.strokeStyle = '#3f8f5a'; c.lineWidth = r * 0.08; c.lineCap = 'round';
+    c.beginPath(); c.moveTo(r * 0.1, -r * 0.95); c.quadraticCurveTo(r * 0.3, -r * 1.4, r * 0.02, -r * 1.5); c.stroke();
+    c.fillStyle = '#e02a3c';
+    c.beginPath(); c.arc(r * 0.06, -r * 1.12, r * 0.26, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,255,255,0.5)';
+    c.beginPath(); c.arc(-r * 0.02, -r * 1.2, r * 0.07, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#8a5c33';
+    c.beginPath(); c.ellipse(0, r * 0.42, r * 0.54, r * 0.3, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#2e1c0f';
+    c.beginPath(); c.ellipse(0, r * 0.3, r * 0.18, r * 0.1, 0, 0, Math.PI * 2); c.fill();
+    // sleepy eyes
+    c.strokeStyle = '#2e1c0f'; c.lineWidth = r * 0.11;
+    [-1, 1].forEach(s => {
+      c.beginPath(); c.arc(s * r * 0.38, -r * 0.2, r * 0.15, Math.PI * 0.15, Math.PI * 0.85); c.stroke();
+    });
+    c.restore();
+  }
+  function drawPenguin(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    c.fillStyle = '#243b5a';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#7ec8f0';
+    c.beginPath(); c.ellipse(-r * 0.34, -r * 0.42, r * 0.3, r * 0.2, -0.6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#f4fbff';
+    c.beginPath(); c.ellipse(0, r * 0.16, r * 0.66, r * 0.7, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#243b5a';
+    [-1, 1].forEach(s => { c.beginPath(); c.arc(s * r * 0.3, -r * 0.14, r * 0.13, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#ff9e3d';
+    c.beginPath();
+    c.moveTo(-r * 0.22, r * 0.24); c.lineTo(r * 0.22, r * 0.24); c.lineTo(0, r * 0.62);
+    c.closePath(); c.fill();
+    c.restore();
+  }
+  function drawCat(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    [-1, 1].forEach(s => {
+      c.fillStyle = '#e08a3c';
+      c.beginPath();
+      c.moveTo(s * r * 0.3, -r * 0.74); c.lineTo(s * r * 0.82, -r * 1.24); c.lineTo(s * r * 0.86, -r * 0.4);
+      c.closePath(); c.fill();
+      c.fillStyle = '#ffc2a0';
+      c.beginPath();
+      c.moveTo(s * r * 0.42, -r * 0.74); c.lineTo(s * r * 0.72, -r * 1.04); c.lineTo(s * r * 0.74, -r * 0.5);
+      c.closePath(); c.fill();
+    });
+    c.fillStyle = '#e08a3c';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff6ea';
+    c.beginPath(); c.ellipse(0, r * 0.38, r * 0.58, r * 0.4, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(0, -r * 0.55, r * 0.3, r * 0.22, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#fff6ea'; c.lineWidth = r * 0.06; c.lineCap = 'round';
+    [-1, 1].forEach(s => {
+      for (let i = -1; i <= 1; i++) {
+        c.beginPath(); c.moveTo(s * r * 0.4, r * 0.34);
+        c.lineTo(s * r * 1.12, r * 0.34 + i * r * 0.26); c.stroke();
+      }
+    });
+    c.fillStyle = '#3f9e4a';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.34, -r * 0.14, r * 0.13, r * 0.17, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#2a2033';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.34, -r * 0.14, r * 0.05, r * 0.16, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#ff8fb1';
+    c.beginPath();
+    c.moveTo(-r * 0.12, r * 0.24); c.lineTo(r * 0.12, r * 0.24); c.lineTo(0, r * 0.4);
+    c.closePath(); c.fill();
+    c.restore();
+  }
+  function drawTiger(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    [-1, 1].forEach(s => {
+      c.fillStyle = '#ff8c1a';
+      c.beginPath(); c.arc(s * r * 0.68, -r * 0.68, r * 0.26, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#2a2033';
+      c.beginPath(); c.arc(s * r * 0.68, -r * 0.68, r * 0.12, 0, Math.PI * 2); c.fill();
+    });
+    c.fillStyle = '#ff8c1a';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff3e0';
+    c.beginPath(); c.ellipse(0, r * 0.44, r * 0.56, r * 0.36, 0, 0, Math.PI * 2); c.fill();
+    c.save();
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.clip();
+    c.strokeStyle = '#241a12'; c.lineWidth = r * 0.1; c.lineCap = 'round';
+    [-1, 1].forEach(s => {
+      for (let i = 0; i < 3; i++) {          // down the forehead
+        const bx = s * (r * 0.26 + i * r * 0.25);
+        c.beginPath();
+        c.moveTo(bx, -r * 1.05);
+        c.quadraticCurveTo(bx + s * r * 0.12, -r * 0.72, bx + s * r * 0.05, -r * 0.4);
+        c.stroke();
+      }
+      for (let i = 0; i < 2; i++) {          // and across the cheeks
+        c.beginPath();
+        c.moveTo(s * r * 0.62, r * 0.02 + i * r * 0.26);
+        c.lineTo(s * r * 1.05, r * 0.08 + i * r * 0.28);
+        c.stroke();
+      }
+    });
+    c.restore();
+    c.fillStyle = '#ffe600';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.36, -r * 0.1, r * 0.14, r * 0.15, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#2a2033';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.36, -r * 0.1, r * 0.06, r * 0.14, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#2a2033';
+    c.beginPath();
+    c.moveTo(-r * 0.15, r * 0.3); c.lineTo(r * 0.15, r * 0.3); c.lineTo(0, r * 0.48);
+    c.closePath(); c.fill();
+    c.strokeStyle = '#2a2033'; c.lineWidth = r * 0.06;
+    c.beginPath(); c.arc(-r * 0.16, r * 0.52, r * 0.17, -0.2, Math.PI - 0.6); c.stroke();
+    c.beginPath(); c.arc(r * 0.16, r * 0.52, r * 0.17, 0.6, Math.PI + 0.2); c.stroke();
+    c.restore();
+  }
+  function drawSloth(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    c.fillStyle = '#c49a6c';
+    c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#e8d3b4';
+    c.beginPath(); c.ellipse(0, r * 0.12, r * 0.72, r * 0.66, 0, 0, Math.PI * 2); c.fill();
+    // the sleepy mask
+    c.fillStyle = '#8a5a3b';
+    [-1, 1].forEach(s => {
+      c.beginPath(); c.ellipse(s * r * 0.36, -r * 0.16, r * 0.3, r * 0.24, s * 0.35, 0, Math.PI * 2); c.fill();
+    });
+    c.fillStyle = '#2a2033';
+    [-1, 1].forEach(s => { c.beginPath(); c.arc(s * r * 0.36, -r * 0.14, r * 0.13, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#fff';
+    [-1, 1].forEach(s => { c.beginPath(); c.arc(s * r * 0.32, -r * 0.19, r * 0.05, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#5c3a24';
+    c.beginPath(); c.ellipse(0, r * 0.3, r * 0.14, r * 0.1, 0, 0, Math.PI * 2); c.fill();
+    c.strokeStyle = '#5c3a24'; c.lineWidth = r * 0.08; c.lineCap = 'round';
+    c.beginPath(); c.arc(0, r * 0.3, r * 0.26, 0.3, Math.PI - 0.3); c.stroke();
+    c.restore();
+  }
+  function drawZebra(c, x, y, r, t, tint) {
+    c.save(); c.translate(x, y);
+    [-1, 1].forEach(s => {
+      c.fillStyle = '#f5f5f5';
+      c.beginPath(); c.ellipse(s * r * 0.62, -r * 0.7, r * 0.19, r * 0.28, s * 0.35, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#2a2033';
+      c.beginPath(); c.ellipse(s * r * 0.64, -r * 0.78, r * 0.1, r * 0.14, s * 0.35, 0, Math.PI * 2); c.fill();
+    });
+    c.fillStyle = '#f5f5f5';
+    c.beginPath(); c.ellipse(0, 0, r * 0.92, r, 0, 0, Math.PI * 2); c.fill();
+    c.save();
+    c.beginPath(); c.ellipse(0, 0, r * 0.92, r, 0, 0, Math.PI * 2); c.clip();
+    c.strokeStyle = '#1f1a26'; c.lineWidth = r * 0.13; c.lineCap = 'round';
+    [-1, 1].forEach(s => {
+      for (let i = 0; i < 3; i++) {
+        const spread = 0.22 + i * 0.3;
+        c.beginPath();
+        c.moveTo(s * spread * r * 0.5, -r * 1.05);
+        c.quadraticCurveTo(s * spread * r * 1.4, -r * 0.5, s * r * (0.75 + i * 0.16), -r * 0.1 + i * r * 0.2);
+        c.stroke();
+      }
+    });
+    c.fillStyle = '#1f1a26';                 // mane tuft between the ears
+    c.beginPath(); c.ellipse(0, -r * 0.93, r * 0.15, r * 0.24, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
+    c.fillStyle = '#4a4453';
+    c.beginPath(); c.ellipse(0, r * 0.54, r * 0.38, r * 0.27, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#2a2033';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.14, r * 0.5, r * 0.07, r * 0.09, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#2a2033';
+    [-1, 1].forEach(s => { c.beginPath(); c.ellipse(s * r * 0.38, -r * 0.16, r * 0.11, r * 0.14, 0, 0, Math.PI * 2); c.fill(); });
+    c.fillStyle = '#fff';
+    [-1, 1].forEach(s => { c.beginPath(); c.arc(s * r * 0.34, -r * 0.22, r * 0.04, 0, Math.PI * 2); c.fill(); });
+    c.restore();
+  }
+
+  const ANIMALS = {
+    unicorn: {
+      emoji: '🦄', label: 'UNICORN', ink: '#ffd6f5', draw: drawUnicorn,
+      blurb: 'Unicorns paint in <b>rainbow</b>.',
+      names: ['Sparkle', 'Twinkle', 'Glitter'],
+      paint: (x, y, t, tint) => 'hsl(' + (((x + y) * 7 + t * 60 + tint) % 360) + ',85%,66%)',
+      pop: (t) => 'hsl(' + ((t * 200) % 360) + ',90%,70%)',
+    },
+    pig: {
+      emoji: '🐷', label: 'PIG', ink: '#ff9ec7', draw: drawPig,
+      blurb: 'Pigs paint in <b>pink</b>.',
+      names: ['Snorty', 'Truffle', 'Piggy'],
+      paint: (x, y, t, tint) => HSL(332, 78, 68 + ((x + y) % 2) * 4, tint),
+      pop: () => '#ff8fc0',
+    },
+    axolotl: {
+      emoji: '🩷', label: 'AXOLOTL', ink: '#ffc2de', draw: drawAxolotl,
+      blurb: 'Axolotls paint in <b>pink and white stripes</b>.',
+      names: ['Bubbles', 'Frilly', 'Gilly'],
+      paint: (x, y, t, tint) => mod(x + Math.round(Math.sin(y * 0.3) * 1.6), 6) < 3
+        ? HSL(332, 92, 78, tint) : HSL(330, 60, 95, tint),
+      pop: () => '#ffc2de',
+    },
+    capybara: {
+      emoji: '🦫', label: 'CAPYBARA', ink: '#c98a5b', draw: drawCapybara,
+      blurb: 'Capybaras paint in <b>dark brown with red cherries</b>.',
+      names: ['Cappy', 'Nibbles', 'Biscuit'],
+      paint: (x, y, t, tint) => hash2(x, y) < 0.085
+        ? HSL(354, 74, 46, tint) : HSL(24, 44, 27 + ((x + y) % 2) * 2, tint),
+      pop: () => '#e02a3c',
+    },
+    penguin: {
+      emoji: '🐧', label: 'PENGUIN', ink: '#7ec8f0', draw: drawPenguin,
+      blurb: 'Penguins paint in <b>light blue</b>.',
+      names: ['Waddle', 'Pebble', 'Tuxedo'],
+      paint: (x, y, t, tint) => HSL(198, 78, 66 + ((x + y) % 2) * 4, tint),
+      pop: () => '#7ec8f0',
+    },
+    cat: {
+      emoji: '🐱', label: 'CAT', ink: '#e08a3c', draw: drawCat,
+      blurb: 'Cats paint in <b>ginger and white</b>.',
+      names: ['Marmalade', 'Whiskers', 'Tiddles'],
+      paint: (x, y, t, tint) => hash2(Math.floor(x / 3), Math.floor(y / 3)) < 0.4
+        ? HSL(34, 62, 94, tint) : HSL(28, 78, 57, tint),
+      pop: () => '#e08a3c',
+    },
+    tiger: {
+      emoji: '🐯', label: 'TIGER', ink: '#ff8c1a', draw: drawTiger,
+      blurb: 'Tigers paint in <b>orange and black</b>.',
+      names: ['Stripe', 'Rajah', 'Fang'],
+      paint: (x, y, t, tint) =>
+        Math.abs(Math.sin(x * 0.85 + Math.sin(y * 0.4) * 1.7)) > 0.93
+          ? HSL(0, 0, 12, tint) : HSL(26, 92, 55, tint),
+      pop: () => '#ff8c1a',
+    },
+    sloth: {
+      emoji: '🦥', label: 'SLOTH', ink: '#c49a6c', draw: drawSloth,
+      blurb: 'Sloths paint in <b>light brown</b>.',
+      names: ['Snooze', 'Mossy', 'Dozy'],
+      paint: (x, y, t, tint) => HSL(30, 40, 60 + ((x + y) % 2) * 4, tint),
+      pop: () => '#c49a6c',
+    },
+    zebra: {
+      emoji: '🦓', label: 'ZEBRA', ink: '#dcd8e4', draw: drawZebra,
+      blurb: 'Zebras paint in <b>black and white</b>.',
+      names: ['Dazzle', 'Domino', 'Zippy'],
+      paint: (x, y, t, tint) => Math.sin(x * 0.55 + Math.sin(y * 0.25) * 1.3) > 0
+        ? HSL(260, 12, 13, tint) : HSL(260, 10, 94, tint),
+      pop: () => '#f5f5f5',
+    },
+  };
+  const TYPES = Object.keys(ANIMALS);
+  const animalOf = (p) => ANIMALS[p.type] || ANIMALS.unicorn;
+
+  const tileColour = (p, x, y, t) => animalOf(p).paint(x, y, t, p.tint);
+  const drawAnimal = (c, p, x, y, r, t) => animalOf(p).draw(c, x, y, r, t, p.tint);
 
   // pick-screen previews
+  const previewCtx = [];
   (function previews() {
+    const wrap = $('picks');
+    TYPES.forEach((type) => {
+      const A = ANIMALS[type];
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pick' + (type === 'unicorn' ? ' on' : '');
+      b.dataset.type = type;
+      const cv = document.createElement('canvas');
+      cv.width = 116; cv.height = 116;
+      const nm = document.createElement('span');
+      nm.className = 'nm'; nm.textContent = A.label; nm.style.color = A.ink;
+      b.append(cv, nm);
+      wrap.appendChild(b);
+      previewCtx.push({ ctx: cv.getContext('2d'), draw: A.draw });
+    });
     let t = 0;
-    const uc = $('pickUni').querySelector('canvas').getContext('2d');
-    const pc = $('pickPig').querySelector('canvas').getContext('2d');
     (function loop() {
       requestAnimationFrame(loop);
       t += 0.016;
-      uc.clearRect(0, 0, 148, 148);
-      pc.clearRect(0, 0, 148, 148);
-      drawUnicorn(uc, 74, 82, 42, t, 0);
-      drawPig(pc, 74, 80, 42, t, 0);
+      for (const p of previewCtx) {
+        p.ctx.clearRect(0, 0, 116, 116);
+        p.draw(p.ctx, 58, 66, 31, t, 0);
+      }
     })();
   })();
 
@@ -261,19 +545,25 @@
       const a = (i / (BOTS + 1)) * Math.PI * 2;
       spots.push([Math.round(GW / 2 + Math.cos(a) * 34), Math.round(GH / 2 + Math.sin(a) * 34)]);
     }
+    const takenNames = new Set();
     for (let i = 0; i <= BOTS; i++) {
       const isMe = i === 0;
       const p = {
         id: i + 1,
         isMe,
-        type: isMe ? type : (Math.random() < 0.5 ? 'unicorn' : 'pig'),
+        type: isMe ? type : TYPES[Math.floor(Math.random() * TYPES.length)],
         tint: isMe ? 0 : 40 + i * 47,
         x: spots[i][0], y: spots[i][1],
         dx: 0, dy: -1, wantDx: 0, wantDy: -1,
         trail: [], alive: true, pct: 0,
-        name: isMe ? 'YOU' : ['Sparkle', 'Snorty', 'Twinkle', 'Truffle', 'Glitter', 'Piggy'][i - 1] || 'Bot',
+        name: 'YOU',
         out: false, plan: 0, goHomeAt: 18, homeX: spots[i][0], homeY: spots[i][1],
       };
+      if (!isMe) {
+        const pool = ANIMALS[p.type].names;
+        p.name = pool.find((n) => !takenNames.has(n)) || pool[0] + ' ' + i;
+        takenNames.add(p.name);
+      }
       blank(p, p.x, p.y);
       players.push(p);
     }
@@ -525,7 +815,7 @@
       const px = ox + (pp.x + 0.5) * cell, py = oy + (pp.y + 0.5) * cell;
       ctx.save();
       ctx.globalAlpha = 1 - k;
-      ctx.strokeStyle = pp.type === 'unicorn' ? 'hsl(' + ((t * 200) % 360) + ',90%,70%)' : '#ff8fc0';
+      ctx.strokeStyle = (ANIMALS[pp.type] || ANIMALS.unicorn).pop(t);
       ctx.lineWidth = 4;
       ctx.beginPath(); ctx.arc(px, py, cell * (0.6 + k * 2.4), 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
@@ -535,7 +825,7 @@
     if (running) {
       const sorted = players.slice().sort((a, b) => b.pct - a.pct);
       $('board').innerHTML = sorted.slice(0, 6).map(p =>
-        '<div class="' + (p.isMe ? 'me' : '') + '">' + (p.type === 'unicorn' ? '🦄' : '🐷') + ' ' +
+        '<div class="' + (p.isMe ? 'me' : '') + '">' + animalOf(p).emoji + ' ' +
         p.name + ' ' + p.pct.toFixed(1) + '%</div>').join('');
       $('hudPct').textContent = me.pct.toFixed(1) + '%';
     }
@@ -573,15 +863,12 @@
 
   // ---------- start / end ----------
   let chosen = 'unicorn';
-  $('pickUni').addEventListener('click', () => {
-    chosen = 'unicorn';
-    $('pickUni').classList.add('on'); $('pickPig').classList.remove('on');
-    $('pickBlurb').innerHTML = 'Unicorns paint in <b>rainbow</b>.';
-  });
-  $('pickPig').addEventListener('click', () => {
-    chosen = 'pig';
-    $('pickPig').classList.add('on'); $('pickUni').classList.remove('on');
-    $('pickBlurb').innerHTML = 'Pigs paint in <b>pink</b>.';
+  $('picks').addEventListener('click', (e) => {
+    const b = e.target.closest('.pick');
+    if (!b) return;
+    chosen = b.dataset.type;
+    [...$('picks').children].forEach((c) => c.classList.toggle('on', c === b));
+    $('pickBlurb').innerHTML = ANIMALS[chosen].blurb;
   });
   $('playBtn').addEventListener('click', () => newGame(chosen));
   $('againBtn').addEventListener('click', () => newGame(chosen));
@@ -596,7 +883,7 @@
     }
     $('hudBest').textContent = best.toFixed(1) + '%';
     $('endTitle').textContent = won ? 'YOU WIN!' : 'POP!';
-    $('endEmoji').textContent = won ? '🏆' : (me.type === 'unicorn' ? '🦄💥' : '🐷💥');
+    $('endEmoji').textContent = won ? '🏆' : animalOf(me).emoji + '💥';
     const reason = why === 'self' ? 'You ran over your own wet paint!'
       : why === 'edge' ? 'You painted yourself right off the edge!'
       : 'Someone ran over your wet paint!';
@@ -608,6 +895,8 @@
 
   // Test hook.
   window.__pp = {
+    animals: () => TYPES,
+    paintOf: (type, x, y, t) => ANIMALS[type].paint(x, y, t || 0, 0),
     start: (type) => newGame(type || 'unicorn'),
     setDir,
     step: (n = 1) => { for (let i = 0; i < n; i++) { players.forEach(stepPlayer); } recount(); },
