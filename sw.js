@@ -6,7 +6,7 @@
 // bumps, anything already cached is served cache-first and silently
 // re-fetched in the background (stale-while-revalidate), so updates still
 // flow to players one visit late.
-const CACHE_VERSION = 'flocade-v28';
+const CACHE_VERSION = 'flocade-v29';
 
 // Files the gallery itself needs.
 const SHELL_ASSETS = [
@@ -27,6 +27,11 @@ const SHELL_ASSETS = [
 const EXTRA_GAME_ASSETS = [
   'games/alive-me/three.module.min.js',
   'games/animate-oo/three.module.min.js',
+  // Boom's warriors are Flo's drawings, cut out into sprite sheets.
+  'games/boom/heads.png',
+  'games/boom/hospital.jpg',
+  'games/boom/pick-title.jpg',
+  'games/boom/warriors.jpg',
   'games/asmr/three.core.min.js',
   'games/asmr/three.module.min.js',
   'games/growing-gardens/three.module.min.js',

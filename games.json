@@ -1,5 +1,11 @@
 [
   {
+    "slug": "boom",
+    "title": "Boom",
+    "icon": "🥊",
+    "description": "Flo's fighting game — like the arcade ones, except much nicer. Pick Beginners, Medium or Pros, then pick your warrior AND your enemy from her twelve drawings. Jump, crouch, kick and punch, best of three rounds, and the loser goes to hospital and is fine."
+  },
+  {
     "slug": "animate-oo",
     "title": "Animate-oo",
     "icon": "🎥",
