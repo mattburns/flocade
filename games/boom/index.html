@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boom — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221; --panel: #1a0f38; --panel2: #241155; --panel3: #32196e;
+      --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600; --green: #3dff8b;
+      --text: #efe9ff; --dim: #a396c9;
+    }
+    html, body { height: 100%; overscroll-behavior: none; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; flex-direction: column; overflow: hidden;
+      -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+      -webkit-user-select: none; user-select: none;
+    }
+    button { font-family: inherit; cursor: pointer; color: inherit; }
+
+    .topbar {
+      flex: none; display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.4rem 0.6rem; background: var(--panel); border-bottom: 2px solid var(--panel2);
+    }
+    .navBtn {
+      background: none; border: 2px solid var(--panel2); border-radius: 9px;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.48rem; padding: 0.45rem; text-decoration: none; white-space: nowrap;
+    }
+    .ttl {
+      flex: 1; text-align: center; font-family: 'Press Start 2P', monospace;
+      font-size: 0.62rem; color: var(--yellow);
+    }
+
+    #stage { flex: 1; min-height: 0; position: relative; background: #07010f; }
+    canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+    /* ---------- Flo's control cluster ---------- */
+    #controls {
+      flex: none; display: flex; align-items: center; justify-content: flex-end;
+      gap: 1.4rem; padding: 0.6rem 1rem 0.8rem; background: var(--panel);
+      border-top: 2px solid var(--panel2);
+    }
+    #controls[hidden] { display: none; }
+    @media (max-width: 640px) { #controls { justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0.7rem 0.7rem; } }
+    .dpad {
+      position: relative; width: 168px; height: 168px; flex: none;
+    }
+    .dpad button {
+      position: absolute; width: 56px; height: 56px; border: none; background: none;
+      color: var(--text); font-family: 'Press Start 2P', monospace; font-size: 0.42rem;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none;
+    }
+    .dpad .tri {
+      position: absolute; inset: 0; fill: var(--panel3); stroke: var(--cyan); stroke-width: 3;
+      stroke-linejoin: round; transition: fill 0.05s;
+    }
+    .dpad button.down .tri { fill: var(--cyan); }
+    .dpad button.down { color: #052029; }
+    .dpad button span { position: relative; }
+    .dpad .up    { left: 56px; top: 0; }
+    .dpad .left  { left: 0; top: 56px; }
+    .dpad .right { left: 112px; top: 56px; }
+    .dpad .downB { left: 56px; top: 112px; }
+    .dpad .mid {
+      position: absolute; left: 56px; top: 56px; width: 56px; height: 56px;
+      background: var(--panel3); border: 3px solid var(--cyan); border-radius: 4px;
+    }
+    .dpad .up span    { top: 8px; }
+    .dpad .downB span { top: -8px; }
+    .dpad .left span  { left: -6px; }
+    .dpad .right span { left: 6px; }
+    .fists { display: flex; gap: 0.8rem; flex: none; }
+    .fist {
+      width: 84px; height: 84px; border-radius: 50%; border: 4px solid var(--pink);
+      background: var(--panel3); font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+      color: var(--text); touch-action: none; box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .fist.down { background: var(--pink); color: #fff; transform: translateY(3px); box-shadow: none; }
+    @media (max-width: 400px) { .dpad { width: 144px; height: 144px; } .dpad button { width: 48px; height: 48px; }
+      .dpad .up { left: 48px; } .dpad .left { top: 48px; } .dpad .right { left: 96px; top: 48px; }
+      .dpad .downB { left: 48px; top: 96px; } .dpad .mid { left: 48px; top: 48px; width: 48px; height: 48px; }
+      .fist { width: 72px; height: 72px; } }
+
+    /* ---------- overlays ---------- */
+    .ov {
+      position: absolute; inset: 0; z-index: 5; background: rgba(6,1,16,0.9);
+      display: flex; align-items: center; justify-content: center; padding: 0.8rem; overflow-y: auto;
+    }
+    .ov[hidden] { display: none; }
+    .card {
+      background: var(--panel); border: 3px solid var(--pink); border-radius: 22px;
+      padding: 1.2rem 1.1rem; max-width: 34rem; width: 100%; text-align: center;
+      box-shadow: 0 0 34px rgba(255,46,136,0.35); max-height: 100%; overflow-y: auto;
+    }
+    .card h1 {
+      font-family: 'Press Start 2P', monospace; color: var(--pink);
+      font-size: clamp(1.4rem, 8vw, 2.6rem); line-height: 1.3;
+      text-shadow: 0 0 22px rgba(255,46,136,0.8), 4px 4px 0 #6b0f3a;
+    }
+    .card h2 { font-family: 'Press Start 2P', monospace; color: var(--yellow); font-size: 0.62rem; line-height: 1.7; margin: 0.8rem 0 0.5rem; }
+    .card p { font-size: 0.9rem; color: var(--dim); margin-top: 0.6rem; line-height: 1.55; }
+    .levels { display: flex; gap: 0.5rem; margin-top: 0.9rem; }
+    .lvl {
+      flex: 1; background: var(--panel2); border: 3px solid transparent; border-radius: 14px;
+      padding: 0.8rem 0.3rem; font-family: 'Press Start 2P', monospace; font-size: 0.5rem;
+      line-height: 1.7; color: var(--text);
+    }
+    .lvl small { display: block; font-family: 'Inter', sans-serif; font-size: 0.72rem; color: var(--dim); margin-top: 0.3rem; }
+    .lvl.on { border-color: var(--yellow); color: var(--yellow); }
+    .btn {
+      background: var(--pink); color: #fff; border: none; border-radius: 999px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.66rem;
+      padding: 0.9rem 1rem; width: 100%; margin-top: 1rem; box-shadow: 0 4px 0 rgba(0,0,0,0.35);
+    }
+    .btn:disabled { opacity: 0.4; box-shadow: none; }
+    .btn.ghost { background: none; border: 2px solid var(--panel3); box-shadow: none; color: var(--dim); }
+    .btn.green { background: var(--green); color: #05240f; }
+
+    /* pick screen — Flo's grid, with her title */
+    .pickTitle { width: 100%; border-radius: 12px; display: block; background: #fff; }
+    .roster {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-top: 0.7rem;
+    }
+    .w {
+      position: relative; aspect-ratio: 176 / 300; border-radius: 10px; border: 3px solid transparent;
+      background-image: url(warriors.jpg); background-size: 400% 300%; padding: 0; overflow: hidden;
+      transition: transform 0.08s;
+    }
+    .w:hover { transform: scale(1.04); }
+    .w.you { border-color: var(--cyan); box-shadow: 0 0 16px rgba(0,240,255,0.55); }
+    .w.foe { border-color: var(--pink); box-shadow: 0 0 16px rgba(255,46,136,0.55); }
+    .w .tag {
+      position: absolute; left: 0; right: 0; bottom: 0; padding: 0.22rem 0;
+      font-family: 'Press Start 2P', monospace; font-size: 0.38rem; color: #fff;
+    }
+    .w.you .tag { background: rgba(0,170,190,0.9); }
+    .w.foe .tag { background: rgba(255,46,136,0.9); }
+    .w .nm {
+      position: absolute; left: 0; right: 0; top: 0; padding: 0.2rem 0; font-size: 0.6rem;
+      background: rgba(6,1,16,0.6); color: #fff;
+    }
+    .pickHint { min-height: 1.4em; color: var(--cyan) !important; font-weight: 600; }
+
+    /* the hospital ending — her drawing, the half that applies */
+    .hosp {
+      width: min(100%, 300px); aspect-ratio: 1 / 1; margin: 0.6rem auto 0; border-radius: 14px;
+      background-image: url(hospital.jpg); background-size: 200% 100%; border: 3px solid #fff;
+    }
+    .hosp.lost { background-position: 0% 0; }
+    .hosp.won { background-position: 100% 0; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="navBtn" href="../../">&larr; ARCADE</a>
+    <div class="ttl" id="title">BOOM</div>
+    <button class="navBtn" id="quitBtn" hidden>QUIT</button>
+  </div>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+
+    <!-- ===== difficulty ===== -->
+    <div class="ov" id="levelCard">
+      <div class="card">
+        <h1>BOOM</h1>
+        <p>Like those arcade games where you fight each other — except much nicer.
+          Nobody gets hurt. Well, they do, but they go to hospital and they're fine.</p>
+        <h2>HOW GOOD ARE YOU?</h2>
+        <div class="levels" id="levels">
+          <button class="lvl on" data-lvl="0">BEGINNERS<small>They're a bit sleepy</small></button>
+          <button class="lvl" data-lvl="1">MEDIUM<small>A proper scrap</small></button>
+          <button class="lvl" data-lvl="2">PROS<small>They dodge. Good luck.</small></button>
+        </div>
+        <button class="btn" id="toPick">NEXT ▶</button>
+      </div>
+    </div>
+
+    <!-- ===== pick warrior & enemy ===== -->
+    <div class="ov" id="pickCard" hidden>
+      <div class="card">
+        <img class="pickTitle" src="pick-title.jpg" alt="Pick your warrior and enemy!!!">
+        <div class="roster" id="roster"></div>
+        <p class="pickHint" id="pickHint">Tap the one YOU want to be.</p>
+        <button class="btn" id="fightBtn" disabled>FIGHT!</button>
+        <button class="btn ghost" id="backToLevel">◀ BACK</button>
+      </div>
+    </div>
+
+    <!-- ===== the end ===== -->
+    <div class="ov" id="endCard" hidden>
+      <div class="card">
+        <h1 id="endTitle" style="font-size:clamp(1rem,6vw,1.8rem)">YOU WIN!</h1>
+        <div class="hosp won" id="hosp"></div>
+        <p id="endBody"></p>
+        <button class="btn green" id="againBtn">SAME AGAIN!</button>
+        <button class="btn ghost" id="pickAgainBtn">PICK NEW WARRIORS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Flo's buttons ===== -->
+  <div id="controls" hidden>
+    <div class="dpad">
+      <button class="up" data-act="jump">
+        <svg class="tri" viewBox="0 0 56 56"><polygon points="28,4 2,54 54,54"/></svg><span>JUMP</span>
+      </button>
+      <button class="left" data-act="left">
+        <svg class="tri" viewBox="0 0 56 56"><polygon points="4,28 54,2 54,54"/></svg><span>LEFT</span>
+      </button>
+      <div class="mid"></div>
+      <button class="right" data-act="right">
+        <svg class="tri" viewBox="0 0 56 56"><polygon points="52,28 2,2 2,54"/></svg><span>RIGHT</span>
+      </button>
+      <button class="downB" data-act="crouch">
+        <svg class="tri" viewBox="0 0 56 56"><polygon points="28,52 2,2 54,2"/></svg><span>CROUCH</span>
+      </button>
+    </div>
+    <div class="fists">
+      <button class="fist" data-act="kick">KICK</button>
+      <button class="fist" data-act="punch">PUNCH</button>
+    </div>
+  </div>
+
+  <script>
+  'use strict';
+
+  // ============================================================
+  // Boom — Flo's fighting game, "except much nicer".
+  //
+  // The twelve warriors are her drawings. heads.png holds each one
+  // cut out of the grid she drew, and the game puts them on simple
+  // animated bodies. warriors.jpg is the grid itself, for picking.
+  // ============================================================
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const W = 900, H = 460, GROUND = 382;
+
+  // Where each head sits in heads.png (from the cutting script).
+  const HEADS = [
+    { x: 0, y: 100, w: 220, h: 200 }, { x: 220, y: 80, w: 220, h: 220 },
+    { x: 451, y: 0, w: 197, h: 300 }, { x: 660, y: 38, w: 220, h: 262 },
+    { x: 0, y: 362, w: 220, h: 238 }, { x: 220, y: 355, w: 220, h: 245 },
+    { x: 440, y: 394, w: 220, h: 206 }, { x: 683, y: 300, w: 174, h: 300 },
+    { x: 0, y: 691, w: 220, h: 209 }, { x: 220, y: 686, w: 220, h: 214 },
+    { x: 440, y: 688, w: 220, h: 212 }, { x: 660, y: 661, w: 220, h: 239 },
+  ];
+  // Names and outfit colours to go with each drawing. faceW is how wide the
+  // face part of the drawing is relative to the whole cutout, so long hair
+  // and hood tails hang down over the body instead of making the head tiny.
+  const WARRIORS = [
+    { name: 'Masky',  suit: '#c026d3', trim: '#ffe600' },
+    { name: 'Scar',   suit: '#3b82f6', trim: '#f4f2ff' },
+    { name: 'Ninja',  suit: '#374151', trim: '#ef4444' },
+    { name: 'Spike',  suit: '#7c3aed', trim: '#c4b5fd' },
+    { name: 'Buns',   suit: '#14b8a6', trim: '#ffe600' },
+    { name: 'Zap',    suit: '#22c55e', trim: '#f4f2ff' },
+    { name: 'Specs',  suit: '#f59e0b', trim: '#3b82f6' },
+    { name: 'Twiggy', suit: '#f472b6', trim: '#3f9e4a' },
+    { name: 'Flame',  suit: '#ef4444', trim: '#ffe600' },
+    { name: 'Pippa',  suit: '#facc15', trim: '#ff8fb1' },
+    { name: 'Beats',  suit: '#ec4899', trim: '#2a2033' },
+    { name: 'Shadow', suit: '#111827', trim: '#ffd166' },
+  ];
+  const LEVELS = [
+    { name: 'BEGINNERS', react: 0.9, attackChance: 0.25, dodge: 0.0, combo: 0.0, dmg: 0.6, speed: 0.75 },
+    { name: 'MEDIUM',    react: 0.32, attackChance: 0.65, dodge: 0.45, combo: 0.35, dmg: 1.15, speed: 1.0 },
+    { name: 'PROS',      react: 0.2, attackChance: 0.8, dodge: 0.6, combo: 0.6, dmg: 1.15, speed: 1.1 },
+  ];
+  const ATTACKS = {
+    punch: { dmg: 5, reach: 96, period: 0.32 },
+    kick:  { dmg: 6, reach: 116, period: 0.38 },
+    high:  { dmg: 12, reach: 118, period: 0.5 },   // from the air, at the head
+    low:   { dmg: 8, reach: 112, period: 0.45 },   // from the ground, at the legs
+  };
+  const FLURRY = 3;          // "kick repetitively for 3 seconds"
+  const WALK = 190, JUMP_V = 560, GRAV = 1350, HIT_STUN = 0.35, KNOCK = 24;
+  const WORDS = ['POW!', 'BOOM!', 'BIFF!', 'ZAP!', 'WHAM!', 'BONK!'];
+
+  const heads = new Image(); heads.src = 'heads.png';
+
+  // ------------------------------------------------------------ state
+  let level = 0, youIdx = null, foeIdx = null;
+  let F = null;                       // the fight
+  let held = { left: false, right: false, crouch: false };
+  let lastJumpAt = -9, lastCrouchAt = -9;
+
+  function makeFighter(idx, x, facing, isYou) {
+    return {
+      idx, isYou, x, y: 0, vy: 0, facing, hp: 100,
+      crouch: false, walking: 0, stun: 0, ko: false,
+      attack: null, anim: 0, swing: 0, flash: 0,
+      koSpin: 0,
+    };
+  }
+  function newFight() {
+    F = {
+      you: makeFighter(youIdx, W * 0.32, 1, true),
+      foe: makeFighter(foeIdx, W * 0.68, -1, false),
+      round: 1, wins: [0, 0], t: 0,
+      phase: 'intro', phaseT: 0,       // intro -> fight -> roundEnd -> (intro | over)
+      bursts: [], ai: { next: 0, mode: 'idle', until: 0 },
+      result: null,
+    };
+    lastJumpAt = -9; lastCrouchAt = -9;
+    $('controls').hidden = false; $('quitBtn').hidden = false;
+    $('title').textContent = `${WARRIORS[youIdx].name.toUpperCase()} vs ${WARRIORS[foeIdx].name.toUpperCase()}`;
+    beep(440, 0.1, 'square', 0.05);
+  }
+  function resetRound() {
+    const y = F.you, f = F.foe;
+    y.x = W * 0.32; f.x = W * 0.68;
+    for (const p of [y, f]) {
+      p.y = 0; p.vy = 0; p.hp = 100; p.crouch = false; p.stun = 0; p.ko = false;
+      p.attack = null; p.walking = 0; p.koSpin = 0;
+    }
+    y.facing = 1; f.facing = -1;
+    F.bursts = [];
+    F.phase = 'intro'; F.phaseT = 0;
+  }
+
+  // ------------------------------------------------------------ actions
+  function startAttack(p, kind) {
+    if (p.ko || p.stun > 0 || F.phase !== 'fight') return;
+    const airborne = p.y < -2;
+    const recentJump = p.isYou && F.t - lastJumpAt < 0.2;
+    const recentCrouch = p.isYou && F.t - lastCrouchAt < 0.2;
+    let variant = kind;
+    if (airborne || recentJump) variant = 'high';
+    else if (p.crouch || recentCrouch) variant = 'low';
+    p.attack = { kind, variant, until: F.t + FLURRY, nextSwing: F.t, swings: 0 };
+    p.swing = 0;
+  }
+  function jump(p) {
+    if (p.ko || p.stun > 0 || F.phase !== 'fight' || p.y < -2) return;
+    p.vy = -JUMP_V; p.crouch = false;
+    if (p.isYou) lastJumpAt = F.t;
+    // an attack already going becomes an aerial one — "jump and kick at the same time"
+    if (p.attack && p.attack.variant !== 'high' && F.t - (p.attack.until - FLURRY) < 0.25) {
+      p.attack.variant = 'high'; p.attack.nextSwing = F.t;
+    }
+    beep(300, 0.08, 'triangle', 0.04);
+  }
+  function setCrouch(p, on) {
+    if (p.ko) return;
+    if (on && p.y < -2) return;
+    if (on && !p.crouch && p.isYou) lastCrouchAt = F.t;
+    p.crouch = on;
+    if (on && p.attack && p.attack.variant !== 'low' && F.t - (p.attack.until - FLURRY) < 0.25) {
+      p.attack.variant = 'low'; p.attack.nextSwing = F.t;
+    }
+  }
+
+  // ------------------------------------------------------------ simulation
+  function step(dt) {
+    if (!F) return;
+    F.t += dt; F.phaseT += dt;
+    const y = F.you, f = F.foe;
+
+    if (F.phase === 'intro') {
+      if (F.phaseT > 1.9) { F.phase = 'fight'; F.phaseT = 0; bell(); }
+    } else if (F.phase === 'roundEnd') {
+      if (F.phaseT > 2.2) {
+        if (F.wins[0] === 2 || F.wins[1] === 2) endMatch();
+        else { F.round++; resetRound(); }
+      }
+    }
+
+    // face each other
+    y.facing = f.x > y.x ? 1 : -1; f.facing = -y.facing;
+
+    if (F.phase === 'fight') {
+      // your intentions
+      y.walking = (held.right ? 1 : 0) - (held.left ? 1 : 0);
+      if (y.crouch !== held.crouch) setCrouch(y, held.crouch);
+      thinkAI(dt);
+    } else { y.walking = 0; f.walking = 0; }
+
+    for (const p of [y, f]) {
+      const other = p === y ? f : y;
+      p.stun = Math.max(0, p.stun - dt);
+      p.flash = Math.max(0, p.flash - dt);
+      p.anim += dt;
+      if (p.ko) { p.koSpin += dt; continue; }
+
+      // moving
+      if (p.stun <= 0 && !p.crouch && F.phase === 'fight') {
+        const spd = p.isYou ? WALK : WALK * LEVELS[level].speed;
+        p.x += p.walking * spd * dt;
+      }
+      // gravity
+      p.vy += GRAV * dt; p.y += p.vy * dt;
+      if (p.y > 0) { p.y = 0; p.vy = 0; }
+      // don't stand inside each other
+      const gap = other.x - p.x;
+      if (Math.abs(gap) < 72) p.x = other.x - Math.sign(gap || p.facing) * 72;
+      p.x = clamp(p.x, 60, W - 60);
+
+      // the flurry
+      if (p.attack) {
+        const a = p.attack;
+        if (F.t > a.until || p.stun > 0) { p.attack = null; continue; }
+        if (a.variant === 'high' && p.y >= -2) { a.variant = a.kind; }   // landed: back to normal swings
+        const spec = ATTACKS[a.variant];
+        p.swing = clamp(1 - (a.nextSwing - F.t) / spec.period, 0, 1);
+        if (F.t >= a.nextSwing) {
+          a.nextSwing = F.t + spec.period; a.swings++;
+          tryHit(p, other, a.variant);
+        }
+      }
+    }
+    // bursts
+    F.bursts = F.bursts.filter((b) => (b.life -= dt) > 0);
+  }
+
+  function tryHit(p, o, variant) {
+    if (o.ko || F.phase !== 'fight') return;
+    const spec = ATTACKS[variant];
+    const dx = (o.x - p.x) * p.facing;              // positive = in front of me
+    if (dx < 0 || dx > spec.reach) { whiff(p); return; }
+    // dodges: crouching ducks a head attack, jumping hops over a leg sweep,
+    // and a big jump clears an ordinary punch too
+    if (variant === 'high' && o.crouch) { whiff(p); return; }
+    if (variant === 'low' && o.y < -30) { whiff(p); return; }
+    if ((variant === 'punch' || variant === 'kick') && o.y < -70) { whiff(p); return; }
+
+    const mult = p.isYou ? 1 : LEVELS[level].dmg;
+    const dmg = Math.round(spec.dmg * mult);
+    o.hp = Math.max(0, o.hp - dmg);
+    o.stun = HIT_STUN; o.flash = 0.25; o.attack = null; o.crouch = false;
+    o.x += p.facing * KNOCK;
+    const hy = variant === 'high' ? -175 : variant === 'low' ? -40 : -110;
+    F.bursts.push({ x: o.x, y: GROUND + hy + o.y, life: 0.55, word: WORDS[Math.floor(Math.random() * WORDS.length)],
+                    big: variant === 'high' || variant === 'low', col: p.isYou ? '#ffe600' : '#ff8fb1' });
+    beep(variant === 'high' ? 220 : variant === 'low' ? 160 : 260, 0.12, 'square', 0.06);
+    if (o.hp <= 0) roundOver(p);
+  }
+  function whiff(p) { if (p.attack && p.attack.swings === 1) beep(700, 0.03, 'triangle', 0.02); }
+
+  function roundOver(winner) {
+    const loser = winner === F.you ? F.foe : F.you;
+    loser.ko = true; loser.attack = null; winner.attack = null;
+    F.wins[winner.isYou ? 0 : 1]++;
+    F.phase = 'roundEnd'; F.phaseT = 0;
+    if (winner.isYou) chime([523, 659, 784]); else chime([392, 330, 262]);
+  }
+  function endMatch() {
+    const won = F.wins[0] === 2;
+    F.result = won ? 'won' : 'lost'; F.phase = 'over';
+    $('controls').hidden = true;
+    $('endTitle').textContent = won ? 'YOU WIN!' : 'THEY WIN!';
+    $('endTitle').style.color = won ? 'var(--green)' : 'var(--pink)';
+    $('hosp').className = 'hosp ' + (won ? 'won' : 'lost');
+    $('endBody').textContent = won
+      ? `${WARRIORS[foeIdx].name} went to hospital and they were fine! ${F.wins[0]}–${F.wins[1]}.`
+      : `You went to hospital and you were fine! ${F.wins[0]}–${F.wins[1]}. Have another go?`;
+    $('endCard').hidden = false;
+  }
+
+  // ------------------------------------------------------------ the enemy
+  function thinkAI(dt) {
+    const f = F.foe, y = F.you, L = LEVELS[level], ai = F.ai;
+    if (f.ko || f.stun > 0) { f.walking = 0; return; }
+    // reflexes: react to what you're doing, if it's that kind of enemy
+    if (y.attack && Math.abs(y.x - f.x) < 130 && F.t > ai.dodgeAt) {
+      ai.dodgeAt = F.t + 0.6;
+      if (Math.random() < L.dodge) {
+        if (y.attack.variant === 'high') { setCrouch(f, true); ai.mode = 'duck'; ai.until = F.t + 0.55; }
+        else if (y.attack.variant === 'low') { jump(f); ai.mode = 'hop'; ai.until = F.t + 0.4; }
+      }
+    }
+    if (ai.mode === 'duck') { if (F.t > ai.until) { setCrouch(f, false); ai.mode = 'idle'; } return; }
+    if (ai.mode === 'hop') { if (F.t > ai.until) ai.mode = 'idle'; f.walking = 0; return; }
+
+    if (F.t < ai.next) return;
+    ai.next = F.t + L.react * (0.7 + Math.random() * 0.6);
+    const dist = Math.abs(y.x - f.x), toward = Math.sign(y.x - f.x);
+    if (ai.mode === 'back') { f.walking = -toward; if (F.t > ai.until) ai.mode = 'idle'; return; }
+    if (dist > 105) { f.walking = toward; return; }
+    f.walking = 0;
+    if (f.attack) return;
+    if (Math.random() < L.attackChance) {
+      const kind = Math.random() < 0.5 ? 'kick' : 'punch';
+      if (Math.random() < L.combo) {
+        if (Math.random() < 0.5) { jump(f); startAttack(f, kind); }
+        else { setCrouch(f, true); startAttack(f, kind); ai.mode = 'duck'; ai.until = F.t + 0.9; }
+      } else startAttack(f, kind);
+    } else if (Math.random() < 0.25) { ai.mode = 'back'; ai.until = F.t + 0.35; }
+  }
+
+  // ------------------------------------------------------------ drawing
+  const cv = $('cv'), g = cv.getContext('2d');
+  // view.s scales world units to canvas pixels; the camera picks which slice
+  // of the 900-wide world is on screen. vw is how much world fits across.
+  let view = { s: 1, oy: 0, vw: W, cam: W / 2 };
+  function resize() {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const cw = $('stage').clientWidth, ch = $('stage').clientHeight;
+    cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+    // fit the height; if that would show more than the whole world, fit the width instead
+    let s = ch / H;
+    if (W * s < cw) s = cw / W;
+    view.s = s * dpr;
+    view.vw = cw / s;
+    view.oy = (ch - H * s) / 2 * dpr;
+  }
+  function updateCamera() {
+    const half = view.vw / 2;
+    const want = F ? (F.you.x + F.foe.x) / 2 : W / 2;
+    const target = clamp(want, half, W - half);
+    view.cam += (target - view.cam) * 0.12;
+  }
+  addEventListener('resize', () => setTimeout(resize, 50));
+
+  function render() {
+    updateCamera();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#12042e'; g.fillRect(0, 0, cv.width, cv.height);
+    // world space: the camera slides the world so its centre sits mid-screen
+    const left = view.cam - view.vw / 2;
+    g.setTransform(view.s, 0, 0, view.s, -left * view.s, view.oy);
+    drawArena();
+    if (F) {
+      const order = F.you.y < F.foe.y ? [F.foe, F.you] : [F.you, F.foe];
+      order.forEach(drawFighter);
+      for (const b of F.bursts) drawBurst(b);
+    } else drawIdlePair();
+    // screen space: the HUD stays put however the camera moves
+    g.setTransform(view.s, 0, 0, view.s, 0, view.oy);
+    if (F) { drawHUD(); drawBanner(); }
+  }
+  function drawArena() {
+    // sky and floor run past the world's edges so there are never blank bands
+    const top = -view.oy / view.s, bottom = (cv.height - view.oy) / view.s;
+    const sky = g.createLinearGradient(0, top, 0, GROUND);
+    sky.addColorStop(0, '#12042e'); sky.addColorStop(1, '#2a0f5e');
+    g.fillStyle = sky; g.fillRect(-W, top, W * 3, GROUND - top);
+    // spotlights
+    for (const [x, c] of [[W * 0.2, 'rgba(255,46,136,0.12)'], [W * 0.8, 'rgba(0,240,255,0.12)']]) {
+      g.fillStyle = c; g.beginPath(); g.moveTo(x, 0); g.lineTo(x - 180, GROUND); g.lineTo(x + 180, GROUND); g.closePath(); g.fill();
+    }
+    // stars
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < 40; i++) g.fillRect((i * 137) % W, (i * 89) % (GROUND - 60), 2, 2);
+    // ring floor
+    g.fillStyle = '#3d2159'; g.fillRect(-W, GROUND, W * 3, bottom - GROUND);
+    g.fillStyle = '#5a2f86'; g.fillRect(-W, GROUND, W * 3, 8);
+    g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 2;
+    for (let x = -W; x < W * 2; x += 60) { g.beginPath(); g.moveTo(x, GROUND + 8); g.lineTo(x - 60, bottom); g.stroke(); }
+    // the ring's ends, so you can see where the world stops
+    g.fillStyle = 'rgba(255,46,136,0.5)'; g.fillRect(-6, GROUND - 120, 6, 128); g.fillRect(W, GROUND - 120, 6, 128);
+  }
+  function drawIdlePair() {
+    if (youIdx == null) return;
+    drawFighter(makeFighter(youIdx, W * 0.32, 1, true));
+    if (foeIdx != null) drawFighter(makeFighter(foeIdx, W * 0.68, -1, false));
+  }
+
+  // A fighter: Flo's head on a simple body. Everything is relative to the
+  // feet at (x, GROUND + y), and flips with `facing`.
+  function drawFighter(p) {
+    const wr = WARRIORS[p.idx], hm = HEADS[p.idx];
+    const bob = p.ko ? 0 : Math.sin(p.anim * 6) * 2;
+    const crouch = p.crouch && !p.ko ? 1 : 0;
+    const legH = 62 - crouch * 30, torsoH = 74 - crouch * 14;
+    const feetY = GROUND + p.y;
+    const hipY = feetY - legH, shoulderY = hipY - torsoH + 8, neckY = hipY - torsoH;
+    const f = p.facing;
+    const a = p.attack, sw = a ? Math.sin(p.swing * Math.PI) : 0;   // 0..1..0 over a swing
+    const hitLean = p.stun > 0 ? -f * 14 : 0;
+    const walkA = p.walking && p.y === 0 && !p.crouch ? Math.sin(p.anim * 14) : 0;
+
+    g.save();
+    g.translate(p.x + hitLean, 0);
+    if (p.ko) { g.translate(0, 34); g.rotate(-f * 0.18); }
+    if (p.flash > 0) g.globalAlpha = 0.55 + Math.sin(p.flash * 60) * 0.45;
+
+    // shadow
+    g.fillStyle = 'rgba(0,0,0,0.35)';
+    g.beginPath(); g.ellipse(-hitLean, GROUND + 6, 44 + p.y * 0.1, 9, 0, 0, Math.PI * 2); g.fill();
+
+    g.lineCap = 'round';
+    // legs
+    g.strokeStyle = wr.suit; g.lineWidth = 15;
+    const kicking = a && (a.variant === 'kick' || (a.variant === 'high' && a.kind === 'kick') || (a.variant === 'low' && a.kind === 'kick'));
+    const backLegX = -f * 12, frontLegX = f * 12;
+    if (p.ko) {
+      leg(backLegX, hipY, -f * 30, feetY - 6); leg(frontLegX, hipY, f * 40, feetY - 6);
+    } else if (p.y < -2) {                                 // in the air: tucked or kicking
+      leg(backLegX, hipY, backLegX - f * 14, hipY + legH * 0.55);
+      if (kicking && a.variant === 'high') leg(frontLegX, hipY, f * (30 + sw * 70), hipY + 14 + sw * 6);
+      else leg(frontLegX, hipY, frontLegX + f * 12, hipY + legH * 0.6);
+    } else if (kicking && a.variant === 'low') {           // sweep along the floor
+      leg(backLegX, hipY, backLegX - f * 10, feetY);
+      leg(frontLegX, hipY, f * (20 + sw * 78), feetY - 4);
+    } else if (kicking) {
+      leg(backLegX, hipY, backLegX, feetY);
+      leg(frontLegX, hipY, f * (14 + sw * 78), hipY + 10 - sw * 8);
+    } else {
+      leg(backLegX, hipY, backLegX - walkA * 16, feetY);
+      leg(frontLegX, hipY, frontLegX + walkA * 16, feetY);
+    }
+    // feet
+    g.fillStyle = wr.trim;
+    // torso
+    g.fillStyle = wr.suit;
+    rr(-24, neckY, 48, torsoH + 6, 14); g.fill();
+    g.fillStyle = wr.trim; rr(-24, hipY - 12, 48, 10, 4); g.fill();     // belt
+    // arms
+    g.strokeStyle = wr.suit; g.lineWidth = 13;
+    const punching = a && !kicking;
+    const backArmX = -f * 18, frontArmX = f * 18;
+    if (p.ko) {
+      arm(backArmX, shoulderY, -f * 36, hipY + 10); arm(frontArmX, shoulderY, f * 40, hipY + 6);
+    } else if (punching && a.variant === 'high') {
+      arm(backArmX, shoulderY, backArmX - f * 10, shoulderY + 30);
+      arm(frontArmX, shoulderY, f * (24 + sw * 72), shoulderY - 10 - sw * 14);
+    } else if (punching && a.variant === 'low') {
+      arm(backArmX, shoulderY, backArmX - f * 8, shoulderY + 34);
+      arm(frontArmX, shoulderY, f * (22 + sw * 74), hipY + 8 + sw * 10);
+    } else if (punching) {
+      arm(backArmX, shoulderY, backArmX - f * 6, shoulderY + 36);
+      arm(frontArmX, shoulderY, f * (22 + sw * 74), shoulderY + 6 - sw * 4);
+    } else {
+      // guard up
+      arm(backArmX, shoulderY, backArmX + f * 6, shoulderY + 38 - walkA * 6);
+      arm(frontArmX, shoulderY, frontArmX + f * 16, shoulderY + 22 + walkA * 6);
+    }
+    // head — her drawing. Wide as a face; tall extras hang down.
+    if (heads.complete && heads.naturalWidth) {
+      const dw = 98, dh = hm.h * (dw / hm.w);
+      const faceH = Math.min(dh, 110);
+      const top = neckY - faceH + 6 + bob;
+      g.drawImage(heads, hm.x, hm.y, hm.w, hm.h, -dw / 2, top, dw, dh);
+    }
+    if (p.ko) {   // dizzy stars, not blood
+      g.fillStyle = '#ffe600'; g.font = 'bold 22px Inter, sans-serif'; g.textAlign = 'center';
+      for (let i = 0; i < 3; i++) {
+        const an = p.koSpin * 4 + i * 2.1;
+        g.fillText('★', Math.cos(an) * 46, neckY - 70 + Math.sin(an) * 12);
+      }
+    }
+    g.restore();
+
+    function leg(x1, y1, x2, y2) {
+      g.strokeStyle = wr.suit; g.lineWidth = 15; line(x1, y1, x2, y2);
+      g.fillStyle = wr.trim; g.beginPath(); g.ellipse(x2 + f * 4, y2 + 2, 15, 8, 0, 0, Math.PI * 2); g.fill();
+    }
+    function arm(x1, y1, x2, y2) {
+      g.strokeStyle = wr.suit; g.lineWidth = 13; line(x1, y1, x2, y2);
+      g.fillStyle = '#f6cba4'; g.beginPath(); g.arc(x2, y2, 10, 0, Math.PI * 2); g.fill();
+    }
+  }
+  function line(x1, y1, x2, y2) { g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  function rr(x, y, w, h, r) {
+    g.beginPath(); g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  function drawBurst(b) {
+    const k = 1 - b.life / 0.55;
+    g.save(); g.translate(b.x, b.y - k * 30); g.rotate(-0.15);
+    g.globalAlpha = 1 - k * k;
+    const s = (b.big ? 1.35 : 1) * (1 + k * 0.4);
+    g.scale(s, s);
+    g.fillStyle = b.col; g.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const r = i % 2 ? 30 : 44, an = i / 12 * Math.PI * 2;
+      g.lineTo(Math.cos(an) * r, Math.sin(an) * r);
+    }
+    g.closePath(); g.fill();
+    g.fillStyle = '#2a2033'; g.font = 'bold 15px "Press Start 2P", monospace'; g.textAlign = 'center';
+    g.fillText(b.word, 0, 6);
+    g.restore();
+  }
+  function drawHUD() {
+    const VW = view.vw, BW = Math.min(300, (VW - 70) / 2);
+    const bar = (p, right) => {
+      const x = right ? VW - 20 - BW : 20, y = 16;
+      g.fillStyle = 'rgba(6,1,16,0.7)'; rr(x - 4, y - 4, BW + 8, 30, 8); g.fill();
+      g.fillStyle = '#4a2a6b'; g.fillRect(x, y, BW, 22);
+      const w = BW * p.hp / 100;
+      g.fillStyle = p.hp > 50 ? '#3dff8b' : p.hp > 25 ? '#ffe600' : '#ff5a5a';
+      g.fillRect(right ? x + BW - w : x, y, w, 22);
+      const nm = WARRIORS[p.idx].name.toUpperCase() + (p.isYou ? ' (YOU)' : '');
+      g.fillStyle = '#efe9ff'; g.textAlign = right ? 'right' : 'left';
+      g.font = Math.min(9, (BW - 10) / nm.length) + 'px "Press Start 2P", monospace';
+      g.fillText(nm, right ? x + BW - 4 : x + 4, y + 16);
+      for (let i = 0; i < 2; i++) {
+        g.fillStyle = i < F.wins[p.isYou ? 0 : 1] ? '#ffe600' : 'rgba(255,255,255,0.2)';
+        g.beginPath(); g.arc(right ? x + BW - 10 - i * 22 : x + 10 + i * 22, y + 38, 7, 0, Math.PI * 2); g.fill();
+      }
+    };
+    bar(F.you, false); bar(F.foe, true);
+    const label = 'ROUND ' + F.round + ' · BEST OF 3 · ' + LEVELS[level].name;
+    g.fillStyle = '#a396c9'; g.textAlign = 'center';
+    g.font = Math.min(9, (VW - 24) / label.length) + 'px "Press Start 2P", monospace';   // never wider than the screen
+    g.fillText(label, VW / 2, 68);
+  }
+  function drawBanner() {
+    let text = null, col = '#ffe600';
+    if (F.phase === 'intro') {
+      text = F.phaseT < 1.2 ? (F.round === 3 ? 'FINAL ROUND' : 'ROUND ' + F.round) : 'FIGHT!';
+      if (F.phaseT >= 1.2) col = '#ff2e88';
+    } else if (F.phase === 'roundEnd') {
+      const youWon = !F.you.ko;
+      text = youWon ? 'YOU WON THE ROUND!' : 'THEY WON THE ROUND!';
+      col = youWon ? '#3dff8b' : '#ff8fb1';
+    }
+    if (!text) return;
+    const pop = Math.min(1, F.phaseT * 4);
+    g.save(); g.translate(view.vw / 2, H * 0.42); g.scale(pop, pop);
+    const size = Math.min(text.length > 12 ? 24 : 40, view.vw / (text.length * 1.15));
+    g.font = size + 'px "Press Start 2P", monospace'; g.textAlign = 'center';
+    g.lineWidth = 8; g.strokeStyle = '#1a0f38'; g.strokeText(text, 0, 0);
+    g.fillStyle = col; g.fillText(text, 0, 0);
+    g.restore();
+  }
+
+  // ------------------------------------------------------------ loop
+  let last = performance.now();
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.05, (now - last) / 1000 || 0);
+    last = now;
+    if (F && F.phase !== 'over') step(dt);
+    render();
+  }
+
+  // ------------------------------------------------------------ sound
+  let ac = null;
+  function audio() { if (!ac) { try { ac = new (AudioContext || webkitAudioContext)(); } catch {} } return ac; }
+  function beep(f, dur, type, vol) {
+    const a = audio(); if (!a) return;
+    const o = a.createOscillator(), gn = a.createGain();
+    o.type = type || 'square'; o.frequency.value = f;
+    gn.gain.setValueAtTime(vol || 0.05, a.currentTime);
+    gn.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    o.connect(gn); gn.connect(a.destination); o.start(); o.stop(a.currentTime + dur);
+  }
+  function chime(notes) { notes.forEach((f, i) => setTimeout(() => beep(f, 0.25, 'triangle', 0.06), i * 110)); }
+  function bell() { beep(880, 0.4, 'sine', 0.07); setTimeout(() => beep(880, 0.5, 'sine', 0.05), 160); }
+
+  // ------------------------------------------------------------ input
+  const ACT = {
+    left:  { down: () => { held.left = true; }, up: () => { held.left = false; } },
+    right: { down: () => { held.right = true; }, up: () => { held.right = false; } },
+    crouch:{ down: () => { held.crouch = true; }, up: () => { held.crouch = false; } },
+    jump:  { down: () => { if (F) jump(F.you); }, up: () => {} },
+    kick:  { down: () => { if (F) startAttack(F.you, 'kick'); }, up: () => {} },
+    punch: { down: () => { if (F) startAttack(F.you, 'punch'); }, up: () => {} },
+  };
+  for (const b of document.querySelectorAll('#controls [data-act]')) {
+    const act = b.dataset.act;
+    const down = (e) => { e.preventDefault(); audio(); b.classList.add('down'); ACT[act].down(); };
+    const up = (e) => { b.classList.remove('down'); ACT[act].up(); };
+    b.addEventListener('pointerdown', down);
+    b.addEventListener('pointerup', up);
+    b.addEventListener('pointercancel', up);
+    b.addEventListener('pointerleave', up);
+    b.addEventListener('lostpointercapture', up);
+  }
+  const KEYS = {
+    ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+    ArrowUp: 'jump', KeyW: 'jump', Space: 'jump', ArrowDown: 'crouch', KeyS: 'crouch',
+    KeyZ: 'kick', KeyJ: 'kick', KeyX: 'punch', KeyK: 'punch',
+  };
+  const keyDown = new Set();
+  addEventListener('keydown', (e) => {
+    const act = KEYS[e.code]; if (!act || !F) return;
+    e.preventDefault();
+    if (keyDown.has(e.code)) return;
+    keyDown.add(e.code); audio(); ACT[act].down();
+  });
+  addEventListener('keyup', (e) => {
+    const act = KEYS[e.code]; if (!act) return;
+    keyDown.delete(e.code); ACT[act].up();
+  });
+
+  // ------------------------------------------------------------ screens
+  $('levels').addEventListener('click', (e) => {
+    const b = e.target.closest('.lvl'); if (!b) return;
+    level = +b.dataset.lvl;
+    [...$('levels').children].forEach((c) => c.classList.toggle('on', c === b));
+  });
+  $('toPick').addEventListener('click', () => { $('levelCard').hidden = true; $('pickCard').hidden = false; });
+  $('backToLevel').addEventListener('click', () => { $('pickCard').hidden = true; $('levelCard').hidden = false; });
+
+  (function buildRoster() {
+    const r = $('roster');
+    WARRIORS.forEach((w, i) => {
+      const b = document.createElement('button');
+      b.className = 'w'; b.type = 'button'; b.dataset.i = i;
+      b.style.backgroundPosition = `${(i % 4) * 100 / 3}% ${Math.floor(i / 4) * 50}%`;
+      b.innerHTML = `<span class="nm">${w.name}</span><span class="tag"></span>`;
+      b.addEventListener('click', () => pick(i));
+      r.appendChild(b);
+    });
+  })();
+  function pick(i) {
+    if (youIdx == null) youIdx = i;
+    else if (foeIdx == null && i !== youIdx) foeIdx = i;
+    else if (i === youIdx) { youIdx = foeIdx; foeIdx = null; }
+    else if (i === foeIdx) { foeIdx = null; }
+    else { foeIdx = i; }
+    refreshRoster();
+  }
+  function refreshRoster() {
+    [...$('roster').children].forEach((b, i) => {
+      b.classList.toggle('you', i === youIdx); b.classList.toggle('foe', i === foeIdx);
+      b.querySelector('.tag').textContent = i === youIdx ? 'YOU' : i === foeIdx ? 'ENEMY' : '';
+    });
+    $('pickHint').textContent = youIdx == null ? 'Tap the one YOU want to be.'
+      : foeIdx == null ? `You're ${WARRIORS[youIdx].name}! Now tap your ENEMY.`
+      : `${WARRIORS[youIdx].name} vs ${WARRIORS[foeIdx].name}. Ready?`;
+    $('fightBtn').disabled = youIdx == null || foeIdx == null;
+  }
+  $('fightBtn').addEventListener('click', () => { $('pickCard').hidden = true; audio(); newFight(); });
+  $('againBtn').addEventListener('click', () => { $('endCard').hidden = true; newFight(); });
+  $('pickAgainBtn').addEventListener('click', () => {
+    $('endCard').hidden = true; F = null; $('controls').hidden = true; $('quitBtn').hidden = true;
+    $('title').textContent = 'BOOM'; $('pickCard').hidden = false;
+  });
+  $('quitBtn').addEventListener('click', () => {
+    F = null; $('controls').hidden = true; $('quitBtn').hidden = true;
+    $('title').textContent = 'BOOM'; $('levelCard').hidden = false;
+  });
+
+  resize(); requestAnimationFrame(frame);
+  heads.addEventListener('load', render);
+
+  // Test hook.
+  window.__boom = {
+    warriors: () => WARRIORS.map((w) => w.name),
+    levels: () => LEVELS.map((l) => l.name),
+    setup(lvl, you, foe) {
+      level = lvl; youIdx = you; foeIdx = foe;
+      $('levelCard').hidden = true; $('pickCard').hidden = true; $('endCard').hidden = true;
+      newFight();
+    },
+    skipIntro() { if (F && F.phase === 'intro') { F.phase = 'fight'; F.phaseT = 0; } },
+    press: (act) => ACT[act].down(), release: (act) => ACT[act].up(),
+    step(dt, n = 1) { for (let i = 0; i < n; i++) step(dt); },
+    state: () => F && {
+      phase: F.phase, round: F.round, wins: F.wins.slice(), result: F.result, t: +F.t.toFixed(2),
+      you: { x: Math.round(F.you.x), y: Math.round(F.you.y), hp: F.you.hp, crouch: F.you.crouch, ko: F.you.ko,
+             attack: F.you.attack && { kind: F.you.attack.kind, variant: F.you.attack.variant, swings: F.you.attack.swings } },
+      foe: { x: Math.round(F.foe.x), y: Math.round(F.foe.y), hp: F.foe.hp, crouch: F.foe.crouch, ko: F.foe.ko,
+             attack: F.foe.attack && { kind: F.foe.attack.kind, variant: F.foe.attack.variant } },
+      bursts: F.bursts.length,
+    },
+    placeFoe(x) { if (F) F.foe.x = x; },
+    // drive the enemy by hand, so dodges can be tested without luck
+    foe: {
+      attack: (kind) => { if (F) startAttack(F.foe, kind); },
+      jump: () => { if (F) jump(F.foe); },
+      crouch: (on) => { if (F) setCrouch(F.foe, on); },
+    },
+    freezeAI(v) { if (F) F.ai.next = v ? 1e9 : 0; },
+    headsLoaded: () => heads.complete && heads.naturalWidth > 0,
+    render,
+  };
+  </script>
+</body>
+</html>
