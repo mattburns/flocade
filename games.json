@@ -310,5 +310,11 @@
     "title": "Stuck At The Store",
     "icon": "🛍️",
     "description": "Locked in the boutique 'till morning! Your only hope: dress every mannequin in cute kawaii tops, frilly shorts, skirts and shoes — once they're all dressed, you're released!"
+  },
+  {
+    "slug": "schoolrun",
+    "title": "SchoolRun",
+    "icon": "🚲",
+    "description": "First-person bike ride to school! Dodge swerving drivers, opening car doors and drivers on their phones, and wave at friends walking, scooting, running and skating in for an energy boost. Make the 08:50 bell if you can — but if you're late, the teachers only care that you got there safely."
   }
 ]

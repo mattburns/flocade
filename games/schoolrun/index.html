@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SchoolRun — Flocade</title>
+  <link rel="stylesheet" href="../../fonts/fonts.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0221; --bg2: #1a0b3d;
+      --pink: #ff2e88; --cyan: #00f0ff; --yellow: #ffe600;
+      --text: #e8e6f0; --dim: #9b93b8;
+    }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      user-select: none; -webkit-user-select: none;
+      touch-action: none; -webkit-tap-highlight-color: transparent;
+      position: fixed; inset: 0;
+    }
+    canvas#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .pixel { font-family: 'Press Start 2P', monospace; }
+
+    a.back {
+      position: absolute; top: 10px; left: 12px; z-index: 40;
+      color: var(--cyan); font-family: 'Press Start 2P', monospace;
+      font-size: 0.6rem; text-decoration: none; text-shadow: 0 2px 6px #000;
+    }
+    a.back:hover { color: var(--pink); }
+    .iconbtn {
+      position: absolute; top: 6px; right: 12px; z-index: 40;
+      background: rgba(13,2,33,0.6); border: 2px solid var(--pink);
+      border-radius: 50%; width: 40px; height: 40px; font-size: 1rem;
+      cursor: pointer; color: var(--text);
+    }
+
+    /* ---------- HUD ---------- */
+    #hud {
+      position: absolute; inset: 0; z-index: 12; pointer-events: none;
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 0.45rem;
+      font-family: 'Press Start 2P', monospace; text-shadow: 0 2px 6px #000;
+    }
+    #clock { color: var(--yellow); font-size: clamp(1.3rem, 5vw, 2rem); line-height: 1; }
+    #clock.late { color: var(--pink); }
+    #bellNote { color: var(--dim); font-size: 0.5rem; margin-top: 0.35rem; }
+    #bellNote b { color: var(--cyan); font-weight: normal; }
+    #energyWrap {
+      margin-top: 0.5rem; width: min(240px, 62vw); height: 12px;
+      background: rgba(0,0,0,0.55); border: 1px solid var(--cyan); border-radius: 7px; overflow: hidden;
+      position: relative;
+    }
+    #energyFill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--cyan), var(--yellow)); transition: width 0.1s linear; }
+    #energyWrap.full { box-shadow: 0 0 14px var(--cyan); }
+    #energyLabel { font-size: 0.42rem; color: var(--dim); margin-top: 3px; }
+    #stats { display: flex; gap: 1.2rem; margin-top: 0.4rem; font-size: 0.6rem; }
+    #stats .w { color: var(--cyan); }
+    #stats .b { color: var(--pink); }
+    #stats .pb { color: var(--dim); }
+    #msg {
+      position: absolute; left: 0; right: 0; top: 34%; text-align: center;
+      font-size: clamp(0.8rem, 3.4vw, 1.3rem); color: #fff; line-height: 1.6;
+      text-shadow: 0 0 12px var(--pink), 3px 3px 0 #000; padding: 0 1rem;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    #msg.show { opacity: 1; }
+    #msg.good { color: var(--cyan); text-shadow: 0 0 12px var(--cyan), 3px 3px 0 #000; }
+    #msg.bad { color: var(--yellow); }
+    #progress {
+      position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+      width: min(300px, 56vw); height: 8px; background: rgba(0,0,0,0.55);
+      border: 1px solid var(--pink); border-radius: 5px;
+    }
+    #progFill { height: 100%; width: 0%; background: var(--pink); border-radius: 5px; transition: width 0.15s linear; }
+    #progress .school { position: absolute; right: -14px; top: -16px; font-size: 1.2rem; }
+    #progress .bike { position: absolute; left: 0; top: -14px; font-size: 0.95rem; transform: translateX(-50%); transition: left 0.15s linear; }
+
+    /* ---------- touch controls ---------- */
+    #controls { position: absolute; inset: 0; z-index: 14; pointer-events: none; }
+    #controls button {
+      position: absolute; bottom: 36px; pointer-events: auto;
+      background: rgba(13,2,33,0.55); color: var(--text); border-radius: 18px;
+      font-family: 'Press Start 2P', monospace; font-size: 0.65rem; line-height: 1.5;
+      padding: 0.8rem 1rem; cursor: pointer; min-width: 92px; min-height: 64px;
+      touch-action: none;
+    }
+    #brakeBtn { left: 16px; border: 2px solid var(--yellow); color: var(--yellow); }
+    #waveBtn { right: 16px; border: 2px solid var(--cyan); color: var(--cyan); font-size: 0.8rem; }
+    #waveBtn.ready { background: var(--cyan); color: #0d0221; box-shadow: 0 0 20px var(--cyan); }
+    #controls button:active { filter: brightness(1.3); }
+    #controls.hidden { display: none !important; }
+
+    /* ---------- overlay screens ---------- */
+    .screen {
+      position: absolute; inset: 0; z-index: 30; overflow-y: auto;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.9rem; padding: 3rem 1rem 2rem; text-align: center;
+      background: rgba(13, 2, 33, 0.82);
+      background-image: radial-gradient(ellipse at 50% -10%, rgba(43,10,94,0.9) 0%, transparent 60%);
+    }
+    .hidden { display: none !important; }
+    .title {
+      font-family: 'Press Start 2P', monospace; line-height: 1.5;
+      font-size: clamp(1.5rem, 7vw, 2.8rem); color: var(--pink);
+      text-shadow: 0 0 18px rgba(255,46,136,0.6), 4px 4px 0 var(--cyan);
+    }
+    .title small { display: block; font-size: 0.4em; color: var(--cyan); text-shadow: none; margin-top: 0.4rem; }
+    .sub { color: var(--text); font-size: 0.95rem; max-width: 460px; line-height: 1.6; }
+    .sub b { color: var(--yellow); }
+    .heading { font-family: 'Press Start 2P', monospace; font-size: 0.9rem; color: var(--yellow); line-height: 1.6; }
+    .btn {
+      background: var(--pink); border: none; border-radius: 12px; color: #fff;
+      font-family: 'Press Start 2P', monospace; font-size: 0.85rem;
+      padding: 1rem 1.4rem; cursor: pointer; min-width: 220px;
+      box-shadow: 0 0 16px rgba(255,46,136,0.4);
+    }
+    .btn.alt { background: transparent; color: var(--cyan); border: 2px solid var(--cyan); box-shadow: none; }
+    .btn:hover { filter: brightness(1.12); }
+    .btnrow { display: flex; gap: 0.7rem; flex-wrap: wrap; justify-content: center; }
+    a.btn { text-decoration: none; display: inline-block; }
+
+    .pbbox {
+      font-family: 'Press Start 2P', monospace; color: var(--cyan); font-size: 0.75rem; line-height: 1.8;
+      border: 2px solid var(--cyan); border-radius: 12px; padding: 0.6rem 1.2rem; background: rgba(0,240,255,0.06);
+    }
+    .pbbox b { color: var(--yellow); font-size: 1.3rem; display: block; }
+    .board { width: min(420px, 92vw); text-align: left; }
+    .board h3 { font-family: 'Press Start 2P', monospace; font-size: 0.6rem; color: var(--dim); margin-bottom: 0.4rem; text-align: center; }
+    .board ol { list-style: none; counter-reset: row; }
+    .board li {
+      counter-increment: row; display: grid; grid-template-columns: 1.3rem 1fr auto; gap: 0.5rem;
+      font-size: 0.72rem; padding: 0.35rem 0.6rem; border-radius: 8px; background: rgba(26,11,61,0.7);
+      margin-bottom: 4px; align-items: center;
+    }
+    .board li::before { content: counter(row); font-family: 'Press Start 2P', monospace; color: var(--pink); font-size: 0.6rem; }
+    .board li .sc { font-family: 'Press Start 2P', monospace; color: var(--yellow); font-size: 0.7rem; }
+    .board li .d { color: var(--dim); }
+    .board li.new { outline: 2px solid var(--yellow); }
+    .board .empty { color: var(--dim); font-size: 0.8rem; text-align: center; }
+    .help { font-size: 0.78rem; color: var(--dim); line-height: 1.8; max-width: 480px; }
+    .help kbd {
+      font-family: 'Press Start 2P', monospace; font-size: 0.55rem; color: var(--text);
+      border: 1px solid var(--dim); border-radius: 5px; padding: 2px 5px; background: rgba(0,0,0,0.4);
+    }
+    .safety { font-size: 0.72rem; color: var(--dim); max-width: 420px; line-height: 1.5; }
+    .safety b { color: var(--pink); }
+
+    /* end screen */
+    #endTitle { font-size: clamp(1.1rem, 5vw, 1.8rem); }
+    .greeter { display: flex; align-items: center; gap: 0.8rem; max-width: 480px; }
+    .greeter canvas { width: 90px; height: 150px; flex: none; }
+    .bubble {
+      position: relative; background: #fff; color: #1a0b3d; border-radius: 14px; padding: 0.8rem 1rem;
+      font-size: 0.9rem; line-height: 1.5; text-align: left;
+    }
+    .bubble::before {
+      content: ''; position: absolute; left: -12px; top: 50%; margin-top: -8px;
+      border: 8px solid transparent; border-right-color: #fff; border-left: 0;
+    }
+    .bubble b { color: var(--pink); }
+    .bubble .who { display: block; font-size: 0.65rem; color: #6b5f8f; margin-top: 0.4rem; }
+    .scoretable { display: grid; grid-template-columns: 1fr auto; gap: 0.35rem 1.4rem; font-size: 0.8rem; min-width: min(320px, 86vw); text-align: left; }
+    .scoretable .lab { color: var(--dim); }
+    .scoretable .val { font-family: 'Press Start 2P', monospace; font-size: 0.65rem; color: var(--cyan); text-align: right; }
+    .scoretable .total { color: var(--yellow); font-size: 0.85rem; border-top: 1px solid var(--dim); padding-top: 0.4rem; }
+    .scoretable .total.val { font-size: 0.9rem; }
+    .newpb {
+      font-family: 'Press Start 2P', monospace; color: var(--yellow); font-size: 1rem;
+      text-shadow: 0 0 14px var(--yellow); animation: pop 0.6s ease infinite alternate;
+    }
+    @keyframes pop { from { transform: scale(1); } to { transform: scale(1.08); } }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <a class="back" href="../../">&larr; ARCADE</a>
+  <button id="soundBtn" class="iconbtn" title="Sound">🔊</button>
+
+  <div id="hud">
+    <div id="clock">08:30</div>
+    <div id="bellNote">BELL AT <b>08:50</b></div>
+    <div id="energyWrap"><div id="energyFill"></div></div>
+    <div id="energyLabel">ENERGY — WAVE AT FRIENDS TO FILL</div>
+    <div id="stats"><span class="w">👋 <span id="waveCount">0</span></span><span class="b">💥 <span id="bumpCount">0</span></span><span class="pb">PB <span id="pbHud">0</span></span></div>
+    <div id="msg"></div>
+    <div id="progress"><div id="progFill"></div><span class="bike" id="progBike">🚲</span><span class="school">🏫</span></div>
+  </div>
+
+  <div id="controls" class="hidden">
+    <button id="brakeBtn">BRAKE</button>
+    <button id="waveBtn">👋<br>WAVE</button>
+  </div>
+
+  <!-- ---------- title ---------- -->
+  <div id="title" class="screen">
+    <div class="title">SCHOOLRUN<small>BIKE TO SCHOOL. STAY SAFE. BEAT YOUR PB.</small></div>
+    <p class="sub">Pedal to school through the morning traffic. <b>Dodge the bad drivers</b> — swervers, door-openers and drivers on their phones — and <b>wave at friends</b> walking, scooting, running and skating to school. Every wave fills your energy for a speed boost!</p>
+    <div class="pbbox" id="titlePb">PERSONAL BEST<b>—</b>no rides yet</div>
+    <button class="btn" id="startBtn">RIDE!</button>
+    <div class="help">
+      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer &nbsp;·&nbsp; <kbd>SPACE</kbd> wave &nbsp;·&nbsp; <kbd>&darr;</kbd> brake<br>
+      On a phone: hold left or right of the screen to steer, tap the buttons to wave and brake.
+    </div>
+    <div class="board" id="titleBoard"></div>
+    <p class="safety"><b>Scores only!</b> The clock is just for the game — in real life a safe ride always beats a fast one. Helmet on, hands on the bars, and wave when you've stopped. 🚲</p>
+  </div>
+
+  <!-- ---------- end ---------- -->
+  <div id="end" class="screen hidden">
+    <div class="title" id="endTitle">MADE IT!</div>
+    <div class="greeter">
+      <canvas id="greeterCanvas" width="90" height="150"></canvas>
+      <div class="bubble" id="endBubble"></div>
+    </div>
+    <div class="newpb hidden" id="newPb">★ NEW PERSONAL BEST! ★</div>
+    <div class="scoretable" id="scoreTable"></div>
+    <div class="btnrow">
+      <button class="btn" id="againBtn">RIDE AGAIN</button>
+      <a class="btn alt" href="../../">ARCADE</a>
+    </div>
+    <div class="board" id="endBoard"></div>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('game');
+  const ctx = canvas.getContext('2d');
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // ---------- world constants ----------
+  const SEG_LEN = 200;          // length of one road segment (world units)
+  const ROAD_W = 2200;          // half road width (world units)
+  const DRAW_DIST = 230;        // segments drawn ahead
+  const CAM_H = 1100;           // eye height
+  const FOV = 100;
+  const CAM_DEPTH = 1 / Math.tan((FOV / 2) * Math.PI / 180);
+  const PLAYER_Z = CAM_H * CAM_DEPTH;   // bike sits this far in front of the camera
+  const FOG_DENSITY = 4.5;
+  const CRUISE = 7000;          // normal pedalling speed (units/s)
+  const BOOST = 11500;          // speed with energy
+  const TRACK_SEGS = 2800;
+  const START_MIN = 8 * 60 + 30;
+  const BELL_MIN = 8 * 60 + 50;
+  const SEC_PER_MIN = 4.0;      // real seconds per game minute
+  const BIKE_W = 0.12;          // bike width in half-road units
+  const BIKE_LANE_X = -0.8;
+
+  // lateral layout, in half-road units: road spans -1..1, pavements beyond.
+  // UK: ride on the left. Bike lane -1..-0.6, car lane -0.6..0, oncoming 0..1.
+  const PAVE_W = 0.7;
+
+  const LS = { scores: 'schoolrun-scores', sound: 'schoolrun-sound' };
+  const loadScores = () => { try { return JSON.parse(localStorage.getItem(LS.scores)) || []; } catch (e) { return []; } };
+  const saveScores = (s) => { try { localStorage.setItem(LS.scores, JSON.stringify(s)); } catch (e) {} };
+  const pbScore = () => { const s = loadScores(); return s.length ? s[0].score : 0; };
+
+  // ---------- audio ----------
+  let actx = null;
+  let soundOn = true;
+  try { soundOn = localStorage.getItem(LS.sound) !== 'off'; } catch (e) {}
+  const ac = () => {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  };
+  function tone(freq, dur, type = 'sine', vol = 0.2, slideTo = 0, delay = 0) {
+    if (!soundOn) return;
+    try {
+      const a = ac(); const t0 = a.currentTime + delay;
+      const o = a.createOscillator(); const g = a.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t0);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+      g.gain.setValueAtTime(vol, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g).connect(a.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+    } catch (e) {}
+  }
+  function noise(dur, vol, filterFreq, type = 'lowpass') {
+    if (!soundOn) return;
+    try {
+      const a = ac(); const n = Math.floor(a.sampleRate * dur);
+      const buf = a.createBuffer(1, n, a.sampleRate); const d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+      const src = a.createBufferSource(); src.buffer = buf;
+      const f = a.createBiquadFilter(); f.type = type; f.frequency.value = filterFreq;
+      const g = a.createGain(); g.gain.value = vol;
+      src.connect(f).connect(g).connect(a.destination); src.start();
+    } catch (e) {}
+  }
+  const sfx = {
+    ding() { tone(2093, 0.6, 'sine', 0.16); tone(3136, 0.4, 'sine', 0.07); tone(2093, 0.5, 'sine', 0.12, 0, 0.12); },
+    thud() { noise(0.35, 0.5, 260); tone(90, 0.3, 'square', 0.12, 40); },
+    honk() { tone(330, 0.4, 'square', 0.07); tone(415, 0.4, 'square', 0.07); },
+    splash() { noise(0.3, 0.3, 1800, 'highpass'); },
+    clunk() { tone(140, 0.12, 'square', 0.14, 70); },
+    bell() { for (let i = 0; i < 8; i++) { tone(1760, 0.25, 'triangle', 0.12, 0, i * 0.16); tone(2640, 0.2, 'sine', 0.05, 0, i * 0.16); } },
+    cheer() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.35, 'triangle', 0.14, 0, i * 0.12)); },
+    whoosh() { noise(0.25, 0.12, 900, 'bandpass'); },
+  };
+  const soundBtn = $('soundBtn');
+  const showSound = () => { soundBtn.textContent = soundOn ? '🔊' : '🔇'; };
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn; showSound();
+    try { localStorage.setItem(LS.sound, soundOn ? 'on' : 'off'); } catch (e) {}
+  });
+  showSound();
+
+  // ---------- sprites (pre-rendered to offscreen canvases) ----------
+  // Each sprite has wf = width in half-road units; height follows the image aspect.
+  function mk(wf, pw, ph, draw) {
+    const c = document.createElement('canvas'); c.width = pw; c.height = ph;
+    const g = c.getContext('2d'); draw(g, pw, ph);
+    return { img: c, wf };
+  }
+  function rrect(g, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  }
+  const CAR_COLORS = ['#e63946', '#2a9df4', '#f4d35e', '#43aa8b', '#f3722c', '#9b5de5', '#f8f9fa', '#555b6e', '#ff85c0', '#06d6a0'];
+
+  function drawCarBack(g, w, h, color, kind, opts = {}) {
+    const bodyTop = kind === 'bus' ? h * 0.06 : kind === 'van' ? h * 0.1 : h * 0.28;
+    const bodyBot = h * 0.9;
+    const bx = w * 0.08, bw = w * 0.84;
+    // wheels
+    g.fillStyle = '#111';
+    rrect(g, bx + w * 0.02, h * 0.72, w * 0.16, h * 0.28, w * 0.04); g.fill();
+    rrect(g, bx + bw - w * 0.18, h * 0.72, w * 0.16, h * 0.28, w * 0.04); g.fill();
+    // body
+    g.fillStyle = color; rrect(g, bx, bodyTop, bw, bodyBot - bodyTop, w * 0.08); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(bx, bodyBot - h * 0.12, bw, h * 0.12);
+    // roof for cars
+    if (kind === 'car') {
+      g.fillStyle = color; rrect(g, w * 0.2, h * 0.06, w * 0.6, h * 0.3, w * 0.1); g.fill();
+      g.fillStyle = '#20233a'; rrect(g, w * 0.24, h * 0.1, w * 0.52, h * 0.22, w * 0.05); g.fill();
+      if (opts.phone) { // driver on their phone: tell-tale glow in the rear window
+        g.fillStyle = '#9ff3ff'; g.fillRect(w * 0.42, h * 0.17, w * 0.06, h * 0.09);
+        g.shadowColor = '#9ff3ff'; g.shadowBlur = 10; g.fillRect(w * 0.42, h * 0.17, w * 0.06, h * 0.09); g.shadowBlur = 0;
+      }
+    } else if (kind === 'van') {
+      g.fillStyle = '#20233a'; rrect(g, w * 0.16, h * 0.16, w * 0.68, h * 0.22, w * 0.04); g.fill();
+    } else { // bus: rows of windows
+      g.fillStyle = '#20233a'; rrect(g, w * 0.14, h * 0.12, w * 0.72, h * 0.2, w * 0.03); g.fill();
+      g.fillStyle = '#fff'; g.font = `bold ${Math.round(h * 0.09)}px Inter, sans-serif`; g.textAlign = 'center';
+      g.fillText(opts.label || 'BUS', w / 2, h * 0.45);
+    }
+    // lights
+    g.fillStyle = '#ff2a2a'; g.shadowColor = '#ff2a2a'; g.shadowBlur = 8;
+    g.fillRect(bx + w * 0.04, bodyBot - h * 0.3, w * 0.14, h * 0.08);
+    g.fillRect(bx + bw - w * 0.18, bodyBot - h * 0.3, w * 0.14, h * 0.08);
+    g.shadowBlur = 0;
+    g.fillStyle = '#ffd166'; g.fillRect(w * 0.42, bodyBot - h * 0.22, w * 0.16, h * 0.07);
+    if (opts.door) { // driver's door open towards the road (right side)
+      g.fillStyle = color; g.beginPath();
+      g.moveTo(bx + bw - w * 0.02, bodyTop + h * 0.05); g.lineTo(w, bodyTop + h * 0.12);
+      g.lineTo(w, bodyBot - h * 0.06); g.lineTo(bx + bw - w * 0.02, bodyBot - h * 0.1); g.closePath(); g.fill();
+      g.fillStyle = '#20233a'; g.beginPath();
+      g.moveTo(bx + bw, bodyTop + h * 0.1); g.lineTo(w * 0.97, bodyTop + h * 0.16);
+      g.lineTo(w * 0.97, bodyTop + h * 0.3); g.lineTo(bx + bw, bodyTop + h * 0.3); g.closePath(); g.fill();
+    }
+  }
+  function drawCarFront(g, w, h, color) {
+    g.fillStyle = '#111';
+    rrect(g, w * 0.1, h * 0.72, w * 0.16, h * 0.28, w * 0.04); g.fill();
+    rrect(g, w * 0.74, h * 0.72, w * 0.16, h * 0.28, w * 0.04); g.fill();
+    g.fillStyle = color; rrect(g, w * 0.08, h * 0.3, w * 0.84, h * 0.6, w * 0.08); g.fill();
+    rrect(g, w * 0.2, h * 0.06, w * 0.6, h * 0.3, w * 0.1); g.fill();
+    g.fillStyle = '#9fd8ff'; rrect(g, w * 0.24, h * 0.1, w * 0.52, h * 0.22, w * 0.05); g.fill();
+    g.fillStyle = '#20233a'; g.fillRect(w * 0.3, h * 0.6, w * 0.4, h * 0.1);
+    g.fillStyle = '#fff6c2'; g.shadowColor = '#fff6c2'; g.shadowBlur = 14;
+    g.fillRect(w * 0.12, h * 0.56, w * 0.14, h * 0.1); g.fillRect(w * 0.74, h * 0.56, w * 0.14, h * 0.1);
+    g.shadowBlur = 0;
+  }
+
+  const SKINS = ['#f1c27d', '#e0ac69', '#8d5524', '#c68642', '#ffdbac', '#5c3b1e'];
+  const TOPS = ['#ff2e88', '#00f0ff', '#ffe600', '#7bed9f', '#ff7f50', '#c56cf0', '#ffffff', '#1e90ff'];
+  const HAIRS = ['#2b1b0e', '#000', '#f5c542', '#b5651d', '#ff2e88', '#6b3fa0', '#d9d9d9'];
+  const NAMES = ['Flo', 'Maya', 'Arjun', 'Sam', 'Zoe', 'Finn', 'Priya', 'Leo', 'Ada', 'Noor', 'Theo', 'Isla', 'Kai', 'Ruby', 'Omar', 'Lily', 'Jude', 'Amara', 'Oscar', 'Nia'];
+  const ACTIVITIES = ['walk', 'scoot', 'run', 'skate', 'wheel', 'dog', 'skip'];
+  const ACTIVITY_SPEED = { walk: 500, scoot: 1400, run: 1100, skate: 1200, wheel: 1300, dog: 600, skip: 800, teacher: 0 };
+  const ACTIVITY_VERB = { walk: 'walking', scoot: 'scooting', run: 'running', skate: 'skating', wheel: 'wheeling', dog: 'dog-walking', skip: 'skipping' };
+
+  // o: { type, skin, top, hair, frame (0/1), wave (bool), bag (bool) }
+  function drawPerson(g, w, h, o) {
+    const cx = w / 2;
+    const seated = o.type === 'wheel';
+    const headR = h * 0.085;
+    const headY = seated ? h * 0.38 : h * 0.14;
+    const shoulderY = headY + headR * 1.4;
+    const hipY = seated ? h * 0.66 : h * 0.56;
+    const footY = seated ? h * 0.9 : h * 0.95;
+    const f = o.frame ? 1 : -1;
+    const bodyW = w * 0.42;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+
+    // props behind
+    if (o.type === 'scoot') {
+      g.strokeStyle = '#9b93b8'; g.lineWidth = w * 0.07;
+      g.beginPath(); g.moveTo(cx - w * 0.15, footY + h * 0.02); g.lineTo(cx + w * 0.42, footY + h * 0.02); g.stroke(); // deck
+      g.beginPath(); g.moveTo(cx + w * 0.4, footY); g.lineTo(cx + w * 0.4, shoulderY + h * 0.05); g.stroke(); // stem
+      g.beginPath(); g.moveTo(cx + w * 0.22, shoulderY + h * 0.05); g.lineTo(cx + w * 0.5, shoulderY + h * 0.05); g.stroke(); // bar
+      g.fillStyle = '#222'; g.beginPath(); g.arc(cx - w * 0.15, footY + h * 0.035, w * 0.08, 0, 7); g.arc(cx + w * 0.42, footY + h * 0.035, w * 0.08, 0, 7); g.fill();
+    }
+    if (o.type === 'wheel') {
+      g.fillStyle = '#333'; rrect(g, cx - w * 0.25, hipY - h * 0.02, w * 0.5, h * 0.08, w * 0.03); g.fill();
+      g.fillStyle = '#1a1a1a'; g.strokeStyle = '#00f0ff'; g.lineWidth = w * 0.05;
+      g.beginPath(); g.arc(cx + w * 0.05, footY - h * 0.1, h * 0.16, 0, 7); g.fill(); g.stroke();
+      g.fillStyle = '#9b93b8'; g.beginPath(); g.arc(cx + w * 0.05, footY - h * 0.1, h * 0.05, 0, 7); g.fill();
+      g.beginPath(); g.arc(cx - w * 0.3, footY - h * 0.03, h * 0.045, 0, 7); g.fill();
+    }
+    // legs
+    g.strokeStyle = o.bottom || '#2b3a67'; g.lineWidth = w * 0.16;
+    if (seated) {
+      g.beginPath(); g.moveTo(cx - w * 0.1, hipY); g.lineTo(cx - w * 0.28, hipY + h * 0.05); g.lineTo(cx - w * 0.3, footY - h * 0.05); g.stroke();
+    } else if (o.type === 'skate' || o.type === 'scoot') {
+      g.beginPath(); g.moveTo(cx - w * 0.08, hipY); g.lineTo(cx - w * 0.14, footY); g.stroke();
+      g.beginPath(); g.moveTo(cx + w * 0.08, hipY); g.lineTo(cx + w * 0.16, footY - (o.type === 'scoot' && o.frame ? h * 0.08 : 0)); g.stroke();
+    } else {
+      const stride = { walk: 0.12, run: 0.26, skip: 0.2, dog: 0.12, teacher: 0.04 }[o.type] || 0.1;
+      const lift = o.type === 'run' ? h * 0.1 : o.type === 'skip' ? h * 0.12 : 0;
+      g.beginPath(); g.moveTo(cx - w * 0.08, hipY); g.lineTo(cx - w * stride * f, footY - (f > 0 ? lift : 0)); g.stroke();
+      g.beginPath(); g.moveTo(cx + w * 0.08, hipY); g.lineTo(cx + w * stride * f, footY - (f < 0 ? lift : 0)); g.stroke();
+    }
+    if (o.type === 'skate') {
+      g.fillStyle = '#ff2e88'; rrect(g, cx - w * 0.42, footY, w * 0.84, h * 0.03, w * 0.03); g.fill();
+      g.fillStyle = '#222'; g.beginPath(); g.arc(cx - w * 0.28, footY + h * 0.045, w * 0.07, 0, 7); g.arc(cx + w * 0.28, footY + h * 0.045, w * 0.07, 0, 7); g.fill();
+    }
+    // backpack
+    if (o.bag) { g.fillStyle = o.bagColor || '#ffe600'; rrect(g, cx - bodyW * 0.75, shoulderY + h * 0.02, bodyW * 0.45, h * 0.2, w * 0.06); g.fill(); }
+    // body
+    g.fillStyle = o.top; rrect(g, cx - bodyW / 2, shoulderY, bodyW, hipY - shoulderY + h * 0.02, w * 0.08); g.fill();
+    if (o.type === 'teacher') { // lanyard + hi-vis strip
+      g.fillStyle = '#ffe600'; g.fillRect(cx - bodyW / 2, shoulderY + h * 0.14, bodyW, h * 0.04);
+      g.strokeStyle = '#ff2e88'; g.lineWidth = w * 0.03; g.beginPath(); g.moveTo(cx - w * 0.1, shoulderY); g.lineTo(cx, shoulderY + h * 0.12); g.lineTo(cx + w * 0.1, shoulderY); g.stroke();
+      g.fillStyle = '#fff'; g.fillRect(cx - w * 0.06, shoulderY + h * 0.11, w * 0.12, h * 0.06);
+    }
+    // arms
+    g.strokeStyle = o.skin; g.lineWidth = w * 0.13;
+    const armY = shoulderY + h * 0.03;
+    if (o.wave) {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + w * 0.42, armY - h * 0.12); g.lineTo(cx + w * 0.38, headY - headR * 1.2); g.stroke();
+    } else if (o.type === 'scoot') {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + w * 0.4, shoulderY + h * 0.05); g.stroke();
+    } else if (o.type === 'wheel') {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + w * 0.3, hipY + h * 0.04); g.stroke();
+    } else if (o.type === 'run') {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + w * 0.3 * f, armY + h * 0.1); g.lineTo(cx + w * 0.42 * f + w * 0.1, armY + h * 0.02); g.stroke();
+    } else if (o.type === 'skip') {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + w * 0.4, armY + h * 0.1); g.stroke();
+      g.strokeStyle = '#ff2e88'; g.lineWidth = w * 0.03; g.beginPath();
+      if (o.frame) g.arc(cx, footY - h * 0.1, h * 0.3, 0.3, Math.PI - 0.3); else g.arc(cx, hipY - h * 0.1, h * 0.36, Math.PI + 0.4, -0.4);
+      g.stroke();
+    } else {
+      g.beginPath(); g.moveTo(cx + bodyW / 2, armY); g.lineTo(cx + bodyW / 2 + w * 0.1, hipY); g.stroke();
+    }
+    if (o.type === 'teacher') { // clipboard
+      g.fillStyle = '#8d5524'; g.fillRect(cx - bodyW / 2 - w * 0.2, armY + h * 0.08, w * 0.22, h * 0.16);
+      g.fillStyle = '#fff'; g.fillRect(cx - bodyW / 2 - w * 0.18, armY + h * 0.1, w * 0.18, h * 0.12);
+    }
+    // left arm (viewer's left)
+    g.strokeStyle = o.skin; g.lineWidth = w * 0.13;
+    if (o.type === 'dog') {
+      g.beginPath(); g.moveTo(cx - bodyW / 2, armY); g.lineTo(cx - w * 0.3, hipY + h * 0.02); g.stroke();
+      g.strokeStyle = '#ffe600'; g.lineWidth = w * 0.03; g.beginPath(); g.moveTo(cx - w * 0.3, hipY + h * 0.02); g.lineTo(cx - w * 0.6, footY - h * 0.1); g.stroke();
+      // dog
+      const dx = cx - w * 0.72, dy = footY - h * 0.08;
+      g.fillStyle = '#b5651d'; rrect(g, dx - w * 0.2, dy - h * 0.06, w * 0.4, h * 0.08, w * 0.05); g.fill();
+      g.beginPath(); g.arc(dx - w * 0.22, dy - h * 0.08, w * 0.11, 0, 7); g.fill();
+      g.strokeStyle = '#b5651d'; g.lineWidth = w * 0.05;
+      g.beginPath(); g.moveTo(dx - w * 0.12, dy + h * 0.02); g.lineTo(dx - w * 0.14 - f * w * 0.04, footY); g.moveTo(dx + w * 0.12, dy + h * 0.02); g.lineTo(dx + w * 0.14 + f * w * 0.04, footY); g.stroke();
+      g.beginPath(); g.moveTo(dx + w * 0.2, dy - h * 0.05); g.lineTo(dx + w * 0.3, dy - h * 0.1 - (o.frame ? h * 0.02 : 0)); g.stroke();
+    } else if (o.type !== 'wheel' && o.type !== 'teacher') {
+      g.beginPath(); g.moveTo(cx - bodyW / 2, armY); g.lineTo(cx - bodyW / 2 - w * 0.1 * (o.type === 'run' ? -f : 1), hipY - (o.type === 'run' ? h * 0.05 : 0)); g.stroke();
+    }
+    // head
+    g.fillStyle = o.skin; g.beginPath(); g.arc(cx, headY, headR, 0, 7); g.fill();
+    g.fillStyle = o.hair; g.beginPath(); g.arc(cx, headY - headR * 0.15, headR * 1.02, Math.PI, 0); g.fill();
+    if (o.hairLong) { g.fillRect(cx - headR, headY - headR * 0.2, headR * 0.45, headR * 1.6); g.fillRect(cx + headR * 0.55, headY - headR * 0.2, headR * 0.45, headR * 1.6); }
+    if (o.helmet) { g.fillStyle = o.helmet; g.beginPath(); g.arc(cx, headY - headR * 0.1, headR * 1.15, Math.PI * 1.05, -0.05 * Math.PI); g.fill(); }
+    // face (small, facing away-ish: dot eyes)
+    g.fillStyle = '#1a0b3d'; g.fillRect(cx - headR * 0.4, headY, headR * 0.18, headR * 0.18); g.fillRect(cx + headR * 0.22, headY, headR * 0.18, headR * 0.18);
+    g.fillStyle = '#ff2e88'; g.fillRect(cx - headR * 0.2, headY + headR * 0.45, headR * 0.4, headR * 0.12);
+  }
+
+  function drawTree(g, w, h, leaf, kind) {
+    g.fillStyle = '#5a3a1e'; g.fillRect(w * 0.44, h * 0.55, w * 0.12, h * 0.45);
+    g.fillStyle = leaf;
+    if (kind === 'pine') {
+      [0.1, 0.32, 0.52].forEach((y, i) => { const s = 0.3 + i * 0.16; g.beginPath(); g.moveTo(w / 2, h * y); g.lineTo(w / 2 - w * s, h * (y + 0.3)); g.lineTo(w / 2 + w * s, h * (y + 0.3)); g.closePath(); g.fill(); });
+    } else {
+      g.beginPath(); g.arc(w * 0.5, h * 0.33, w * 0.4, 0, 7); g.arc(w * 0.28, h * 0.45, w * 0.26, 0, 7); g.arc(w * 0.72, h * 0.45, w * 0.26, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(w * 0.4, h * 0.25, w * 0.16, 0, 7); g.fill();
+    }
+  }
+  function drawHouse(g, w, h, wall, roof) {
+    g.fillStyle = wall; g.fillRect(w * 0.08, h * 0.38, w * 0.84, h * 0.62);
+    g.fillStyle = roof; g.beginPath(); g.moveTo(0, h * 0.4); g.lineTo(w / 2, h * 0.02); g.lineTo(w, h * 0.4); g.closePath(); g.fill();
+    g.fillStyle = '#ffe9a8'; g.shadowColor = '#ffe600'; g.shadowBlur = 8;
+    [0.16, 0.62].forEach((x) => g.fillRect(w * x, h * 0.48, w * 0.22, h * 0.2));
+    g.fillRect(w * 0.62, h * 0.76, w * 0.22, h * 0.16); g.shadowBlur = 0;
+    g.fillStyle = '#4a1a7a'; g.fillRect(w * 0.18, h * 0.74, w * 0.18, h * 0.26);
+    g.fillStyle = '#ffe600'; g.beginPath(); g.arc(w * 0.33, h * 0.88, w * 0.015, 0, 7); g.fill();
+    g.fillStyle = '#6b6b80'; g.fillRect(w * 0.7, h * 0.12, w * 0.08, h * 0.2);
+  }
+  function drawLamppost(g, w, h) {
+    g.fillStyle = '#5b5e73'; g.fillRect(w * 0.42, h * 0.08, w * 0.16, h * 0.92);
+    g.fillRect(w * 0.42, h * 0.08, w * 0.5, h * 0.04);
+    g.fillStyle = '#fff5c2'; g.shadowColor = '#ffe600'; g.shadowBlur = 16; g.fillRect(w * 0.76, h * 0.06, w * 0.24, h * 0.08); g.shadowBlur = 0;
+  }
+  function drawBusStop(g, w, h) {
+    g.fillStyle = 'rgba(0,240,255,0.18)'; g.fillRect(w * 0.05, h * 0.2, w * 0.9, h * 0.75);
+    g.fillStyle = '#5b5e73'; g.fillRect(w * 0.05, h * 0.16, w * 0.9, h * 0.06); g.fillRect(w * 0.05, h * 0.2, w * 0.04, h * 0.8); g.fillRect(w * 0.91, h * 0.2, w * 0.04, h * 0.8);
+    g.fillStyle = '#ff2e88'; g.fillRect(w * 0.1, h * 0.02, w * 0.5, h * 0.12);
+    g.fillStyle = '#fff'; g.font = `bold ${Math.round(h * 0.08)}px Inter, sans-serif`; g.textAlign = 'center'; g.fillText('BUS', w * 0.35, h * 0.11);
+  }
+  function drawHedge(g, w, h) {
+    g.fillStyle = '#1f7a3f'; rrect(g, 0, h * 0.2, w, h * 0.8, w * 0.1); g.fill();
+    g.fillStyle = '#2f9c52'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(w * (0.1 + i * 0.16), h * 0.28, w * 0.1, 0, 7); g.fill(); }
+  }
+  function drawPostbox(g, w, h) {
+    g.fillStyle = '#d62828'; rrect(g, w * 0.15, h * 0.1, w * 0.7, h * 0.9, w * 0.3); g.fill();
+    g.fillStyle = '#111'; g.fillRect(w * 0.3, h * 0.3, w * 0.4, h * 0.06);
+    g.fillStyle = '#ffe600'; g.fillRect(w * 0.35, h * 0.45, w * 0.3, h * 0.12);
+  }
+  function drawBin(g, w, h) {
+    g.fillStyle = '#2f6f3e'; rrect(g, w * 0.1, h * 0.15, w * 0.8, h * 0.85, w * 0.08); g.fill();
+    g.fillStyle = '#1e4a2a'; rrect(g, 0, h * 0.05, w, h * 0.16, w * 0.06); g.fill();
+  }
+  function drawSchool(g, w, h) {
+    // long brick building with a big door, clock, flag and sign
+    g.fillStyle = '#b5543c'; g.fillRect(0, h * 0.3, w, h * 0.7);
+    g.fillStyle = 'rgba(0,0,0,0.12)'; for (let y = h * 0.34; y < h; y += h * 0.07) g.fillRect(0, y, w, 2);
+    g.fillStyle = '#5a2d2d'; g.fillRect(0, h * 0.26, w, h * 0.06);
+    // central tower
+    g.fillStyle = '#c96a4f'; g.fillRect(w * 0.38, h * 0.08, w * 0.24, h * 0.3);
+    g.fillStyle = '#5a2d2d'; g.beginPath(); g.moveTo(w * 0.36, h * 0.1); g.lineTo(w * 0.5, 0); g.lineTo(w * 0.64, h * 0.1); g.closePath(); g.fill();
+    // clock
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(w * 0.5, h * 0.22, h * 0.07, 0, 7); g.fill();
+    g.strokeStyle = '#1a0b3d'; g.lineWidth = 3; g.beginPath(); g.moveTo(w * 0.5, h * 0.22); g.lineTo(w * 0.5, h * 0.17); g.moveTo(w * 0.5, h * 0.22); g.lineTo(w * 0.5 + h * 0.045, h * 0.24); g.stroke();
+    // windows
+    g.fillStyle = '#ffe9a8'; g.shadowColor = '#ffe600'; g.shadowBlur = 10;
+    for (let i = 0; i < 8; i++) { if (i === 3 || i === 4) continue; g.fillRect(w * (0.04 + i * 0.12), h * 0.42, w * 0.07, h * 0.18); g.fillRect(w * (0.04 + i * 0.12), h * 0.7, w * 0.07, h * 0.18); }
+    g.shadowBlur = 0;
+    // door
+    g.fillStyle = '#1a0b3d'; rrect(g, w * 0.44, h * 0.62, w * 0.12, h * 0.38, w * 0.04); g.fill();
+    g.fillStyle = '#ffe600'; g.beginPath(); g.arc(w * 0.5, h * 0.72, w * 0.015, 0, 7); g.fill();
+    // sign
+    g.fillStyle = '#00f0ff'; rrect(g, w * 0.3, h * 0.46, w * 0.4, h * 0.12, 6); g.fill();
+    g.fillStyle = '#0d0221'; g.font = `${Math.round(h * 0.07)}px 'Press Start 2P', monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('SCHOOL', w * 0.5, h * 0.525);
+    // flag
+    g.fillStyle = '#ddd'; g.fillRect(w * 0.08, h * 0.02, 3, h * 0.28);
+    g.fillStyle = '#ff2e88'; g.fillRect(w * 0.08 + 3, h * 0.03, w * 0.08, h * 0.06);
+  }
+  function drawGate(g, w, h) {
+    g.fillStyle = '#2b3a67';
+    for (let i = 0; i <= 10; i++) g.fillRect(w * (i / 10) - (i === 10 ? 4 : 0), h * 0.1, 4, h * 0.9);
+    g.fillRect(0, h * 0.18, w, 4); g.fillRect(0, h * 0.72, w, 4);
+    g.fillStyle = '#ffe600'; for (let i = 0; i <= 10; i++) { g.beginPath(); g.arc(w * (i / 10) + (i === 10 ? -2 : 2), h * 0.08, 4, 0, 7); g.fill(); }
+  }
+  function drawLollipop(g, w, h) { // "SCHOOL - STOP" sign on a pole
+    g.fillStyle = '#5b5e73'; g.fillRect(w * 0.46, h * 0.3, w * 0.08, h * 0.7);
+    g.fillStyle = '#ffe600'; g.beginPath(); g.arc(w / 2, h * 0.18, w * 0.42, 0, 7); g.fill();
+    g.fillStyle = '#0d0221'; g.font = `bold ${Math.round(w * 0.2)}px Inter, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('STOP', w / 2, h * 0.14); g.font = `bold ${Math.round(w * 0.13)}px Inter, sans-serif`; g.fillText('CHILDREN', w / 2, h * 0.25);
+  }
+
+  let S = null; // sprite bank
+  function buildSprites() {
+    S = {};
+    S.carBack = CAR_COLORS.map((c) => mk(0.5, 200, 170, (g, w, h) => drawCarBack(g, w, h, c, 'car')));
+    S.carPhone = CAR_COLORS.map((c) => mk(0.5, 200, 170, (g, w, h) => drawCarBack(g, w, h, c, 'car', { phone: true })));
+    S.van = ['#f8f9fa', '#9b93b8', '#ffe600'].map((c) => mk(0.56, 200, 210, (g, w, h) => drawCarBack(g, w, h, c, 'van')));
+    S.bus = [mk(0.72, 200, 270, (g, w, h) => drawCarBack(g, w, h, '#ff2e88', 'bus', { label: 'BUS' })), mk(0.72, 200, 270, (g, w, h) => drawCarBack(g, w, h, '#ffe600', 'bus', { label: 'SCHOOL' }))];
+    S.carFront = CAR_COLORS.map((c) => mk(0.5, 200, 170, (g, w, h) => drawCarFront(g, w, h, c)));
+    S.parked = CAR_COLORS.map((c) => mk(0.44, 200, 170, (g, w, h) => drawCarBack(g, w, h, c, 'car')));
+    S.parkedDoor = CAR_COLORS.map((c) => mk(0.58, 265, 170, (g, w, h) => drawCarBack(g, w, h, c, 'car', { door: true })));
+    S.tree = [mk(1.1, 200, 300, (g, w, h) => drawTree(g, w, h, '#2f9c52')), mk(1.0, 200, 300, (g, w, h) => drawTree(g, w, h, '#1f7a3f')), mk(0.9, 200, 320, (g, w, h) => drawTree(g, w, h, '#16603a', 'pine')), mk(1.0, 200, 280, (g, w, h) => drawTree(g, w, h, '#c56cf0'))];
+    const walls = ['#f2d0a4', '#cfe8ef', '#f7c5d9', '#e8e6f0', '#ffe8a3', '#b8e0c2'];
+    const roofs = ['#6b3fa0', '#2b3a67', '#8c2f39', '#444458'];
+    S.house = walls.map((wc, i) => mk(2.4, 300, 260, (g, w, h) => drawHouse(g, w, h, wc, roofs[i % roofs.length])));
+    S.lamp = mk(0.34, 60, 320, drawLamppost);
+    S.busStop = mk(0.9, 220, 260, drawBusStop);
+    S.hedge = mk(0.9, 240, 110, drawHedge);
+    S.postbox = mk(0.18, 60, 150, drawPostbox);
+    S.bin = mk(0.2, 60, 100, drawBin);
+    S.school = mk(6.4, 640, 240, drawSchool);
+    S.gate = mk(1.2, 300, 120, drawGate);
+    S.lollipop = mk(0.26, 80, 300, drawLollipop);
+    S.teacher = [0, 1].map((f) => mk(0.19, 100, 260, (g, w, h) => drawPerson(g, w, h, { type: 'teacher', skin: '#8d5524', top: '#2b3a67', hair: '#000', hairLong: true, frame: 0, wave: !!f })));
+    S.lollipopLady = [0, 1].map((f) => mk(0.19, 100, 260, (g, w, h) => drawPerson(g, w, h, { type: 'teacher', skin: '#ffdbac', top: '#ffe600', hair: '#d9d9d9', frame: 0, wave: !!f })));
+  }
+  // Friends get their own look, rendered on demand and cached per friend.
+  function friendSprites(fr) {
+    const base = { type: fr.type, skin: fr.skin, top: fr.top, hair: fr.hair, hairLong: fr.hairLong, bag: true, bagColor: fr.bagColor, helmet: fr.type === 'scoot' || fr.type === 'skate' ? fr.helmet : null };
+    const ph = fr.type === 'wheel' ? 200 : 260;
+    const wf = fr.type === 'dog' ? 0.3 : fr.type === 'scoot' || fr.type === 'skate' ? 0.24 : fr.type === 'wheel' ? 0.22 : 0.18;
+    const pw = Math.round(100 * wf / 0.18);
+    return {
+      a: mk(wf, pw, ph, (g, w, h) => drawPerson(g, w, h, { ...base, frame: 0 })),
+      b: mk(wf, pw, ph, (g, w, h) => drawPerson(g, w, h, { ...base, frame: 1 })),
+      wave: mk(wf, pw, ph, (g, w, h) => drawPerson(g, w, h, { ...base, frame: 0, wave: true })),
+    };
+  }
+
+  // ---------- track ----------
+  let segments = [];
+  let finishZ = 0, finishIndex = 0;
+  let cars = [], friends = [], puddles = [];
+
+  const lastY = () => (segments.length ? segments[segments.length - 1].p2.world.y : 0);
+  function addSegment(curve, y) {
+    const n = segments.length;
+    segments.push({
+      index: n, curve,
+      p1: { world: { y: lastY(), z: n * SEG_LEN }, camera: {}, screen: {} },
+      p2: { world: { y, z: (n + 1) * SEG_LEN }, camera: {}, screen: {} },
+      sprites: [], ents: [], zebra: false, clip: 0, fog: 1,
+    });
+  }
+  const easeIn = (a, b, p) => a + (b - a) * p * p;
+  const easeInOut = (a, b, p) => a + (b - a) * ((-Math.cos(p * Math.PI) / 2) + 0.5);
+  function addRoad(enter, hold, leave, curve, hill) {
+    const startY = lastY(), endY = startY + hill * SEG_LEN, total = enter + hold + leave;
+    for (let i = 0; i < enter; i++) addSegment(easeIn(0, curve, i / enter), easeInOut(startY, endY, i / total));
+    for (let i = 0; i < hold; i++) addSegment(curve, easeInOut(startY, endY, (enter + i) / total));
+    for (let i = 0; i < leave; i++) addSegment(easeInOut(curve, 0, i / leave), easeInOut(startY, endY, (enter + hold + i) / total));
+  }
+  function addSprite(i, spr, offset) { if (segments[i]) segments[i].sprites.push({ spr, offset }); }
+
+  function buildTrack() {
+    segments = [];
+    addRoad(0, 70, 0, 0, 0);
+    while (segments.length < TRACK_SEGS - 400) {
+      const curve = Math.random() < 0.3 ? 0 : rnd(1.5, 4.5) * (Math.random() < 0.5 ? -1 : 1);
+      const hill = Math.random() < 0.45 ? 0 : rnd(4, 16) * (Math.random() < 0.5 ? -1 : 1);
+      addRoad(Math.round(rnd(20, 50)), Math.round(rnd(20, 70)), Math.round(rnd(20, 50)), curve, hill);
+    }
+    addRoad(40, 60, 40, 0, -lastY() / SEG_LEN);  // back to level ground
+    addRoad(0, 160, 0, 0, 0);
+    finishIndex = segments.length - 20;
+    addRoad(0, DRAW_DIST + 40, 0, 0, 0);          // run-off so the view past the school is filled
+    finishZ = finishIndex * SEG_LEN;
+
+    // scenery
+    for (let i = 10; i < finishIndex; i++) {
+      if (i % 24 === 0) addSprite(i, S.lamp, i % 48 === 0 ? -1.76 : 1.76);
+      if (Math.random() < 0.28) addSprite(i, pick(S.tree), (Math.random() < 0.5 ? -1 : 1) * rnd(2.0, 2.9));
+      if (i % 13 === 0 && Math.random() < 0.8) addSprite(i, pick(S.house), (Math.random() < 0.5 ? -1 : 1) * rnd(2.9, 3.6));
+      if (Math.random() < 0.05) addSprite(i, S.hedge, (Math.random() < 0.5 ? -1 : 1) * 1.62);
+      if (Math.random() < 0.012) addSprite(i, S.postbox, -1.6);
+      if (Math.random() < 0.015) addSprite(i, S.bin, (Math.random() < 0.5 ? -1 : 1) * 1.6);
+      if (i % 420 === 200) addSprite(i, S.busStop, -1.65);
+    }
+    // school zone
+    for (let i = finishIndex - 60; i < finishIndex; i += 6) { addSprite(i, S.gate, -1.72); addSprite(i, S.gate, 1.72); }
+    addSprite(finishIndex - 30, S.lollipop, -1.3);
+    addSprite(finishIndex + 7, S.school, 0);
+    for (let i = finishIndex + 6; i < finishIndex + 10; i++) { addSprite(i, pick(S.tree), -3.4); addSprite(i, pick(S.tree), 3.4); }
+    segments[finishIndex].zebra = true;
+    segments[finishIndex + 1].zebra = true;
+
+    // traffic
+    cars = [];
+    // Same-direction traffic starts behind the bike, spread out, and overtakes
+    // over the ride (then recycles behind once it's out of sight ahead).
+    for (let k = 0; k < 16; k++) {
+      const z = -(60 + k * 48 + rnd(0, 30));
+      const r = Math.random();
+      let kind = r < 0.7 ? 'car' : r < 0.86 ? 'van' : 'bus';
+      const beh = kind === 'car' ? (Math.random() < 0.22 ? 'swerve' : Math.random() < 0.24 ? 'drift' : 'normal') : (Math.random() < 0.2 ? 'swerve' : 'normal');
+      const ci = Math.floor(Math.random() * CAR_COLORS.length);
+      const spr = kind === 'car' ? (beh === 'drift' ? S.carPhone[ci] : S.carBack[ci]) : kind === 'van' ? pick(S.van) : pick(S.bus);
+      cars.push({ z: z * SEG_LEN, x: -0.3, tx: -0.3, dir: 1, kind, beh, spr, w: spr.wf,
+        speed: CRUISE * (kind === 'bus' ? 1.08 : rnd(1.3, 1.95)), phase: rnd(0, 6.28), honked: false, active: true });
+      cars[cars.length - 1].base = cars[cars.length - 1].speed;
+    }
+    for (let z = 300; z < finishIndex - 120; z += Math.round(rnd(130, 260))) {
+      const ci = Math.floor(Math.random() * CAR_COLORS.length);
+      cars.push({ z: z * SEG_LEN, x: 0.5, tx: 0.5, dir: -1, kind: 'car', beh: Math.random() < 0.3 ? 'cross' : 'normal', spr: S.carFront[ci], w: 0.5,
+        speed: -CRUISE * rnd(1.3, 2.0), phase: 0, honked: false, active: true });
+    }
+    const parkedSpots = [];
+    for (let k = 0; k < 10; k++) {
+      let z = Math.round(rnd(380, finishIndex - 150));
+      if (parkedSpots.some((p) => Math.abs(p - z) < 60) || (z % 420) > 185 && (z % 420) < 215) { k--; continue; }
+      parkedSpots.push(z);
+      const ci = Math.floor(Math.random() * CAR_COLORS.length);
+      const r = Math.random();
+      cars.push({ z: z * SEG_LEN, x: -0.82, tx: -0.82, dir: 1, kind: 'parked', beh: r < 0.4 ? 'door' : r < 0.7 ? 'pullout' : 'still',
+        spr: S.parked[ci], doorSpr: S.parkedDoor[ci], w: 0.44, speed: 0, phase: 0, honked: false, active: true, open: false, moving: false, ci });
+    }
+
+    // friends on the pavements
+    friends = [];
+    const usedNames = [];
+    for (let z = 220; z < finishIndex - 70; z += Math.round(rnd(70, 125))) {
+      const type = pick(ACTIVITIES);
+      let name = pick(NAMES); if (usedNames.length < NAMES.length) { while (usedNames.includes(name)) name = pick(NAMES); }
+      usedNames.push(name);
+      const fr = { z: z * SEG_LEN, x: Math.random() < 0.72 ? -1.33 : 1.33, type, name,
+        speed: ACTIVITY_SPEED[type] * rnd(0.8, 1.2), skin: pick(SKINS), top: pick(TOPS), hair: pick(HAIRS), hairLong: Math.random() < 0.5,
+        bagColor: pick(TOPS), helmet: pick(['#ff2e88', '#00f0ff', '#ffe600']), waved: false, missed: false, bubble: 0, anim: rnd(0, 10) };
+      fr.sprites = friendSprites(fr);
+      friends.push(fr);
+    }
+
+    // puddles in the bike lane
+    puddles = [];
+    for (let k = 0; k < 16; k++) {
+      const seg = Math.round(rnd(300, finishIndex - 120));
+      puddles.push({ seg, x: rnd(-0.92, -0.66), w: rnd(0.18, 0.3), hit: false });
+    }
+  }
+
+  // ---------- game state ----------
+  let state = 'title'; // title | riding | finishing | end
+  let player = null;
+  let popups = [];
+  let lastTs = 0;
+  let W = 0, H = 0, SCALE = 1; // SCALE: pixels per "unit" for projection (uniform)
+  let skyGrad = null;
+
+  function resetPlayer() {
+    player = {
+      x: BIKE_LANE_X, z: 0, speed: CRUISE * 0.5, energy: 0, waves: 0, bumps: 0, time: 0,
+      invuln: 0, shake: 0, flash: 0, wobble: 0, waveAnim: 0, waveCooldown: 0,
+      bellRung: false, arrivalMin: null, late: false, finishT: 0, kerbMsgT: 0, steer: 0, warnT: 0,
+    };
+    popups = [];
+  }
+  const clockMinutes = () => START_MIN + player.time / SEC_PER_MIN;
+  const fmtClock = (m) => { const mm = Math.floor(m); return `${String(Math.floor(mm / 60)).padStart(2, '0')}:${String(mm % 60).padStart(2, '0')}`; };
+
+  // ---------- input ----------
+  const keys = {};
+  let pointerSteer = 0, steerPointerId = null, braking = false, brakeKey = false;
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) { if (['ArrowLeft', 'ArrowRight', 'a', 'd', 'A', 'D', 'ArrowDown', 's', 'S'].includes(e.key)) e.preventDefault(); return; }
+    switch (e.key) {
+      case 'ArrowLeft': case 'a': case 'A': keys.left = true; e.preventDefault(); break;
+      case 'ArrowRight': case 'd': case 'D': keys.right = true; e.preventDefault(); break;
+      case 'ArrowDown': case 's': case 'S': case 'Shift': brakeKey = true; e.preventDefault(); break;
+      case ' ': case 'Enter': case 'ArrowUp': case 'w': case 'W':
+        e.preventDefault();
+        if (state === 'title') startRide();
+        else if (state === 'end') { if (e.key !== 'ArrowUp') startRide(); }
+        else wave();
+        break;
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    switch (e.key) {
+      case 'ArrowLeft': case 'a': case 'A': keys.left = false; break;
+      case 'ArrowRight': case 'd': case 'D': keys.right = false; break;
+      case 'ArrowDown': case 's': case 'S': case 'Shift': brakeKey = false; break;
+    }
+  });
+  canvas.addEventListener('pointerdown', (e) => {
+    if (state !== 'riding') return;
+    if (steerPointerId !== null) return;
+    steerPointerId = e.pointerId; canvas.setPointerCapture(e.pointerId);
+    pointerSteer = clamp((e.clientX - window.innerWidth / 2) / (window.innerWidth * 0.22), -1, 1);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== steerPointerId) return;
+    pointerSteer = clamp((e.clientX - window.innerWidth / 2) / (window.innerWidth * 0.22), -1, 1);
+  });
+  const endSteer = (e) => { if (e.pointerId === steerPointerId) { steerPointerId = null; pointerSteer = 0; } };
+  canvas.addEventListener('pointerup', endSteer);
+  canvas.addEventListener('pointercancel', endSteer);
+  const brakeBtn = $('brakeBtn'), waveBtn = $('waveBtn');
+  brakeBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); braking = true; brakeBtn.setPointerCapture(e.pointerId); });
+  brakeBtn.addEventListener('pointerup', () => { braking = false; });
+  brakeBtn.addEventListener('pointercancel', () => { braking = false; });
+  waveBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); wave(); });
+
+  // ---------- actions ----------
+  const msgEl = $('msg');
+  let msgTimer = 0;
+  function showMsg(text, cls = '', dur = 1.6) {
+    msgEl.textContent = text; msgEl.className = 'show ' + cls; msgTimer = dur;
+  }
+
+  function wave() {
+    if (state !== 'riding' || player.waveCooldown > 0) return;
+    player.waveCooldown = 0.35; player.waveAnim = 0.8;
+    let best = null, bestRel = Infinity;
+    for (const fr of friends) {
+      if (fr.waved) continue;
+      const rel = (fr.z - player.z) / SEG_LEN;
+      if (rel >= -3 && rel <= 38 && rel < bestRel) { best = fr; bestRel = rel; }
+    }
+    if (best) {
+      best.waved = true; best.bubble = 2.2;
+      player.waves++;
+      player.energy = Math.min(100, player.energy + 34);
+      sfx.ding();
+      popups.push({ text: `HI ${best.name.toUpperCase()}!  +ENERGY`, t: 1.4, x: best.x });
+      if (player.energy >= 100) showMsg('FULL ENERGY! ZOOM!', 'good', 1.2);
+    } else {
+      sfx.whoosh();
+    }
+  }
+
+  function crash(car) {
+    if (player.invuln > 0) return;
+    player.bumps++; player.invuln = 2.2; player.shake = 0.7; player.flash = 0.6; player.wobble = 1.5;
+    player.speed = Math.min(player.speed, CRUISE * 0.08);
+    player.energy *= 0.4;
+    player.x = clamp(player.x + (player.x < car.x ? -0.16 : 0.16), -0.98, 0.98);
+    sfx.thud(); setTimeout(() => sfx.honk(), 150);
+    showMsg(pick(['OUCH! CAREFUL!', 'BUMP! YOU OK?', 'WHOA! SHAKE IT OFF', 'OOF! KEEP GOING SAFELY']), 'bad', 1.8);
+  }
+
+  // ---------- update ----------
+  function update(dt) {
+    if (state !== 'riding' && state !== 'finishing') return;
+    const p = player;
+    if (state === 'riding') p.time += dt;
+    const seg = segments[Math.floor(p.z / SEG_LEN) % segments.length];
+
+    // speed
+    const braking2 = braking || brakeKey;
+    if (state === 'finishing') {
+      p.speed = Math.max(0, p.speed - 14000 * dt);
+      p.finishT += dt;
+      if (p.finishT > 1.8) endRide();
+    } else if (braking2) {
+      p.speed = Math.max(0, p.speed - 9000 * dt);
+    } else {
+      const maxSpeed = p.energy > 0 ? BOOST : CRUISE;
+      if (p.speed < maxSpeed) p.speed = Math.min(maxSpeed, p.speed + (p.speed < CRUISE * 0.5 ? 4500 : 2600) * dt);
+      else p.speed = Math.max(maxSpeed, p.speed - 1800 * dt);
+    }
+    if (p.energy > 0 && state === 'riding') p.energy = Math.max(0, p.energy - dt * 9);
+
+    // steering
+    const steerIn = clamp((keys.left ? -1 : 0) + (keys.right ? 1 : 0) + pointerSteer, -1, 1);
+    p.steer = lerp(p.steer, steerIn, Math.min(1, dt * 10));
+    const dx = dt * 1.5 * clamp(p.speed / CRUISE, 0.25, 1.4);
+    if (state === 'riding') {
+      p.x += p.steer * dx;
+      p.x -= dx * (p.speed / CRUISE) * seg.curve * 0.11;
+    }
+    if (p.x < -0.98) { p.x = -0.98; if (p.speed > CRUISE * 0.6) { p.speed = CRUISE * 0.6; p.wobble = Math.max(p.wobble, 0.6); } if (p.kerbMsgT <= 0) { showMsg('MIND THE KERB!', 'bad', 1); p.kerbMsgT = 2.5; } }
+    if (p.x > 0.98) { p.x = 0.98; if (p.speed > CRUISE * 0.6) { p.speed = CRUISE * 0.6; p.wobble = Math.max(p.wobble, 0.6); } if (p.kerbMsgT <= 0) { showMsg("WRONG SIDE! GET BACK LEFT!", 'bad', 1.2); p.kerbMsgT = 2.5; } }
+    p.kerbMsgT -= dt;
+
+    // move
+    const prevZ = p.z;
+    p.z += p.speed * dt;
+    if (state === 'finishing') p.z = Math.min(p.z, finishZ + 3 * SEG_LEN);
+    if (state === 'riding' && p.z >= finishZ) {
+      p.z = finishZ; state = 'finishing'; p.finishT = 0;
+      p.arrivalMin = clockMinutes(); p.late = p.arrivalMin >= BELL_MIN;
+      if (!p.late) sfx.cheer();
+      showMsg(p.late ? 'PHEW, YOU MADE IT SAFELY' : 'MADE IT BEFORE THE BELL!', 'good', 2.2);
+    }
+
+    // clock / bell
+    if (state === 'riding' && !p.bellRung && clockMinutes() >= BELL_MIN) {
+      p.bellRung = true; sfx.bell(); showMsg("DING DING! THAT'S THE BELL — KEEP GOING SAFELY", 'bad', 2.6);
+    }
+
+    // timers
+    p.invuln = Math.max(0, p.invuln - dt); p.shake = Math.max(0, p.shake - dt); p.flash = Math.max(0, p.flash - dt);
+    p.wobble = Math.max(0, p.wobble - dt); p.warnT = Math.max(0, p.warnT - dt); p.waveAnim = Math.max(0, p.waveAnim - dt); p.waveCooldown = Math.max(0, p.waveCooldown - dt);
+    msgTimer -= dt; if (msgTimer <= 0 && msgEl.classList.contains('show')) msgEl.className = '';
+    for (const pu of popups) pu.t -= dt;
+    popups = popups.filter((pu) => pu.t > 0);
+
+    // cars
+    const nearFinish = finishZ - p.z < 220 * SEG_LEN;
+    for (const c of cars) { // same-direction traffic queues behind slower vehicles instead of driving through them
+      if (!c.active || c.dir < 0 || c.kind === 'parked') continue;
+      let limit = c.base;
+      for (const o of cars) {
+        if (o === c || !o.active || o.dir < 0 || (o.kind === 'parked' && !o.moving)) continue;
+        const gap = (o.z - c.z) / SEG_LEN;
+        if (gap > 0 && gap < 16 && Math.abs(o.x - c.x) < 0.5) limit = Math.min(limit, o.speed * 0.97);
+      }
+      c.speed = limit;
+    }
+    for (const c of cars) {
+      if (!c.active) continue;
+      let cPrev = c.z;
+      const rel = (c.z - p.z) / SEG_LEN;
+      if (c.kind === 'parked') {
+        if (c.beh === 'door' && !c.open && rel > 0 && rel < 42) { c.open = true; c.spr = c.doorSpr; c.w = 0.58; c.x = -0.74; sfx.clunk(); }
+        if (c.beh === 'pullout' && !c.moving && rel > 0 && rel < 58) { c.moving = true; c.tx = -0.34; c.honked = true; sfx.honk(); }
+        if (c.moving) { c.speed = Math.min(CRUISE * 1.15, c.speed + 5000 * dt); c.x = lerp(c.x, c.tx, Math.min(1, dt * 1.0)); c.z += c.speed * dt; if (c.z > finishZ - 70 * SEG_LEN) c.active = false; }
+      } else {
+        c.z += c.speed * dt;
+        if (c.dir > 0) {
+          if (c.beh === 'swerve') {
+            if (rel > -75 && rel < 28) { c.tx = c.kind === 'car' ? -0.52 : -0.48; if (!c.honked && rel > -62 && rel < 0) { c.honked = true; sfx.honk(); p.warnT = 1.6; } }
+            else { c.tx = -0.3; }
+            c.x = lerp(c.x, c.tx, Math.min(1, dt * 1.6));
+          } else if (c.beh === 'drift') {
+            c.x = -0.3 + 0.19 * Math.sin(p.time * 0.9 + c.phase);
+          }
+        } else if (c.beh === 'cross') {
+          c.tx = rel > 0 && rel < 95 ? 0.1 : 0.5;
+          c.x = lerp(c.x, c.tx, Math.min(1, dt * 1.2));
+        }
+        // recycle
+        if (c.dir > 0 && c.z > p.z + (DRAW_DIST + 80) * SEG_LEN) {
+          if (nearFinish) c.active = false; else { c.z = p.z - rnd(40, 140) * SEG_LEN; c.honked = false; c.x = c.tx = -0.3; }
+        } else if (c.dir > 0 && c.z < p.z - 260 * SEG_LEN) {
+          const target = p.z + rnd(DRAW_DIST, DRAW_DIST + 100) * SEG_LEN;
+          if (target < finishZ - 120 * SEG_LEN) c.z = target; else c.active = false;
+        } else if (c.dir < 0 && c.z < p.z - 30 * SEG_LEN) {
+          const target = p.z + rnd(DRAW_DIST + 20, DRAW_DIST + 240) * SEG_LEN;
+          if (target < finishZ - 120 * SEG_LEN) { c.z = target; c.x = c.tx = 0.5; } else c.active = false;
+        }
+        if (c.dir > 0 && c.z > finishZ - 100 * SEG_LEN && !nearFinish) { c.z = p.z - rnd(40, 140) * SEG_LEN; c.honked = false; }
+        if (Math.abs(c.z - cPrev) > 40 * SEG_LEN) cPrev = c.z; // teleported: don't sweep across the gap
+      }
+      // collision (swept along z)
+      if (state === 'riding' && c.active) {
+        const lo = Math.min(cPrev, c.z) - SEG_LEN * 1.1, hi = Math.max(cPrev, c.z) + SEG_LEN * 1.1;
+        const pz = p.z + PLAYER_Z * 0; // bike sits at p.z in world terms
+        if (pz >= lo && pz <= hi && Math.abs(c.x - p.x) < (c.w + BIKE_W) / 2) crash(c);
+      }
+    }
+
+    // friends
+    for (const fr of friends) {
+      fr.z += fr.speed * dt; fr.anim += dt;
+      fr.bubble = Math.max(0, fr.bubble - dt);
+      const rel = (fr.z - p.z) / SEG_LEN;
+      if (!fr.waved && !fr.missed && rel < -3) fr.missed = true;
+    }
+
+    // puddles
+    if (state === 'riding') {
+      const segIdx = Math.floor(p.z / SEG_LEN), prevIdx = Math.floor(prevZ / SEG_LEN);
+      for (const pu of puddles) {
+        if (!pu.hit && pu.seg >= prevIdx && pu.seg <= segIdx && Math.abs(pu.x - p.x) < (pu.w + BIKE_W) / 2) {
+          pu.hit = true; p.speed *= 0.62; p.wobble = Math.max(p.wobble, 0.8); sfx.splash(); showMsg('SPLASH!', '', 0.9);
+        }
+      }
+    }
+    updateHud();
+  }
+
+  // ---------- HUD ----------
+  const clockEl = $('clock'), energyFill = $('energyFill'), energyWrap = $('energyWrap'), waveCount = $('waveCount'), bumpCount = $('bumpCount'), pbHud = $('pbHud'), progFill = $('progFill'), progBike = $('progBike');
+  let hudCache = {};
+  function setText(el, key, val) { if (hudCache[key] !== val) { hudCache[key] = val; el.textContent = val; } }
+  function updateHud() {
+    const p = player;
+    const m = state === 'finishing' || state === 'end' ? p.arrivalMin : clockMinutes();
+    setText(clockEl, 'clock', fmtClock(m));
+    clockEl.classList.toggle('late', m >= BELL_MIN);
+    energyFill.style.width = `${p.energy}%`;
+    energyWrap.classList.toggle('full', p.energy > 95);
+    setText(waveCount, 'w', String(p.waves)); setText(bumpCount, 'b', String(p.bumps));
+    const pct = clamp(p.z / finishZ * 100, 0, 100);
+    progFill.style.width = `${pct}%`; progBike.style.left = `${pct}%`;
+    // wave button lights up when a friend is in range
+    let ready = false;
+    for (const fr of friends) { if (fr.waved) continue; const rel = (fr.z - p.z) / SEG_LEN; if (rel >= -3 && rel <= 38) { ready = true; break; } }
+    waveBtn.classList.toggle('ready', ready);
+  }
+
+  // ---------- render ----------
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cw = window.innerWidth, ch = window.innerHeight;
+    let scale = dpr;
+    if (cw * ch * scale * scale > 1700000) scale = Math.sqrt(1700000 / (cw * ch));
+    canvas.width = Math.round(cw * scale); canvas.height = Math.round(ch * scale);
+    W = canvas.width; H = canvas.height; SCALE = H / 2;
+    skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.52);
+    skyGrad.addColorStop(0, '#0d0221'); skyGrad.addColorStop(0.45, '#3b1a6e'); skyGrad.addColorStop(0.8, '#b02a7a'); skyGrad.addColorStop(1, '#ff8f5c');
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function project(p, camX, camY, camZ) {
+    p.camera.x = -camX; p.camera.y = p.world.y - camY; p.camera.z = p.world.z - camZ;
+    const s = CAM_DEPTH / p.camera.z;
+    p.screen.scale = s;
+    p.screen.x = W / 2 + s * p.camera.x * SCALE;
+    p.screen.y = H / 2 - s * p.camera.y * SCALE;
+    p.screen.w = s * ROAD_W * SCALE;
+  }
+  function poly(x1, y1, x2, y2, x3, y3, x4, y4, color) {
+    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.lineTo(x3, y3); ctx.lineTo(x4, y4); ctx.closePath(); ctx.fill();
+  }
+  const COL = {
+    grassA: '#1b5e3a', grassB: '#174f31', paveA: '#7d7a8c', paveB: '#736f82', kerb: '#b8b4c9',
+    roadA: '#3d3b52', roadB: '#383649', bikeA: '#1f5a66', bikeB: '#1c525d', line: '#f0f0ff', fog: '#7a2d7a',
+  };
+  const fogAmount = (t) => 1 / Math.exp(t * t * FOG_DENSITY);
+
+  function drawSegment(seg) {
+    const p1 = { x: seg.p1.screen.x, y: seg.p1.screen.y + 1, w: seg.p1.screen.w }, p2 = seg.p2.screen;
+    const alt = Math.floor(seg.index / 3) % 2 === 0;
+    // grass band
+    ctx.fillStyle = alt ? COL.grassA : COL.grassB; ctx.fillRect(0, p2.y, W, p1.y - p2.y);
+    // pavements
+    const pc = alt ? COL.paveA : COL.paveB;
+    poly(p1.x - p1.w * (1 + PAVE_W), p1.y, p1.x - p1.w, p1.y, p2.x - p2.w, p2.y, p2.x - p2.w * (1 + PAVE_W), p2.y, pc);
+    poly(p1.x + p1.w, p1.y, p1.x + p1.w * (1 + PAVE_W), p1.y, p2.x + p2.w * (1 + PAVE_W), p2.y, p2.x + p2.w, p2.y, pc);
+    // road
+    poly(p1.x - p1.w, p1.y, p1.x + p1.w, p1.y, p2.x + p2.w, p2.y, p2.x - p2.w, p2.y, alt ? COL.roadA : COL.roadB);
+    // bike lane
+    poly(p1.x - p1.w, p1.y, p1.x - p1.w * 0.6, p1.y, p2.x - p2.w * 0.6, p2.y, p2.x - p2.w, p2.y, alt ? COL.bikeA : COL.bikeB);
+    // kerbs
+    poly(p1.x - p1.w * 1.03, p1.y, p1.x - p1.w, p1.y, p2.x - p2.w, p2.y, p2.x - p2.w * 1.03, p2.y, COL.kerb);
+    poly(p1.x + p1.w, p1.y, p1.x + p1.w * 1.03, p1.y, p2.x + p2.w * 1.03, p2.y, p2.x + p2.w, p2.y, COL.kerb);
+    // bike lane edge + centre dashes
+    poly(p1.x - p1.w * 0.61, p1.y, p1.x - p1.w * 0.59, p1.y, p2.x - p2.w * 0.59, p2.y, p2.x - p2.w * 0.61, p2.y, COL.line);
+    if (seg.index % 6 < 3) poly(p1.x - p1.w * 0.012, p1.y, p1.x + p1.w * 0.012, p1.y, p2.x + p2.w * 0.012, p2.y, p2.x - p2.w * 0.012, p2.y, COL.line);
+    if (seg.index % 40 === 0) { // bike symbol-ish marker in the lane
+      poly(p1.x - p1.w * 0.86, p1.y, p1.x - p1.w * 0.74, p1.y, p2.x - p2.w * 0.74, p2.y, p2.x - p2.w * 0.86, p2.y, 'rgba(0,240,255,0.6)');
+    }
+    if (seg.zebra) {
+      for (let k = -10; k < 10; k += 2) poly(p1.x + p1.w * k * 0.1, p1.y, p1.x + p1.w * (k + 1) * 0.1, p1.y, p2.x + p2.w * (k + 1) * 0.1, p2.y, p2.x + p2.w * k * 0.1, p2.y, '#f0f0ff');
+    }
+    // fog
+    if (seg.fog < 1) { ctx.fillStyle = COL.fog; ctx.globalAlpha = (1 - seg.fog); ctx.fillRect(0, p2.y, W, p1.y - p2.y); ctx.globalAlpha = 1; }
+  }
+
+  function drawSpriteAt(spr, sx, sy, w, offset, clipY, alpha) {
+    const destW = w * spr.wf; const destH = destW * spr.img.height / spr.img.width;
+    const destX = sx + w * offset - destW / 2; const destY = sy - destH;
+    const clipH = clipY ? Math.max(0, destY + destH - clipY) : 0;
+    if (clipH >= destH || destW < 1) return null;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(spr.img, 0, 0, spr.img.width, spr.img.height * (1 - clipH / destH), destX, destY, destW, destH - clipH);
+    ctx.globalAlpha = 1;
+    return { x: destX + destW / 2, top: destY, w: destW, h: destH };
+  }
+
+  function render(t) {
+    const p = player;
+    if (!p) return;
+    const baseIdx = Math.floor(p.z / SEG_LEN);
+    const baseSeg = segments[baseIdx];
+    const basePct = (p.z % SEG_LEN) / SEG_LEN;
+    const playerSeg = segments[Math.floor((p.z + PLAYER_Z) / SEG_LEN)];
+    const playerPct = ((p.z + PLAYER_Z) % SEG_LEN) / SEG_LEN;
+    const playerY = lerp(playerSeg.p1.world.y, playerSeg.p2.world.y, playerPct);
+    const shakeX = p.shake > 0 ? (Math.random() - 0.5) * p.shake * W * 0.03 : 0;
+    const shakeY = p.shake > 0 ? (Math.random() - 0.5) * p.shake * H * 0.03 : 0;
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+    // sky
+    ctx.fillStyle = skyGrad; ctx.fillRect(-W, -H, W * 3, H * 0.52 + H);
+    ctx.fillStyle = '#ff8f5c'; ctx.fillRect(-W, H * 0.52, W * 3, H);
+    // sun
+    ctx.fillStyle = '#ffe600'; ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 40 * (H / 800);
+    ctx.beginPath(); ctx.arc(W * 0.68 - p.x * W * 0.05, H * 0.43, H * 0.06, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    // far skyline
+    ctx.fillStyle = '#2a0f52';
+    const skyline = [[0, 0.1], [0.05, 0.16], [0.09, 0.08], [0.13, 0.2], [0.2, 0.12], [0.24, 0.26], [0.3, 0.1], [0.34, 0.18], [0.4, 0.07], [0.45, 0.22], [0.52, 0.14], [0.56, 0.3], [0.6, 0.12], [0.67, 0.18], [0.72, 0.09], [0.78, 0.24], [0.84, 0.15], [0.9, 0.2], [0.95, 0.1], [1, 0.14]];
+    const skOff = -p.x * W * 0.08 - (baseSeg.curve * 6) * (W / 800);
+    ctx.beginPath(); ctx.moveTo(-W, H * 0.52);
+    for (let rep = -1; rep <= 1; rep++) for (const [x, hh] of skyline) { ctx.lineTo(x * W + rep * W + skOff, H * 0.52 - hh * H * 0.14); ctx.lineTo((x + 0.04) * W + rep * W + skOff, H * 0.52 - hh * H * 0.14); }
+    ctx.lineTo(W * 2, H * 0.52); ctx.lineTo(W * 2, H * 0.7); ctx.lineTo(-W, H * 0.7); ctx.closePath(); ctx.fill();
+
+    // road
+    let maxy = H, x = 0, dx = -(baseSeg.curve * basePct);
+    const camY = CAM_H + playerY;
+    const camXBase = p.x * ROAD_W;
+    for (let n = 0; n < DRAW_DIST; n++) {
+      const seg = segments[baseIdx + n]; if (!seg) break;
+      seg.fog = fogAmount(n / DRAW_DIST); seg.clip = maxy; seg.ents.length = 0;
+      project(seg.p1, camXBase - x, camY, p.z);
+      project(seg.p2, camXBase - x - dx, camY, p.z);
+      x += dx; dx += seg.curve;
+      seg.visible = !(seg.p1.camera.z <= CAM_DEPTH || seg.p2.screen.y >= seg.p1.screen.y || seg.p2.screen.y >= maxy);
+      if (!seg.visible) continue;
+      drawSegment(seg);
+      maxy = seg.p2.screen.y;
+    }
+    // bucket entities into segments
+    const maxIdx = baseIdx + DRAW_DIST;
+    for (const c of cars) { if (!c.active) continue; const i = Math.floor(c.z / SEG_LEN); if (i >= baseIdx && i < maxIdx) segments[i].ents.push({ kind: 'car', o: c }); }
+    for (const fr of friends) { const i = Math.floor(fr.z / SEG_LEN); if (i >= baseIdx && i < maxIdx) segments[i].ents.push({ kind: 'friend', o: fr }); }
+    const labels = [];
+    // sprites back to front
+    for (let n = DRAW_DIST - 1; n >= 0; n--) {
+      const seg = segments[baseIdx + n]; if (!seg) continue;
+      if (seg.p1.camera.z <= CAM_DEPTH) continue;
+      const alpha = Math.min(1, seg.fog * 1.4);
+      for (const s of seg.sprites) drawSpriteAt(s.spr, seg.p1.screen.x, seg.p1.screen.y, seg.p1.screen.w, s.offset, seg.clip, alpha);
+      if (seg.index === finishIndex - 30) { // lollipop person next to the sign
+        const spr = S.lollipopLady[Math.floor(t / 400) % 2];
+        drawSpriteAt(spr, seg.p1.screen.x, seg.p1.screen.y, seg.p1.screen.w, -1.45, seg.clip, alpha);
+      }
+      if (seg.index === finishIndex - 2) { // teacher at the gate
+        const spr = S.teacher[Math.floor(t / 450) % 2];
+        drawSpriteAt(spr, seg.p1.screen.x, seg.p1.screen.y, seg.p1.screen.w, -1.3, seg.clip, alpha);
+      }
+      for (const pu of puddles) {
+        if (pu.seg !== seg.index) continue;
+        const sx = lerp(seg.p1.screen.x, seg.p2.screen.x, 0.5), sw = lerp(seg.p1.screen.w, seg.p2.screen.w, 0.5);
+        const ry = Math.max(1.5, (seg.p1.screen.y - seg.p2.screen.y) * 0.8);
+        ctx.fillStyle = 'rgba(0,240,255,0.35)'; ctx.globalAlpha = alpha;
+        ctx.beginPath(); ctx.ellipse(sx + sw * pu.x, (seg.p1.screen.y + seg.p2.screen.y) / 2, sw * pu.w / 2, ry, 0, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+      }
+      for (const e of seg.ents) {
+        const pct = ((e.o.z % SEG_LEN) + SEG_LEN) % SEG_LEN / SEG_LEN;
+        const sx = lerp(seg.p1.screen.x, seg.p2.screen.x, pct), sy = lerp(seg.p1.screen.y, seg.p2.screen.y, pct), sw = lerp(seg.p1.screen.w, seg.p2.screen.w, pct);
+        if (e.kind === 'car') {
+          drawSpriteAt(e.o.spr, sx, sy, sw, e.o.x, seg.clip, alpha);
+        } else {
+          const fr = e.o;
+          const spr = fr.bubble > 1.4 ? fr.sprites.wave : (Math.floor(fr.anim * (fr.type === 'run' ? 8 : 4)) % 2 ? fr.sprites.b : fr.sprites.a);
+          const r = drawSpriteAt(spr, sx, sy, sw, fr.x, seg.clip, alpha);
+          if (r) {
+            const rel = (fr.z - p.z) / SEG_LEN;
+            if (fr.bubble > 0) labels.push({ kind: 'bubble', x: r.x, y: r.top, text: `Hi!`, a: Math.min(1, fr.bubble) });
+            else if (!fr.waved && rel >= -3 && rel <= 38) labels.push({ kind: 'prompt', x: r.x, y: r.top, text: '👋' });
+            else if (!fr.waved && rel > 38 && rel < 64) labels.push({ kind: 'name', x: r.x, y: r.top, text: fr.name, a: alpha });
+          }
+        }
+      }
+    }
+    // labels above friends
+    const fs = Math.max(11, Math.round(H / 46));
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    for (const l of labels) {
+      if (l.kind === 'prompt') {
+        const bob = Math.sin(t / 120) * fs * 0.3;
+        ctx.font = `${fs * 1.8}px sans-serif`; ctx.fillText(l.text, l.x, l.y - fs * 0.4 + bob);
+        ctx.font = `${fs * 0.6}px 'Press Start 2P', monospace`; ctx.fillStyle = '#00f0ff'; ctx.fillText('WAVE!', l.x, l.y - fs * 2.3 + bob);
+      } else if (l.kind === 'bubble') {
+        ctx.globalAlpha = l.a; ctx.font = `${fs * 0.75}px 'Press Start 2P', monospace`;
+        const tw = ctx.measureText(l.text).width + fs; const bx = l.x - tw / 2, by = l.y - fs * 2.2;
+        ctx.fillStyle = '#fff'; rrect(ctx, bx, by, tw, fs * 1.5, fs * 0.4); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(l.x - fs * 0.3, by + fs * 1.5); ctx.lineTo(l.x, by + fs * 1.9); ctx.lineTo(l.x + fs * 0.3, by + fs * 1.5); ctx.fill();
+        ctx.fillStyle = '#ff2e88'; ctx.fillText(l.text, l.x, by + fs * 1.25); ctx.globalAlpha = 1;
+      } else {
+        ctx.globalAlpha = l.a * 0.8; ctx.font = `${fs * 0.55}px 'Press Start 2P', monospace`; ctx.fillStyle = '#ffe600';
+        ctx.fillText(l.text, l.x, l.y - fs * 0.3); ctx.globalAlpha = 1;
+      }
+    }
+    // popups (centre screen)
+    ctx.font = `${fs * 0.9}px 'Press Start 2P', monospace`; ctx.textAlign = 'center';
+    popups.forEach((pu, i) => {
+      ctx.globalAlpha = Math.min(1, pu.t); ctx.fillStyle = '#00f0ff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+      ctx.fillText(pu.text, W / 2, H * 0.52 - (1.4 - pu.t) * H * 0.12 - i * fs * 1.4); ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+    });
+
+    drawCockpit(t);
+    ctx.restore();
+
+    // boost glow + crash flash (not shaken)
+    if (p.energy > 0 && state === 'riding') {
+      const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.9);
+      g.addColorStop(0, 'rgba(0,240,255,0)'); g.addColorStop(1, `rgba(0,240,255,${0.25 + 0.1 * Math.sin(t / 90)})`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      // speed streaks
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + t / 300; const r1 = H * 0.45, r2 = H * (0.6 + 0.2 * ((t / 70 + i * 13) % 10) / 10);
+        ctx.beginPath(); ctx.moveTo(W / 2 + Math.cos(a) * r1, H / 2 + Math.sin(a) * r1); ctx.lineTo(W / 2 + Math.cos(a) * r2, H / 2 + Math.sin(a) * r2); ctx.stroke();
+      }
+    }
+    if (p.flash > 0) { ctx.fillStyle = `rgba(255,46,136,${p.flash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+  }
+
+  // First-person bike: handlebars, hands, bell, mirror, front wheel.
+  function drawCockpit(t) {
+    const p = player;
+    const u = Math.min(H / 800, W / 620); // unit scale, fits portrait phones too
+    const wob = p.wobble > 0 ? Math.sin(t / 40) * p.wobble * 0.05 : 0;
+    const lean = p.steer * 0.08 + wob;
+    const bob = Math.sin(t / 110) * u * 2 * (p.speed / CRUISE);
+    ctx.save();
+    ctx.translate(W / 2 + p.steer * 20 * u, H + bob);
+    ctx.rotate(lean);
+    // front wheel + mudguard
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(0, 60 * u, 46 * u, 120 * u, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = '#ff2e88'; ctx.beginPath(); ctx.ellipse(0, 40 * u, 54 * u, 70 * u, 0, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = '#0d0221'; ctx.beginPath(); ctx.ellipse(0, 50 * u, 42 * u, 60 * u, 0, Math.PI, 0); ctx.fill();
+    // fork/stem
+    ctx.fillStyle = '#ff2e88'; ctx.fillRect(-14 * u, -120 * u, 28 * u, 140 * u);
+    ctx.fillStyle = '#b0206a'; ctx.fillRect(-6 * u, -120 * u, 12 * u, 140 * u);
+    // handlebar
+    ctx.strokeStyle = '#3a3a4a'; ctx.lineWidth = 22 * u; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-250 * u, -95 * u); ctx.quadraticCurveTo(-120 * u, -140 * u, 0, -130 * u); ctx.quadraticCurveTo(120 * u, -140 * u, 250 * u, -95 * u); ctx.stroke();
+    // grips
+    ctx.strokeStyle = '#00f0ff'; ctx.lineWidth = 28 * u;
+    ctx.beginPath(); ctx.moveTo(-250 * u, -95 * u); ctx.lineTo(-185 * u, -118 * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(250 * u, -95 * u); ctx.lineTo(185 * u, -118 * u); ctx.stroke();
+    // brake levers
+    ctx.strokeStyle = '#9b93b8'; ctx.lineWidth = 7 * u;
+    const bl = (braking || brakeKey) ? 14 * u : 0;
+    ctx.beginPath(); ctx.moveTo(-170 * u, -112 * u); ctx.lineTo(-215 * u, -70 * u + bl); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(170 * u, -112 * u); ctx.lineTo(215 * u, -70 * u + bl); ctx.stroke();
+    // bell
+    ctx.fillStyle = '#ffe600'; ctx.shadowColor = '#ffe600'; ctx.shadowBlur = 10 * u;
+    ctx.beginPath(); ctx.arc(-110 * u, -150 * u, 16 * u, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+    // "FLO" sticker on stem
+    ctx.fillStyle = '#ffe600'; ctx.font = `${Math.round(9 * u)}px 'Press Start 2P', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.save(); ctx.translate(0, -60 * u); ctx.rotate(-Math.PI / 2); ctx.fillText('FLO', 0, 0); ctx.restore();
+    // right hand (always on)
+    const skin = '#e0ac69';
+    const hand = (hx, hy) => {
+      ctx.fillStyle = skin; rrect(ctx, hx - 30 * u, hy - 26 * u, 60 * u, 52 * u, 18 * u); ctx.fill();
+      ctx.fillStyle = '#c98f52'; for (let i = 0; i < 4; i++) ctx.fillRect(hx - 26 * u + i * 14 * u, hy - 22 * u, 10 * u, 20 * u);
+      ctx.fillStyle = '#ff2e88'; rrect(ctx, hx - 32 * u, hy + 10 * u, 64 * u, 26 * u, 8 * u); ctx.fill(); // glove cuff
+    };
+    hand(215 * u, -106 * u);
+    // left hand: on the grip, or waving
+    if (p.waveAnim > 0) {
+      const k = p.waveAnim / 0.8; // 1 -> 0
+      const up = Math.sin(Math.min(1, (1 - k) * 3) * Math.PI / 2);
+      const hx = -215 * u - up * 60 * u, hy = -106 * u - up * 260 * u;
+      ctx.save(); ctx.translate(hx, hy); ctx.rotate(Math.sin(t / 60) * 0.5 * up);
+      ctx.fillStyle = skin; rrect(ctx, -38 * u, -60 * u, 76 * u, 90 * u, 24 * u); ctx.fill();
+      ctx.fillStyle = skin; for (let i = 0; i < 4; i++) { rrect(ctx, -34 * u + i * 18 * u, -100 * u + Math.abs(i - 1.5) * 8 * u, 14 * u, 50 * u, 7 * u); ctx.fill(); }
+      rrect(ctx, 30 * u, -40 * u, 16 * u, 40 * u, 8 * u); ctx.fill();
+      ctx.fillStyle = '#ff2e88'; rrect(ctx, -40 * u, 20 * u, 80 * u, 30 * u, 8 * u); ctx.fill();
+      ctx.restore();
+    } else {
+      hand(-215 * u, -106 * u);
+    }
+    // mirror showing traffic behind
+    ctx.fillStyle = '#3a3a4a'; ctx.beginPath(); ctx.arc(255 * u, -175 * u, 34 * u, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9fd8ff'; ctx.beginPath(); ctx.arc(255 * u, -175 * u, 28 * u, 0, 7); ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.arc(255 * u, -175 * u, 28 * u, 0, 7); ctx.clip();
+    ctx.fillStyle = '#3d3b52'; ctx.fillRect(220 * u, -175 * u, 70 * u, 40 * u);
+    let nearest = null;
+    for (const c of cars) { if (!c.active || c.dir < 0 || c.kind === 'parked') continue; const rel = (p.z - c.z) / SEG_LEN; if (rel > 0 && rel < 90 && (!nearest || rel < nearest.rel)) nearest = { rel, c }; }
+    if (nearest) {
+      const s = clamp(1 - nearest.rel / 90, 0.1, 1);
+      const cw = 36 * u * s, chh = 30 * u * s; const cx = 255 * u + (nearest.c.x + 0.3) * 60 * u * s;
+      ctx.drawImage(nearest.c.spr.img, cx - cw / 2, -170 * u - chh, cw, chh);
+    }
+    ctx.restore();
+    ctx.fillStyle = '#3a3a4a'; ctx.fillRect(220 * u, -150 * u, 10 * u, 40 * u);
+    if (p.warnT > 0 && Math.floor(t / 150) % 2 === 0) {
+      ctx.fillStyle = '#ffe600'; ctx.font = `${Math.round(11 * u)}px 'Press Start 2P', monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('CAR BEHIND!', 255 * u, -215 * u); ctx.fillText('KEEP LEFT', 255 * u, -200 * u);
+    }
+    ctx.restore();
+  }
+
+  // ---------- flow ----------
+  const titleEl = $('title'), endEl = $('end'), controlsEl = $('controls');
+  function renderBoard(el, highlightIdx) {
+    const scores = loadScores();
+    let html = '<h3>SCOREBOARD — TOP 5</h3>';
+    if (!scores.length) html += '<p class="empty">No rides yet. Your best five safe rides will show here.</p>';
+    else html += '<ol>' + scores.map((s, i) => `<li${i === highlightIdx ? ' class="new"' : ''}><span>${s.waves} wave${s.waves === 1 ? '' : 's'} · ${s.bumps} bump${s.bumps === 1 ? '' : 's'} · arrived ${s.arrival}${s.late ? ' (late)' : ''}<br><span class="d">${s.date}</span></span><span class="sc">${s.score.toLocaleString()}</span></li>`).join('') + '</ol>';
+    el.innerHTML = html;
+  }
+  function showTitle() {
+    state = 'title';
+    const pb = pbScore();
+    $('titlePb').innerHTML = pb ? `PERSONAL BEST<b>${pb.toLocaleString()}</b>beat it — safely!` : 'PERSONAL BEST<b>—</b>no rides yet';
+    renderBoard($('titleBoard'), -1);
+    titleEl.classList.remove('hidden'); endEl.classList.add('hidden'); controlsEl.classList.add('hidden');
+    pbHud.textContent = pb.toLocaleString();
+  }
+  function startRide() {
+    if (!S) return;
+    buildTrack(); resetPlayer();
+    hudCache = {};
+    state = 'riding';
+    titleEl.classList.add('hidden'); endEl.classList.add('hidden');
+    controlsEl.classList.remove('hidden');
+    pbHud.textContent = pbScore().toLocaleString();
+    showMsg('PEDAL! WAVE AT FRIENDS FOR ENERGY', 'good', 2.4);
+    try { ac(); } catch (e) {}
+  }
+  function endRide() {
+    state = 'end';
+    const p = player;
+    const waveScore = p.waves * 100;
+    const safeBonus = p.bumps === 0 ? 300 : p.bumps === 1 ? 150 : 0;
+    const onTime = !p.late ? 500 : 0;
+    const total = waveScore + safeBonus + onTime;
+    const prevPb = pbScore();
+    const entry = { score: total, waves: p.waves, bumps: p.bumps, arrival: fmtClock(p.arrivalMin), late: p.late, date: new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) };
+    const scores = loadScores(); scores.push(entry); scores.sort((a, b) => b.score - a.score);
+    const idx = scores.indexOf(entry); const top = scores.slice(0, 5); saveScores(top);
+    const isPb = total > prevPb;
+
+    $('endTitle').textContent = p.late ? 'A BIT LATE…' : 'MADE IT!';
+    const staff = pick([['Mrs Patel', 'head teacher'], ['Mr Okafor', 'your teacher'], ['Ms Flores', 'on gate duty'], ['Mr Byrne', 'the caretaker'], ['Mrs Chen', 'the receptionist']]);
+    const bubble = $('endBubble');
+    if (p.late) {
+      bubble.innerHTML = `${pick(['Morning!', 'Hello there!', 'Ah, there you are!'])} The bell went at 08:50 and you got here at <b>${fmtClock(p.arrivalMin)}</b> — but that's <b>completely OK</b>. ${p.bumps ? 'I heard you had a bump or two, so take a breath. ' : ''}As long as you were <b>safe</b> on the way, that's what matters. In you go!<span class="who">— ${staff[0]}, ${staff[1]}</span>`;
+    } else {
+      bubble.innerHTML = `${pick(['Morning!', 'Nice one!', 'Hello!'])} You arrived at <b>${fmtClock(p.arrivalMin)}</b>, before the bell${p.bumps === 0 ? ' and with <b>no bumps at all</b>' : ''}. ${p.waves >= 5 ? `And ${p.waves} friends waved at — what a cheerful ride!` : 'Lock up your bike and head on in.'}<span class="who">— ${staff[0]}, ${staff[1]}</span>`;
+    }
+    const gc = $('greeterCanvas'); const gg = gc.getContext('2d'); gg.clearRect(0, 0, gc.width, gc.height);
+    drawPerson(gg, gc.width, gc.height, { type: 'teacher', skin: pick(SKINS), top: pick(['#2b3a67', '#6b3fa0', '#1f7a3f']), hair: pick(HAIRS), hairLong: Math.random() < 0.5, frame: 0, wave: true });
+    $('scoreTable').innerHTML = `
+      <span class="lab">Friends waved at (${p.waves} × 100)</span><span class="val">${waveScore}</span>
+      <span class="lab">Safe riding bonus (${p.bumps} bump${p.bumps === 1 ? '' : 's'})</span><span class="val">${safeBonus}</span>
+      <span class="lab">Before the bell</span><span class="val">${onTime}</span>
+      <span class="lab total">TOTAL</span><span class="val total">${total.toLocaleString()}</span>`;
+    $('newPb').classList.toggle('hidden', !isPb);
+    if (isPb) setTimeout(() => sfx.cheer(), 300);
+    renderBoard($('endBoard'), idx < 5 ? idx : -1);
+    pbHud.textContent = pbScore().toLocaleString();
+    endEl.classList.remove('hidden'); controlsEl.classList.add('hidden');
+    endEl.scrollTop = 0;
+  }
+  $('startBtn').addEventListener('click', startRide);
+  $('againBtn').addEventListener('click', startRide);
+
+  // ---------- main loop ----------
+  let paused = false;
+  document.addEventListener('visibilitychange', () => { paused = document.hidden; lastTs = 0; });
+  function frame(ts) {
+    requestAnimationFrame(frame);
+    if (!S) return;
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(0.05, (ts - lastTs) / 1000); lastTs = ts;
+    if (paused) return;
+    if (state === 'title' || state === 'end') {
+      if (!player) { buildTrack(); resetPlayer(); }
+      // gentle attract-mode roll on the title
+      if (state === 'title') { player.z = Math.min(finishZ - 400 * SEG_LEN, player.z + CRUISE * 0.35 * dt); for (const fr of friends) fr.anim += dt; }
+      render(ts);
+      return;
+    }
+    update(dt);
+    render(ts);
+  }
+
+  const fontsReady = document.fonts && document.fonts.load ? Promise.all([document.fonts.load("16px 'Press Start 2P'"), document.fonts.load('16px Inter')]).catch(() => {}) : Promise.resolve();
+  fontsReady.then(() => { buildSprites(); showTitle(); });
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
