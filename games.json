@@ -316,5 +316,11 @@
     "title": "SchoolRun",
     "icon": "🚲",
     "description": "First-person bike ride to school! Dodge swerving drivers, opening car doors and drivers on their phones, and wave at friends walking, scooting, running and skating in for an energy boost. Make the 08:50 bell if you can — but if you're late, the teachers only care that you got there safely."
+  },
+  {
+    "slug": "artists",
+    "title": "Artists",
+    "icon": "🎨",
+    "description": "A proper art studio. Tap the paper to start, then pick from eleven art supplies — pencil, pen, marker, pen brush, pastel, paint, water colour, air brush, ink, rubber and ruler. Double-tap one for thin, medium or thick, pick any colour in the world, add photos and layers, and pinch to zoom in for tiny details. Every picture is saved in your gallery."
   }
 ]
